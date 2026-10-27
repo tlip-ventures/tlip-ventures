@@ -1,0 +1,6 @@
+slug,name,brand,description,price,compare_at_price,categories,active,featured,option1_name,option2_name,option1_value,option2_value,variant_price,sku,in_stock,stock_qty,images
+washroom-mat,Washroom Mat,,"Three-piece bathroom mat set: a large mat, a U-shaped mat that fits around the toilet, and a toilet lid cover. Soft ribbed plush. Available in pink, brown, green, grey and beige.",150,,bathroom-accessories,yes,no,Colour,,Pink,,,,yes,,photos/washroom-mat-pink.jpg|photos/washroom-mat-brown.jpg|photos/washroom-mat-green.jpg|photos/washroom-mat-grey.jpg|photos/washroom-mat-beige.jpg
+washroom-mat,,,,,,,,,,,Brown,,,,yes,,
+washroom-mat,,,,,,,,,,,Green,,,,yes,,
+washroom-mat,,,,,,,,,,,Grey,,,,yes,,
+washroom-mat,,,,,,,,,,,Beige,,,,yes,,
