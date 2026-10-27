@@ -81,6 +81,40 @@
 }
 
 
+/* Pop-up category menu (components/shop/category-menu.tsx): slides in from the
+   left over a fading backdrop, and the page behind it doesn't scroll. */
+html:has(dialog.category-menu[open]) {
+  overflow: hidden;
+}
+
+@keyframes menu-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.category-menu[open] {
+    animation: menu-in 220ms ease-out;
+  }
+
+  dialog.category-menu[open]::backdrop {
+    animation: backdrop-in 220ms ease-out;
+  }
+}
+
 /* "Added to your cart" popup sliding up (components/shop/add-to-cart.tsx). */
 @keyframes toast-in {
   from {

@@ -31,6 +31,8 @@ export function NavigationProgress() {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const link = (event.target as Element | null)?.closest?.("a");
       if (!link || (link.target && link.target !== "_self") || link.hasAttribute("download")) return;
+      // Links that open something on the page instead of navigating (the category menu).
+      if (link.hasAttribute("data-no-progress")) return;
       const to = new URL(link.href, window.location.href);
       if (to.origin !== window.location.origin) return;
       if (`${to.pathname}${to.search}` === currentUrl()) return; // same page or #hash

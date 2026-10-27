@@ -100,7 +100,8 @@ export function AddToCart({ product, optionHeading, variants }: Props) {
       {/* Always in the page so screen readers announce what appears in it. */}
       <div
         role="status"
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        // On phones it sits just above the bottom bar (64px plus the safe area).
+        className="pointer-events-none fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-50 px-4 pb-3 md:bottom-0 md:pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
         {added && (
           <div

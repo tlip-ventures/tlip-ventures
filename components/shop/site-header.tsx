@@ -6,7 +6,8 @@ import { buildCategoryTree } from "@/lib/categories";
 import { getCategories, getSettings } from "@/lib/server/catalogue";
 import { whatsappUrl } from "@/lib/whatsapp";
 import { CartLink } from "./cart-link";
-import { MenuDisclosure } from "./menu-disclosure";
+import { CategoryMenu } from "./category-menu";
+import { MenuTrigger } from "./menu-trigger";
 import { SearchForm } from "./search-form";
 
 export async function SiteHeader() {
@@ -45,54 +46,10 @@ export async function SiteHeader() {
 
       <header className="bg-brand-green text-white lg:sticky lg:top-0 lg:z-30">
         <div className="relative mx-auto flex max-w-7xl flex-wrap items-center gap-x-1 gap-y-1.5 px-1 pb-3 pt-1.5 md:gap-x-3 md:px-6 lg:h-[76px] lg:flex-nowrap lg:gap-x-6 lg:px-8 lg:py-0">
-          <MenuDisclosure
-            summary={
-              <summary className="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center gap-2 rounded-lg text-sm font-semibold hover:bg-white/10 md:border md:border-white/40 md:pl-2.5 md:pr-3.5 [&::-webkit-details-marker]:hidden">
-                <MenuIcon className="h-6 w-6 md:h-[22px] md:w-[22px]" />
-                <span className="sr-only md:not-sr-only">Menu</span>
-              </summary>
-            }
-          >
-            <nav
-              aria-label="Categories"
-              className="absolute inset-x-0 top-full z-40 max-h-[75vh] overflow-y-auto border-t border-white/20 bg-brand-green px-4 pb-6 pt-2 shadow-lg"
-            >
-              <ul className="mx-auto grid max-w-7xl gap-x-6 sm:grid-cols-2 lg:grid-cols-4">
-                {tree.map((parent) => (
-                  <li key={parent.id} className="border-b border-white/15 py-2 last:border-0 sm:border-0">
-                    <Link
-                      href={`/categories/${parent.slug}`}
-                      className="flex min-h-11 items-center text-lg font-bold text-white no-underline hover:text-white hover:underline"
-                    >
-                      {parent.name}
-                    </Link>
-                    {parent.children.length > 0 && (
-                      <ul>
-                        {parent.children.map((child) => (
-                          <li key={child.id}>
-                            <Link
-                              href={`/categories/${child.slug}`}
-                              className="flex min-h-11 items-center pl-3 text-white/95 no-underline hover:text-white hover:underline"
-                            >
-                              {child.name}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-                <li className="py-2 sm:col-span-2 lg:col-span-4">
-                  <Link
-                    href="/products"
-                    className="flex min-h-11 items-center font-semibold text-white underline underline-offset-4 hover:text-white"
-                  >
-                    Browse all products
-                  </Link>
-                </li>
-              </ul>
-            </nav>
-          </MenuDisclosure>
+          <MenuTrigger className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white no-underline hover:bg-white/10 hover:text-white md:border md:border-white/40 md:pl-2.5 md:pr-3.5">
+            <MenuIcon className="h-6 w-6 md:h-[22px] md:w-[22px]" />
+            <span className="sr-only md:not-sr-only">Menu</span>
+          </MenuTrigger>
 
           <Link
             href="/"
@@ -130,6 +87,7 @@ export async function SiteHeader() {
         </div>
         <BrandBand />
       </header>
+      <CategoryMenu categories={tree} storeName={settings.store_name} chatUrl={chatUrl} />
     </>
   );
 }

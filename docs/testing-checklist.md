@@ -13,7 +13,8 @@ Tick each box, and note the phone and what went wrong for anything that fails.
 ## 1. Browsing (each phone)
 
 - [ ] Home page loads quickly on mobile data; the gold bar shows at the top while pages load.
-- [ ] Menu opens, shows all categories, and closes after choosing one.
+- [ ] Menu (header) and Categories (bottom bar on phones) open the category menu from the left; each category opens to show its sub-categories; the menu closes on the X, on tapping the dimmed page, on Esc and after choosing a category.
+- [ ] On phones the bottom bar (Home, Categories, Cart, WhatsApp) never covers the footer or the "Added to your cart" popup.
 - [ ] A category shows its products and subcategories; Next/Previous pages work; sort links work.
 - [ ] Search finds a product from part of its name (e.g. “blend” finds the blender).
 - [ ] A product page shows photos, price, “was” price and Sale badge where set, and options.

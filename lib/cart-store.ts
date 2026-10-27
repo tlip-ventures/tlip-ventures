@@ -6,6 +6,7 @@ import { createJSONStorage, persist, type StateStorage } from "zustand/middlewar
 import type { PlacedOrder } from "@/app/(shop)/cart/actions";
 import {
   addLine,
+  cartCount,
   markProblems,
   refreshLines,
   removeLine,
@@ -96,4 +97,11 @@ const subscribeHydration = (onChange: () => void) => useCart.persist.onFinishHyd
  */
 export function useCartHydrated(): boolean {
   return useSyncExternalStore(subscribeHydration, () => useCart.persist.hasHydrated(), () => false);
+}
+
+/** Number of items for cart badges: 0 until the saved cart has loaded, so the HTML matches. */
+export function useCartBadgeCount(): number {
+  const hydrated = useCartHydrated();
+  const count = useCart((s) => cartCount(s.lines));
+  return hydrated ? count : 0;
 }

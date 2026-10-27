@@ -20,7 +20,8 @@ export async function SiteFooter() {
   return (
     <footer className="mt-auto bg-brand-green-dark text-white">
       <BrandBand />
-      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 pb-6 pt-8 md:gap-10 md:px-8 md:pb-7 md:pt-14">
+      {/* On phones the bottom padding also clears the fixed bottom bar (components/shop/bottom-bar.tsx). */}
+      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-8 md:gap-10 md:px-8 md:pb-7 md:pt-14">
         <div className="grid grid-cols-2 gap-x-4 gap-y-8 md:grid-cols-[minmax(0,1.3fr)_repeat(3,minmax(0,1fr))] md:gap-10">
           <div className="col-span-2 space-y-3 md:col-span-1">
             <p className="font-display text-[32px] leading-none md:text-[34px]">

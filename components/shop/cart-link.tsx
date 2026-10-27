@@ -2,17 +2,14 @@
 
 import Link from "next/link";
 import { BagIcon } from "@/components/ui/icons";
-import { cartCount } from "@/lib/cart";
-import { useCart, useCartHydrated } from "@/lib/cart-store";
+import { useCartBadgeCount } from "@/lib/cart-store";
 
 /**
  * Header cart button with the number of items: an icon with a badge on phones,
  * a labelled button from 768px. The count appears once the saved cart has loaded.
  */
 export function CartLink() {
-  const hydrated = useCartHydrated();
-  const count = useCart((s) => cartCount(s.lines));
-  const shown = hydrated ? count : 0;
+  const shown = useCartBadgeCount();
   const badge = shown > 99 ? "99+" : String(shown);
 
   return (

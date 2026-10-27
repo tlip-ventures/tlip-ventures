@@ -101,6 +101,8 @@ export type ListProductsOptions = {
   /** A tsquery from toPrefixTsQuery(). */
   search?: string;
   featured?: boolean;
+  /** Only products with a "was" price (compare_at_price, always above the price). */
+  deals?: boolean;
   excludeId?: string;
   sort?: Sort;
   page?: number;
@@ -114,7 +116,7 @@ export type ProductPage = { products: ProductCardData[]; total: number };
  * is past the end, so the caller can show a 404.
  */
 export async function listProducts(options: ListProductsOptions = {}): Promise<ProductPage | null> {
-  const { categoryIds, search, featured, excludeId, sort = "newest", page = 1, pageSize = PAGE_SIZE } = options;
+  const { categoryIds, search, featured, deals, excludeId, sort = "newest", page = 1, pageSize = PAGE_SIZE } = options;
   const supabase = await createClient();
 
   let query = categoryIds
@@ -127,6 +129,7 @@ export async function listProducts(options: ListProductsOptions = {}): Promise<P
   query = query.eq("is_active", true);
   if (search) query = query.textSearch("search_vector", search, { config: "english" });
   if (featured) query = query.eq("is_featured", true);
+  if (deals) query = query.not("compare_at_price", "is", null);
   if (excludeId) query = query.neq("id", excludeId);
 
   if (sort === "price-asc") query = query.order("price", { ascending: true });
