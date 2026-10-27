@@ -24,8 +24,6 @@ export type ProductCardData = {
   brand: string | null;
   image: ProductImage | null;
   pricing: PriceSummary;
-  /** ISO date the product was added, for the "New" badge. */
-  createdAt: string;
   /** What the card's add button does: add the only variant, or send the customer to pick one. */
   addAction: CardAddAction;
 };
@@ -73,7 +71,7 @@ export const getCategoryBySlug = cache(async (slug: string): Promise<Category | 
 
 // One cover image per card: the embedded images are ordered and limited below.
 const CARD_SELECT =
-  "id, slug, name, brand, price, compare_at_price, created_at, product_images(url, alt, sort_order), product_variants(id, option1_value, option2_value, in_stock, price_override)";
+  "id, slug, name, brand, price, compare_at_price, product_images(url, alt, sort_order), product_variants(id, option1_value, option2_value, in_stock, price_override)";
 const CARD_IN_CATEGORY_SELECT = `${CARD_SELECT}, product_categories!inner(category_id)` as const;
 
 type CardRow = {
@@ -83,7 +81,6 @@ type CardRow = {
   brand: string | null;
   price: number;
   compare_at_price: number | null;
-  created_at: string;
   product_images: { url: string; alt: string }[];
   product_variants: {
     id: string;
@@ -103,10 +100,29 @@ function toCard(row: CardRow): ProductCardData {
     brand: row.brand,
     image: image ? { url: image.url, alt: image.alt || row.name } : null,
     pricing: priceSummary(row, row.product_variants),
-    createdAt: row.created_at,
     addAction: cardAddAction(row, row.product_variants),
   };
 }
+
+/** How many of the most recently added products get a "New" badge. */
+export const NEW_BADGE_COUNT = 12;
+
+/**
+ * Ids of the NEW_BADGE_COUNT most recently added active products, in the same
+ * order as the "newest" listing. Cached per request, so every grid on a page shares one query.
+ */
+export const getNewestProductIds = cache(async (): Promise<Set<string>> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("id")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .order("id")
+    .limit(NEW_BADGE_COUNT);
+  if (error) throw new Error(`Could not load the newest products: ${error.message}`);
+  return new Set(data.map((row) => row.id));
+});
 
 export type ListProductsOptions = {
   /** Only products linked to one of these categories. */
@@ -116,6 +132,12 @@ export type ListProductsOptions = {
   featured?: boolean;
   /** Only products with a "was" price (compare_at_price, always above the price). */
   deals?: boolean;
+  /**
+   * Price filter in pesewas on the product's price, from minPrice (inclusive) to
+   * maxPrice (exclusive). Variant price overrides are not considered.
+   */
+  minPrice?: number | null;
+  maxPrice?: number | null;
   excludeId?: string;
   sort?: Sort;
   page?: number;
@@ -129,7 +151,7 @@ export type ProductPage = { products: ProductCardData[]; total: number };
  * is past the end, so the caller can show a 404.
  */
 export async function listProducts(options: ListProductsOptions = {}): Promise<ProductPage | null> {
-  const { categoryIds, search, featured, deals, excludeId, sort = "newest", page = 1, pageSize = PAGE_SIZE } = options;
+  const { categoryIds, search, featured, deals, minPrice, maxPrice, excludeId, sort = "newest", page = 1, pageSize = PAGE_SIZE } = options;
   const supabase = await createClient();
 
   let query = categoryIds
@@ -143,6 +165,8 @@ export async function listProducts(options: ListProductsOptions = {}): Promise<P
   if (search) query = query.textSearch("search_vector", search, { config: "english" });
   if (featured) query = query.eq("is_featured", true);
   if (deals) query = query.not("compare_at_price", "is", null);
+  if (minPrice != null) query = query.gte("price", minPrice);
+  if (maxPrice != null) query = query.lt("price", maxPrice);
   if (excludeId) query = query.neq("id", excludeId);
 
   if (sort === "price-asc") query = query.order("price", { ascending: true });

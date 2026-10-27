@@ -13,6 +13,8 @@ Tick each box, and note the phone and what went wrong for anything that fails.
 ## 1. Browsing (each phone)
 
 - [ ] Home page loads quickly on mobile data; the gold bar shows at the top while pages load.
+- [ ] Home page, in order: category circles (swipe on phones), the green banner, "Shop by price" chips, Deals of the week, New arrivals (the 12 newest have a "New" badge), Featured, Kitchen Appliances and Cooking & Baking rows, and the "No card, no account. Just WhatsApp." panel. On computers wider than 1280px the category list and the "Order in 3 steps" / "Chat with the shop" tiles sit beside the banner.
+- [ ] Each "Shop by price" chip lists only products in that range, and the price links on the list change or clear it ("Any price").
 - [ ] Menu (header) and Categories (bottom bar on phones) open the category menu from the left; each category opens to show its sub-categories; the menu closes on the X, on tapping the dimmed page, on Esc and after choosing a category.
 - [ ] On phones the bottom bar (Home, Categories, Cart, WhatsApp) never covers the footer or the "Added to your cart" popup.
 - [ ] A category shows its products and subcategories; Next/Previous pages work; sort links work.

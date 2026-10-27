@@ -59,17 +59,6 @@ export function discountPercent(price: Pesewas, wasPrice: Pesewas | null): numbe
   return percent >= 1 ? percent : null;
 }
 
-/** How long a product counts as "New" after it is added. */
-export const NEW_PRODUCT_DAYS = 30;
-
-/** True when the product was added in the last NEW_PRODUCT_DAYS days. */
-export function isNewProduct(createdAt: string, now: Date): boolean {
-  const added = Date.parse(createdAt);
-  if (Number.isNaN(added)) return false;
-  const age = now.getTime() - added;
-  return age >= 0 && age < NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000;
-}
-
 /** What a product card's add button does. */
 export type CardAddAction =
   /** One variant, in stock: add it straight from the card. */

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/shop/listing-controls";
 import { ProductListing } from "@/components/shop/product-listing";
-import { parseListingParams } from "@/lib/listing";
+import { parseListingParams, priceFilter } from "@/lib/listing";
 import { listProducts } from "@/lib/server/catalogue";
 import { listingPath, pageMetadata } from "@/lib/seo";
 
@@ -19,7 +19,7 @@ export async function generateMetadata({ searchParams }: PageProps<"/deals">): P
 /** Products with a "was" price, the ones the owner has marked down. */
 export default async function DealsPage({ searchParams }: PageProps<"/deals">) {
   const params = parseListingParams(await searchParams);
-  const result = await listProducts({ deals: true, sort: params.sort, page: params.page });
+  const result = await listProducts({ deals: true, ...priceFilter(params), sort: params.sort, page: params.page });
   if (!result) notFound();
 
   return (

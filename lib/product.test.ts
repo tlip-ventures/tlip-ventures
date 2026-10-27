@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardAddAction, discountPercent, isNewProduct, optionLabel, priceSummary, variantPrice } from "./product";
+import { cardAddAction, discountPercent, optionLabel, priceSummary, variantPrice } from "./product";
 
 const product = { price: 9000, compare_at_price: null };
 
@@ -76,21 +76,6 @@ describe("discountPercent", () => {
     expect(discountPercent(45000, 40000)).toBeNull();
     expect(discountPercent(45000, 0)).toBeNull();
     expect(discountPercent(99600, 100000)).toBeNull(); // 0.4% rounds to 0
-  });
-});
-
-describe("isNewProduct", () => {
-  const now = new Date("2026-10-27T12:00:00Z");
-
-  it("is true for products added in the last 30 days", () => {
-    expect(isNewProduct("2026-10-27T11:00:00Z", now)).toBe(true);
-    expect(isNewProduct("2026-09-28T12:00:01Z", now)).toBe(true);
-  });
-
-  it("is false for older products, future dates and bad values", () => {
-    expect(isNewProduct("2026-09-27T12:00:00Z", now)).toBe(false);
-    expect(isNewProduct("2026-10-28T12:00:00Z", now)).toBe(false);
-    expect(isNewProduct("not a date", now)).toBe(false);
   });
 });
 

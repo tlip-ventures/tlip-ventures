@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { isNewProduct } from "@/lib/product";
-import type { ProductCardData } from "@/lib/server/catalogue";
+import { getNewestProductIds, type ProductCardData } from "@/lib/server/catalogue";
 import { CardAddButton } from "./card-add-button";
 import { DiscountBadge, Price } from "./price";
 import { ProductImage } from "./product-image";
@@ -10,10 +9,8 @@ const CARD_IMAGE_SIZES = "(min-width: 1152px) 270px, (min-width: 1024px) 23vw, (
 
 type CardProps = {
   product: ProductCardData;
-  /** Show a "New" badge on products added in the last 30 days (the New arrivals section). */
-  showNew?: boolean;
-  /** For the "New" badge; passed in so a whole grid uses the same moment. */
-  now: Date;
+  /** One of the shop's most recently added products: gets a "New" badge. */
+  isNew?: boolean;
   sizes?: string;
 };
 
@@ -23,7 +20,7 @@ type CardProps = {
  * any old price under it, and an add button: a round "+" on phones, a full
  * button on hover or focus from 768px.
  */
-export function ProductCard({ product, showNew = false, now, sizes = CARD_IMAGE_SIZES }: CardProps) {
+export function ProductCard({ product, isNew = false, sizes = CARD_IMAGE_SIZES }: CardProps) {
   const { pricing } = product;
   const href = `/products/${product.slug}`;
   const cartProduct = { productId: product.id, slug: product.slug, productName: product.name, image: product.image };
@@ -33,7 +30,7 @@ export function ProductCard({ product, showNew = false, now, sizes = CARD_IMAGE_
     badge = <span className="rounded-md bg-ink px-1.5 py-0.5 text-xs font-semibold leading-4 text-white md:px-2 md:leading-[18px]">Out of stock</span>;
   } else if (pricing.compareAt !== null) {
     badge = <DiscountBadge pricing={pricing} />;
-  } else if (showNew && isNewProduct(product.createdAt, now)) {
+  } else if (isNew) {
     badge = (
       <span className="rounded-md bg-tint-green px-1.5 py-0.5 text-[11px] font-bold leading-4 text-brand-green md:px-2 md:text-xs md:leading-[18px]">
         New
@@ -68,17 +65,16 @@ export function ProductCard({ product, showNew = false, now, sizes = CARD_IMAGE_
 
 type GridProps = {
   products: ProductCardData[];
-  showNew?: boolean;
   sizes?: string;
 };
 
-export function ProductGrid({ products, showNew = false, sizes }: GridProps) {
-  const now = new Date();
+export async function ProductGrid({ products, sizes }: GridProps) {
+  const newest = await getNewestProductIds();
   return (
     <ul className="grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-3 md:gap-3 lg:grid-cols-4">
       {products.map((product) => (
         <li key={product.id}>
-          <ProductCard product={product} showNew={showNew} now={now} sizes={sizes} />
+          <ProductCard product={product} isNew={newest.has(product.id)} sizes={sizes} />
         </li>
       ))}
     </ul>
