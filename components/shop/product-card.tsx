@@ -5,7 +5,6 @@ import { DiscountBadge, Price } from "./price";
 import { ProductImage } from "./product-image";
 import { WishlistButton } from "./wishlist-button";
 
-// Grid: 2 columns on phones, 3 from 640px, 4 from 1024px (max-w-6xl container).
 /** Layout of a product grid: 2 columns on phones, 3 from 640px, 4 from 1024px. */
 export const PRODUCT_GRID_CLASS = "grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-3 md:gap-3 lg:grid-cols-4";
 
