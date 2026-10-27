@@ -103,7 +103,7 @@ export default async function HomePage() {
             </Link>
           </nav>
 
-          {banners.length > 0 ? <BannerCarousel slides={banners} /> : <DefaultBanner />}
+          {banners.length > 0 ? <BannerCarousel slides={banners} /> : <DefaultBanner featured={featured?.products ?? []} />}
 
           <div className="hidden flex-col gap-4 xl:flex">
             <section aria-labelledby="steps-heading" className="flex flex-1 flex-col gap-3 rounded-xl bg-white p-5">
