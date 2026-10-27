@@ -40,7 +40,7 @@ the option columns.
 | `name` | Product name (required on the first row). |
 | `brand`, `description` | Optional. Descriptions can have line breaks inside quotes. |
 | `price` | In cedis: `450` or `1250.50` (required on the first row). |
-| `compare_at_price` | Optional “was” price, higher than `price`; shows a Sale badge. |
+| `compare_at_price` | Optional “was” price, higher than `price`; shows a discount badge (e.g. −16%) and lists the product under Deals. |
 | `categories` | Category slugs separated by `\|`, e.g. `blenders\|food-processors`. Empty = keep current. |
 | `active` | `yes` (shown in the shop, default) or `no` (hidden). |
 | `featured` | `yes` to show on the home page; default `no`. |

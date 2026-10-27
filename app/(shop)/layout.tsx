@@ -1,3 +1,4 @@
+import { AddedToast } from "@/components/shop/added-toast";
 import { BottomBar } from "@/components/shop/bottom-bar";
 import { SiteFooter } from "@/components/shop/site-footer";
 import { SiteHeader } from "@/components/shop/site-header";
@@ -14,6 +15,7 @@ export default async function ShopLayout({ children }: LayoutProps<"/">) {
       </main>
       <SiteFooter />
       <BottomBar chatUrl={whatsappUrl(settings.whatsapp_number)} />
+      <AddedToast />
     </>
   );
 }

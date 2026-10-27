@@ -1,48 +1,84 @@
 import Link from "next/link";
+import { isNewProduct } from "@/lib/product";
 import type { ProductCardData } from "@/lib/server/catalogue";
-import { Price } from "./price";
+import { CardAddButton } from "./card-add-button";
+import { DiscountBadge, Price } from "./price";
 import { ProductImage } from "./product-image";
 
 // Grid: 2 columns on phones, 3 from 640px, 4 from 1024px (max-w-6xl container).
 const CARD_IMAGE_SIZES = "(min-width: 1152px) 270px, (min-width: 1024px) 23vw, (min-width: 640px) 31vw, 47vw";
 
-export function ProductCard({ product }: { product: ProductCardData }) {
+type CardProps = {
+  product: ProductCardData;
+  /** Show a "New" badge on products added in the last 30 days (the New arrivals section). */
+  showNew?: boolean;
+  /** For the "New" badge; passed in so a whole grid uses the same moment. */
+  now: Date;
+  sizes?: string;
+};
+
+/**
+ * Marketplace product card: square photo (or "Photo coming soon"), a discount,
+ * "New" or "Out of stock" badge, the name on up to two lines, the price with
+ * any old price under it, and an add button: a round "+" on phones, a full
+ * button on hover or focus from 768px.
+ */
+export function ProductCard({ product, showNew = false, now, sizes = CARD_IMAGE_SIZES }: CardProps) {
   const { pricing } = product;
+  const href = `/products/${product.slug}`;
+  const cartProduct = { productId: product.id, slug: product.slug, productName: product.name, image: product.image };
+
+  let badge = null;
+  if (!pricing.inStock) {
+    badge = <span className="rounded-md bg-ink px-1.5 py-0.5 text-xs font-semibold leading-4 text-white md:px-2 md:leading-[18px]">Out of stock</span>;
+  } else if (pricing.compareAt !== null) {
+    badge = <DiscountBadge pricing={pricing} />;
+  } else if (showNew && isNewProduct(product.createdAt, now)) {
+    badge = (
+      <span className="rounded-md bg-tint-green px-1.5 py-0.5 text-[11px] font-bold leading-4 text-brand-green md:px-2 md:text-xs md:leading-[18px]">
+        New
+      </span>
+    );
+  }
+
   return (
-    <Link
-      href={`/products/${product.slug}`}
-      className="group flex h-full flex-col gap-2 rounded-lg text-ink no-underline"
-    >
+    <article className="group/card relative flex h-full flex-col rounded-[10px] bg-white md:p-2 md:pb-3 md:transition-shadow md:hover:shadow-[0_8px_24px_rgba(17,17,17,0.08)]">
       <div className="relative">
-        <ProductImage image={product.image} sizes={CARD_IMAGE_SIZES} />
-        <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
-          {pricing.compareAt !== null && pricing.inStock && (
-            <span className="rounded bg-brand-orange-dark px-2 py-0.5 text-base font-bold text-white">Sale</span>
-          )}
-          {!pricing.inStock && (
-            <span className="rounded bg-ink px-2 py-0.5 text-sm font-semibold text-white">Out of stock</span>
-          )}
-        </div>
+        {/* The name below is the link for keyboards and screen readers; the photo is a second, larger tap target. */}
+        <Link href={href} tabIndex={-1} aria-hidden="true" className="block">
+          <ProductImage image={product.image} sizes={sizes} />
+        </Link>
+        {badge && <div className="absolute left-1.5 top-1.5 md:left-2 md:top-2">{badge}</div>}
       </div>
-      <div className="flex flex-1 flex-col gap-1 px-0.5">
-        {product.brand && <p className="text-xs font-medium uppercase tracking-wide text-neutral-600">{product.brand}</p>}
-        <h3 className="line-clamp-2 font-sans text-sm font-medium leading-snug group-hover:underline">
-          {product.name}
+      <div className="flex flex-1 flex-col gap-1 pt-2 md:px-1 md:pt-2.5">
+        <h3 className="font-sans text-[13px] font-normal leading-[18px] md:text-sm md:leading-5">
+          <Link href={href} className="line-clamp-2 min-h-9 text-ink no-underline hover:text-ink hover:underline md:min-h-10">
+            {product.name}
+          </Link>
         </h3>
-        <div className="mt-auto">
+        <div className="mt-auto flex items-center justify-between gap-1.5">
           <Price pricing={pricing} />
+          <CardAddButton action={product.addAction} product={cartProduct} look="round" />
         </div>
       </div>
-    </Link>
+      <CardAddButton action={product.addAction} product={cartProduct} look="full" />
+    </article>
   );
 }
 
-export function ProductGrid({ products }: { products: ProductCardData[] }) {
+type GridProps = {
+  products: ProductCardData[];
+  showNew?: boolean;
+  sizes?: string;
+};
+
+export function ProductGrid({ products, showNew = false, sizes }: GridProps) {
+  const now = new Date();
   return (
-    <ul className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-5">
+    <ul className="grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-3 md:gap-3 lg:grid-cols-4">
       {products.map((product) => (
         <li key={product.id}>
-          <ProductCard product={product} />
+          <ProductCard product={product} showNew={showNew} now={now} sizes={sizes} />
         </li>
       ))}
     </ul>

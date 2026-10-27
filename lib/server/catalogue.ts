@@ -5,7 +5,7 @@ import type { Category } from "@/lib/categories";
 import type { Tables } from "@/lib/database.types";
 import type { Sort } from "@/lib/listing";
 import { pageRange, PAGE_SIZE } from "@/lib/pagination";
-import { optionLabel, priceSummary, variantPrice, type PriceSummary } from "@/lib/product";
+import { cardAddAction, optionLabel, priceSummary, variantPrice, type CardAddAction, type PriceSummary } from "@/lib/product";
 import { createClient } from "@/lib/supabase/server";
 
 // Storefront reads. RLS already hides inactive products from the public, but
@@ -24,6 +24,10 @@ export type ProductCardData = {
   brand: string | null;
   image: ProductImage | null;
   pricing: PriceSummary;
+  /** ISO date the product was added, for the "New" badge. */
+  createdAt: string;
+  /** What the card's add button does: add the only variant, or send the customer to pick one. */
+  addAction: CardAddAction;
 };
 
 const socialLinksSchema = z.record(z.string(), z.unknown());
@@ -69,7 +73,7 @@ export const getCategoryBySlug = cache(async (slug: string): Promise<Category | 
 
 // One cover image per card: the embedded images are ordered and limited below.
 const CARD_SELECT =
-  "id, slug, name, brand, price, compare_at_price, product_images(url, alt, sort_order), product_variants(in_stock, price_override)";
+  "id, slug, name, brand, price, compare_at_price, created_at, product_images(url, alt, sort_order), product_variants(id, option1_value, option2_value, in_stock, price_override)";
 const CARD_IN_CATEGORY_SELECT = `${CARD_SELECT}, product_categories!inner(category_id)` as const;
 
 type CardRow = {
@@ -79,8 +83,15 @@ type CardRow = {
   brand: string | null;
   price: number;
   compare_at_price: number | null;
+  created_at: string;
   product_images: { url: string; alt: string }[];
-  product_variants: { in_stock: boolean; price_override: number | null }[];
+  product_variants: {
+    id: string;
+    option1_value: string | null;
+    option2_value: string | null;
+    in_stock: boolean;
+    price_override: number | null;
+  }[];
 };
 
 function toCard(row: CardRow): ProductCardData {
@@ -92,6 +103,8 @@ function toCard(row: CardRow): ProductCardData {
     brand: row.brand,
     image: image ? { url: image.url, alt: image.alt || row.name } : null,
     pricing: priceSummary(row, row.product_variants),
+    createdAt: row.created_at,
+    addAction: cardAddAction(row, row.product_variants),
   };
 }
 

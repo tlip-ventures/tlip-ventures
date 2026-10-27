@@ -17,7 +17,8 @@ Tick each box, and note the phone and what went wrong for anything that fails.
 - [ ] On phones the bottom bar (Home, Categories, Cart, WhatsApp) never covers the footer or the "Added to your cart" popup.
 - [ ] A category shows its products and subcategories; Next/Previous pages work; sort links work.
 - [ ] Search finds a product from part of its name (e.g. “blend” finds the blender).
-- [ ] A product page shows photos, price, “was” price and Sale badge where set, and options.
+- [ ] A product page shows photos, price, “was” price and discount badge (e.g. −16%) where set, and options.
+- [ ] Product cards: the green + (phones) or “Add to cart” (computers, on hover) adds a one-option product and shows “Added to your cart”; a product with options goes to its page; out-of-stock products say so and have no button; products without photos show “Photo coming soon”.
 - [ ] An out-of-stock option is crossed out and can’t be chosen; a sold-out product can’t be added.
 - [ ] A wrong address (e.g. /products/xyz) shows “Page not found”.
 

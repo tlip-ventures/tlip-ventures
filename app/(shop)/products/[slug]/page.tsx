@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs, type Crumb } from "@/components/shop/listing-controls";
-import { Price } from "@/components/shop/price";
+import { DiscountBadge, Price } from "@/components/shop/price";
 import { ProductGrid } from "@/components/shop/product-card";
 import { AddToCart } from "@/components/shop/add-to-cart";
 import { ProductImage } from "@/components/shop/product-image";
@@ -102,9 +102,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
               <h1 className="text-2xl font-bold text-brand-green sm:text-3xl">{product.name}</h1>
               <div className="flex flex-wrap items-center gap-3">
                 <Price pricing={pricing} size="lg" />
-                {pricing.compareAt !== null && pricing.inStock && (
-                  <span className="rounded bg-brand-orange-dark px-2 py-0.5 text-base font-bold text-white">Sale</span>
-                )}
+                {pricing.inStock && <DiscountBadge pricing={pricing} size="lg" />}
               </div>
               <p className={`font-semibold ${pricing.inStock ? "text-brand-green" : "text-neutral-700"}`}>
                 {pricing.inStock ? "In stock" : "Out of stock"}

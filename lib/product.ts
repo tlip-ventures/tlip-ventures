@@ -48,3 +48,42 @@ export function optionLabel(variant: {
   const values = [variant.option1_value, variant.option2_value].filter((v): v is string => Boolean(v));
   return values.length > 0 ? values.join(" / ") : null;
 }
+
+/**
+ * Whole-percent discount for a "−20%" badge: round((1 − price / wasPrice) × 100),
+ * worked out in integers. Null when there is no real discount to show.
+ */
+export function discountPercent(price: Pesewas, wasPrice: Pesewas | null): number | null {
+  if (wasPrice === null || wasPrice <= 0 || price >= wasPrice) return null;
+  const percent = Math.round(((wasPrice - price) * 100) / wasPrice);
+  return percent >= 1 ? percent : null;
+}
+
+/** How long a product counts as "New" after it is added. */
+export const NEW_PRODUCT_DAYS = 30;
+
+/** True when the product was added in the last NEW_PRODUCT_DAYS days. */
+export function isNewProduct(createdAt: string, now: Date): boolean {
+  const added = Date.parse(createdAt);
+  if (Number.isNaN(added)) return false;
+  const age = now.getTime() - added;
+  return age >= 0 && age < NEW_PRODUCT_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/** What a product card's add button does. */
+export type CardAddAction =
+  /** One variant, in stock: add it straight from the card. */
+  | { kind: "add"; variantId: string; optionValues: string | null; unitPrice: Pesewas }
+  /** Several variants: the customer picks one on the product page. */
+  | { kind: "choose" }
+  | { kind: "out_of_stock" };
+
+export function cardAddAction(
+  product: ProductPricing,
+  variants: readonly (VariantPricing & { id: string; option1_value: string | null; option2_value: string | null })[],
+): CardAddAction {
+  if (!variants.some((v) => v.in_stock)) return { kind: "out_of_stock" };
+  if (variants.length > 1) return { kind: "choose" };
+  const [only] = variants;
+  return { kind: "add", variantId: only.id, optionValues: optionLabel(only), unitPrice: variantPrice(product, only) };
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { optionLabel, priceSummary, variantPrice } from "./product";
+import { cardAddAction, discountPercent, isNewProduct, optionLabel, priceSummary, variantPrice } from "./product";
 
 const product = { price: 9000, compare_at_price: null };
 
@@ -59,5 +59,71 @@ describe("optionLabel", () => {
     expect(optionLabel({ option1_value: "Black", option2_value: null })).toBe("Black");
     expect(optionLabel({ option1_value: "Black", option2_value: "Large" })).toBe("Black / Large");
     expect(optionLabel({ option1_value: null, option2_value: null })).toBeNull();
+  });
+});
+
+describe("discountPercent", () => {
+  it("rounds (1 − price / was price) × 100", () => {
+    expect(discountPercent(125050, 148000)).toBe(16); // GH₵ 1,250.50 was GH₵ 1,480: 15.5% → 16
+    expect(discountPercent(16000, 19500)).toBe(18); // 17.9% → 18
+    expect(discountPercent(89000, 99000)).toBe(10);
+    expect(discountPercent(5000, 10000)).toBe(50);
+  });
+
+  it("is null without a real discount", () => {
+    expect(discountPercent(45000, null)).toBeNull();
+    expect(discountPercent(45000, 45000)).toBeNull();
+    expect(discountPercent(45000, 40000)).toBeNull();
+    expect(discountPercent(45000, 0)).toBeNull();
+    expect(discountPercent(99600, 100000)).toBeNull(); // 0.4% rounds to 0
+  });
+});
+
+describe("isNewProduct", () => {
+  const now = new Date("2026-10-27T12:00:00Z");
+
+  it("is true for products added in the last 30 days", () => {
+    expect(isNewProduct("2026-10-27T11:00:00Z", now)).toBe(true);
+    expect(isNewProduct("2026-09-28T12:00:01Z", now)).toBe(true);
+  });
+
+  it("is false for older products, future dates and bad values", () => {
+    expect(isNewProduct("2026-09-27T12:00:00Z", now)).toBe(false);
+    expect(isNewProduct("2026-10-28T12:00:00Z", now)).toBe(false);
+    expect(isNewProduct("not a date", now)).toBe(false);
+  });
+});
+
+describe("cardAddAction", () => {
+  const variant = (id: string, in_stock: boolean, extra: Partial<{ option1_value: string; price_override: number }> = {}) => ({
+    id,
+    in_stock,
+    price_override: extra.price_override ?? null,
+    option1_value: extra.option1_value ?? null,
+    option2_value: null,
+  });
+
+  it("adds a single in-stock variant straight from the card", () => {
+    expect(cardAddAction(product, [variant("v1", true)])).toEqual({
+      kind: "add",
+      variantId: "v1",
+      optionValues: null,
+      unitPrice: 9000,
+    });
+    expect(cardAddAction(product, [variant("v1", true, { option1_value: "Black", price_override: 9500 })])).toEqual({
+      kind: "add",
+      variantId: "v1",
+      optionValues: "Black",
+      unitPrice: 9500,
+    });
+  });
+
+  it("sends products with several variants to the product page", () => {
+    expect(cardAddAction(product, [variant("v1", true), variant("v2", false)])).toEqual({ kind: "choose" });
+  });
+
+  it("is out of stock when no variant is in stock (or there are none)", () => {
+    expect(cardAddAction(product, [variant("v1", false), variant("v2", false)])).toEqual({ kind: "out_of_stock" });
+    expect(cardAddAction(product, [])).toEqual({ kind: "out_of_stock" });
   });
 });
