@@ -60,7 +60,7 @@ check(csp.includes("frame-ancestors 'none'"), "pages can't be framed by other si
 check(home.headers.get("x-content-type-options") === "nosniff", "nosniff header");
 check(Boolean(home.headers.get("strict-transport-security")), "HTTPS-only header");
 
-for (const path of ["/products", "/categories", "/how-to-order", "/about", "/privacy", "/cart", "/search?q=kettle"]) {
+for (const path of ["/products", "/deals", "/wishlist", "/categories", "/how-to-order", "/about", "/privacy", "/cart", "/search?q=kettle"]) {
   const page = await get(path);
   check(page.status === 200, `${path} loads`, `HTTP ${page.status}`);
 }

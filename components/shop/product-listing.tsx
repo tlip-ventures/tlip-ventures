@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import type { ListingParams } from "@/lib/listing";
 import type { ProductPage } from "@/lib/server/catalogue";
-import { Pagination, SortLinks } from "./listing-controls";
-import { ProductGrid } from "./product-card";
+import { Pagination, PriceLinks, SortLinks } from "./listing-controls";
+import { ProductGrid } from "./product-grid";
 
 type Props = {
   basePath: string;
@@ -12,9 +12,10 @@ type Props = {
   empty: ReactNode;
 };
 
-/** Product count, sort links, a page of products and page links. */
+/** Product count, sort and price links, a page of products and page links. */
 export function ProductListing({ basePath, params, result, empty }: Props) {
-  if (result.total === 0) {
+  const filtered = params.min !== null || params.max !== null;
+  if (result.total === 0 && !filtered) {
     return <div className="rounded-lg bg-neutral-50 px-4 py-10 text-center">{empty}</div>;
   }
   return (
@@ -25,6 +26,12 @@ export function ProductListing({ basePath, params, result, empty }: Props) {
         </h2>
         <SortLinks basePath={basePath} params={params} />
       </div>
+      <PriceLinks basePath={basePath} params={params} />
+      {result.total === 0 && (
+        <p className="rounded-lg bg-neutral-50 px-4 py-10 text-center font-semibold">
+          Nothing in this price range yet. Try another price.
+        </p>
+      )}
       <ProductGrid products={result.products} />
       <Pagination basePath={basePath} params={params} total={result.total} />
     </section>

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductListing } from "@/components/shop/product-listing";
 import { SearchForm } from "@/components/shop/search-form";
-import { parseListingParams } from "@/lib/listing";
+import { parseListingParams, priceFilter } from "@/lib/listing";
 import { toPrefixTsQuery } from "@/lib/search";
 import { listProducts } from "@/lib/server/catalogue";
 
@@ -19,7 +19,7 @@ export async function generateMetadata({ searchParams }: PageProps<"/search">): 
 export default async function SearchPage({ searchParams }: PageProps<"/search">) {
   const params = parseListingParams(await searchParams);
   const tsquery = toPrefixTsQuery(params.q);
-  const result = tsquery ? await listProducts({ search: tsquery, sort: params.sort, page: params.page }) : null;
+  const result = tsquery ? await listProducts({ search: tsquery, ...priceFilter(params), sort: params.sort, page: params.page }) : null;
   if (tsquery && !result) notFound();
 
   return (
