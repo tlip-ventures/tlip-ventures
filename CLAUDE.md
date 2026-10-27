@@ -99,18 +99,20 @@ Brand and design
 
 * Name: Tlip Ventures. Logo tagline: Judges 6:24.
 * Tailwind theme colours:
-   * brand-orange #E8641E: decoration only (the block band); never behind text
-   * brand-orange-dark #B84A14: primary buttons, "Order on WhatsApp", sale badges (white text on it), and orange text and links on white
+   * brand-orange #E8641E: block band, search button, Deals bar, count badges; only dark (ink) text or icons on it, never white
+   * brand-orange-dark #B84A14: "Order on WhatsApp" and other WhatsApp buttons (white text on it), sale text and discount badges, orange text on white
    * brand-orange-deep #963B0F: hover state of brand-orange-dark buttons
-   * brand-green #0F6B43: header, footer, menus, headings
-   * brand-gold #F2B705: small accents only
-   * ink #111111: body text, logo badge background
-   * white page and product-card backgrounds
-* White text goes on brand-orange-dark, never on brand-orange (white on #E8641E is only 3.3:1). Meet WCAG AA contrast everywhere.
-* Fonts via next/font: a slab serif for headings (Zilla Slab or Roboto Slab, echoing the logo lettering), Inter for body.
-* An orange/green block band (from the shopfront) may decorate the header or footer.
+   * brand-green #0F6B43: header, primary buttons (Add to cart), links, menus
+   * brand-green-dark #0C3B29: footer, dark panels, link hover
+   * brand-gold #F2B705: small accents, on dark green only
+   * ink #111111: body text, logo badge background; secondary text #4F4A43 / #6B665E
+   * page #F3F1ED behind white panels and product cards (marketplace look); image wells #F6F5F2; tints #E7F0EB (green) and #FDEEE3 (orange); discount badge #FDE9DC with brand-orange-dark text
+* White text goes on brand-orange-dark, never on brand-orange (white on #E8641E is only 3.3:1; ink on it is 5.6:1). Meet WCAG AA contrast everywhere.
+* Fonts via next/font: Instrument Sans (400–700) for all UI text and headings; Instrument Serif (with italic) only for the wordmark, banner headlines and the "No card, no account. Just WhatsApp." panel. Neither has the cedi sign, so app/fonts/cedi-sign.woff2 (Inter's ₵ only) comes first in the font stack.
+* Design reference: the marketplace redesign (desktop, phone and pop-up category menu), modelled on Jumia Ghana but cleaner. Radius 12px panels, 8–10px cards and buttons, pills for chips and counts.
+* The orange/green block band (from the shopfront) sits under the header and above the footer; keep it.
 * Logo: round badge. Original in docs/brand/logo-source.jpg, cut-out in docs/brand/logo-cutout.png; site files public/brand/logo.webp (header), logo.png, icon-192/512.png, app/icon.png, app/apple-icon.png. Share image: public/brand/share.png.
-* Mobile-first, designed at 360px wide first. Most customers are on phones and mobile data: keep client JS small, lazy-load images, no heavy libraries or carousels.
+* Mobile-first, designed at 360px wide first. Most customers are on phones and mobile data: keep client JS small, lazy-load images, no heavy libraries. The only carousel is the hand-built home page banner (no carousel library).
 
 Conventions
 

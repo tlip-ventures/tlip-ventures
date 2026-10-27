@@ -1,24 +1,37 @@
 import type { Metadata, Viewport } from "next";
-import { Roboto_Slab } from "next/font/google";
+import { Instrument_Sans, Instrument_Serif } from "next/font/google";
 import localFont from "next/font/local";
 import { Suspense } from "react";
 import { NavigationProgress } from "@/components/ui/navigation-progress";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-// Self-hosted Inter that includes the cedi sign ₵ (see app/fonts/README.md).
-const inter = localFont({
-  src: "./fonts/inter-latin-cedi.woff2",
-  variable: "--font-inter",
-  weight: "100 900",
+// Text font for everything except the wordmark and display headlines.
+const instrumentSans = Instrument_Sans({
+  variable: "--font-instrument-sans",
+  subsets: ["latin"],
+  weight: "variable",
   display: "swap",
 });
 
-const robotoSlab = Roboto_Slab({
-  variable: "--font-roboto-slab",
+// Wordmark, banner headlines and the "How ordering works" panel only.
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
   subsets: ["latin"],
-  weight: ["700"],
+  weight: "400",
+  style: ["normal", "italic"],
   display: "swap",
+});
+
+// Only the cedi sign ₵, which the Instrument fonts lack (see app/fonts/README.md).
+// No automatic fallback: this font comes first in the stack, so a fallback
+// listed with it would replace Instrument Sans for every other character.
+const cediSign = localFont({
+  src: "./fonts/cedi-sign.woff2",
+  variable: "--font-cedi",
+  weight: "100 900",
+  display: "swap",
+  adjustFontFallback: false,
 });
 
 const description =
@@ -51,7 +64,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en-GH" className={`${inter.variable} ${robotoSlab.variable} h-full antialiased`}>
+    <html lang="en-GH" className={`${instrumentSans.variable} ${instrumentSerif.variable} ${cediSign.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         {/* useSearchParams needs a Suspense boundary. */}
         <Suspense fallback={null}>
