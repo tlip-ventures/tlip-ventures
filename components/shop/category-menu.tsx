@@ -7,6 +7,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ChatIcon, ChevronDownIcon, CloseIcon } from "@/components/ui/icons";
 import type { CategoryNode } from "@/lib/categories";
 import { CATEGORY_MENU_ID, useMenu } from "@/lib/menu-store";
+import { useRecentIds, useWishlistIds } from "@/lib/saved-store";
 import { CategoryIcon } from "./category-icon";
 
 type Props = {
@@ -32,6 +33,8 @@ export function CategoryMenu({ categories, storeName, chatUrl }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const pathname = usePathname();
   const idPrefix = useId();
+  const wishlistCount = useWishlistIds().length;
+  const hasRecent = useRecentIds().length > 0;
 
   // Keep the <dialog> in step with the shared open state.
   useEffect(() => {
@@ -181,7 +184,7 @@ export function CategoryMenu({ categories, storeName, chatUrl }: Props) {
 
         <nav aria-labelledby={`${idPrefix}-help`} className="pt-5">
           <h2 id={`${idPrefix}-help`} className={sectionHeading}>
-            Help
+            Help and your things
           </h2>
           <ul className="px-4 md:px-5">
             <li>
@@ -189,6 +192,22 @@ export function CategoryMenu({ categories, storeName, chatUrl }: Props) {
                 How ordering works
               </Link>
             </li>
+            <li>
+              <Link
+                href="/wishlist"
+                className="flex min-h-11 items-center justify-between gap-3 text-[15px] text-ink no-underline hover:underline"
+              >
+                Your wishlist
+                {wishlistCount > 0 && <span className="text-[13px] text-ink-muted">{wishlistCount} saved</span>}
+              </Link>
+            </li>
+            {hasRecent && (
+              <li>
+                <Link href="/#recently-viewed" className="flex min-h-11 items-center text-[15px] text-ink no-underline hover:underline">
+                  Recently viewed
+                </Link>
+              </li>
+            )}
             <li>
               <Link href="/about" className="flex min-h-11 items-center text-[15px] text-ink no-underline hover:underline">
                 About and contact

@@ -1,11 +1,15 @@
 import Link from "next/link";
-import { getNewestProductIds, type ProductCardData } from "@/lib/server/catalogue";
+import type { ProductCardData } from "@/lib/server/catalogue";
 import { CardAddButton } from "./card-add-button";
 import { DiscountBadge, Price } from "./price";
 import { ProductImage } from "./product-image";
+import { WishlistButton } from "./wishlist-button";
 
 // Grid: 2 columns on phones, 3 from 640px, 4 from 1024px (max-w-6xl container).
-const CARD_IMAGE_SIZES = "(min-width: 1152px) 270px, (min-width: 1024px) 23vw, (min-width: 640px) 31vw, 47vw";
+/** Layout of a product grid: 2 columns on phones, 3 from 640px, 4 from 1024px. */
+export const PRODUCT_GRID_CLASS = "grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-3 md:gap-3 lg:grid-cols-4";
+
+export const CARD_IMAGE_SIZES = "(min-width: 1152px) 270px, (min-width: 1024px) 23vw, (min-width: 640px) 31vw, 47vw";
 
 type CardProps = {
   product: ProductCardData;
@@ -16,7 +20,7 @@ type CardProps = {
 
 /**
  * Marketplace product card: square photo (or "Photo coming soon"), a discount,
- * "New" or "Out of stock" badge, the name on up to two lines, the price with
+ * "New" or "Out of stock" badge, a wishlist heart, the name on up to two lines, the price with
  * any old price under it, and an add button: a round "+" on phones, a full
  * button on hover or focus from 768px.
  */
@@ -46,6 +50,9 @@ export function ProductCard({ product, isNew = false, sizes = CARD_IMAGE_SIZES }
           <ProductImage image={product.image} sizes={sizes} />
         </Link>
         {badge && <div className="absolute left-1.5 top-1.5 md:left-2 md:top-2">{badge}</div>}
+        <div className="absolute -right-0.5 -top-0.5 md:right-0 md:top-0">
+          <WishlistButton productId={product.id} productName={product.name} look="card" />
+        </div>
       </div>
       <div className="flex flex-1 flex-col gap-1 pt-2 md:px-1 md:pt-2.5">
         <h3 className="font-sans text-[13px] font-normal leading-[18px] md:text-sm md:leading-5">
@@ -60,23 +67,5 @@ export function ProductCard({ product, isNew = false, sizes = CARD_IMAGE_SIZES }
       </div>
       <CardAddButton action={product.addAction} product={cartProduct} look="full" />
     </article>
-  );
-}
-
-type GridProps = {
-  products: ProductCardData[];
-  sizes?: string;
-};
-
-export async function ProductGrid({ products, sizes }: GridProps) {
-  const newest = await getNewestProductIds();
-  return (
-    <ul className="grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-3 md:gap-3 lg:grid-cols-4">
-      {products.map((product) => (
-        <li key={product.id}>
-          <ProductCard product={product} isNew={newest.has(product.id)} sizes={sizes} />
-        </li>
-      ))}
-    </ul>
   );
 }

@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CategoryIcon } from "@/components/shop/category-icon";
+import { BannerCarousel } from "@/components/shop/home/banner-carousel";
 import { CategoryCirclesDesktop, CategoryCirclesPhone } from "@/components/shop/home/category-circles";
 import { DefaultBanner } from "@/components/shop/home/default-banner";
 import { HowOrdering } from "@/components/shop/home/how-ordering";
 import { ProductSection } from "@/components/shop/home/product-section";
+import { RecentlyViewed } from "@/components/shop/home/recently-viewed";
 import { ChatIcon } from "@/components/ui/icons";
 import { JsonLd } from "@/components/ui/json-ld";
 import { buildCategoryTree, categoryAndChildIds, type Category } from "@/lib/categories";
 import { listingQuery, PRICE_RANGES } from "@/lib/listing";
-import { getCategories, getSettings, listProducts, NEW_BADGE_COUNT } from "@/lib/server/catalogue";
+import { getActiveBanners, getCategories, getSettings, listProducts, NEW_BADGE_COUNT } from "@/lib/server/catalogue";
 import { pageMetadata } from "@/lib/seo";
 import { absoluteUrl, SITE_URL } from "@/lib/site";
 import { storeJsonLd } from "@/lib/structured-data";
@@ -38,9 +40,10 @@ function categorySubtitle(categories: Category[], category: Category): string | 
 }
 
 export default async function HomePage() {
-  const [settings, categories, deals, newest, featured] = await Promise.all([
+  const [settings, categories, banners, deals, newest, featured] = await Promise.all([
     getSettings(),
     getCategories(),
+    getActiveBanners(),
     listProducts({ deals: true, pageSize: SECTION_SIZE }),
     listProducts({ pageSize: NEW_BADGE_COUNT }),
     listProducts({ featured: true, pageSize: SECTION_SIZE }),
@@ -100,7 +103,7 @@ export default async function HomePage() {
             </Link>
           </nav>
 
-          <DefaultBanner />
+          {banners.length > 0 ? <BannerCarousel slides={banners} /> : <DefaultBanner />}
 
           <div className="hidden flex-col gap-4 xl:flex">
             <section aria-labelledby="steps-heading" className="flex flex-1 flex-col gap-3 rounded-xl bg-white p-5">
@@ -201,6 +204,7 @@ export default async function HomePage() {
         ))}
 
         <HowOrdering />
+        <RecentlyViewed />
       </div>
     </div>
   );

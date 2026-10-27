@@ -15,6 +15,9 @@ Tick each box, and note the phone and what went wrong for anything that fails.
 - [ ] Home page loads quickly on mobile data; the gold bar shows at the top while pages load.
 - [ ] Home page, in order: category circles (swipe on phones), the green banner, "Shop by price" chips, Deals of the week, New arrivals (the 12 newest have a "New" badge), Featured, Kitchen Appliances and Cooking & Baking rows, and the "No card, no account. Just WhatsApp." panel. On computers wider than 1280px the category list and the "Order in 3 steps" / "Chat with the shop" tiles sit beside the banner.
 - [ ] Each "Shop by price" chip lists only products in that range, and the price links on the list change or clear it ("Any price").
+- [ ] The heart on a product (card or product page) saves it; the Wishlist page (bottom bar on phones, header on computers, menu) lists saved products with Add to cart, and tapping the heart again removes it. The wishlist is still there after closing the browser.
+- [ ] After opening a few products, the home page shows them under "Recently viewed", newest first; "Clear" removes them.
+- [ ] Admin: Banners can be added (upload a 1440 × 720 image, description, optional link), switched off and on, moved earlier and later, edited and deleted. The home page shows the switched-on ones, sliding slowly with arrows and dots on computers and swiping on phones; with none switched on it shows the green panel.
 - [ ] Menu (header) and Categories (bottom bar on phones) open the category menu from the left; each category opens to show its sub-categories; the menu closes on the X, on tapping the dimmed page, on Esc and after choosing a category.
 - [ ] On phones the bottom bar (Home, Categories, Cart, WhatsApp) never covers the footer or the "Added to your cart" popup.
 - [ ] A category shows its products and subcategories; Next/Previous pages work; sort links work.

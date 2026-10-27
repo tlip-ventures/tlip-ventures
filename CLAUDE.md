@@ -83,6 +83,8 @@ Data model
 * orders(id, order_code, public_token, customer_name, phone, location, notes, items_total, status, created_at, updated_at)
 * order_items(id, order_id, variant_id, product_name, option_values, unit_price, qty, line_total)
 * settings(id = 1, store_name, whatsapp_number, shop_address, opening_hours, announcement, social_links jsonb, tagline, contact_email, response_promise, reply_open, reply_close, reply_days smallint[] 1=Mon..7=Sun; reply times are Ghana time)
+* banners(id, image_url, public_id, alt, link_url, is_active, sort_order, created_at, updated_at): home page carousel, 1440 × 720 (2:1) Cloudinary artwork, managed at /admin/banners; the home page shows the first 5 active ones, or a green "Quality home and kitchen goods in Ghana" panel when none. link_url is a site path ("/deals") or https:// address. Public reads active banners only.
+* Wishlist and recently viewed (last 12) are product ids in the browser's localStorage only (tlip-wishlist, tlip-recent); no customer accounts. Cards for them come from /api/products?ids=.
 * admins(user_id, role) A product with no options has exactly one variant with null option values.
 
 Catalogue

@@ -3,10 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { formErrors, productFormSchema, type ProductFormInput } from "@/lib/admin-product";
-import { cloudinarySignature } from "@/lib/cloudinary-sign";
-import { publicEnv } from "@/lib/env";
 import { requireAdmin } from "@/lib/server/admin";
-import { getServerEnv } from "@/lib/server/env";
+import { signUpload, type UploadSignature } from "@/lib/server/cloudinary-upload";
 import { writeProduct, type WriteProductResult } from "@/lib/product-writer";
 
 export type SaveProductResult = WriteProductResult;
@@ -51,24 +49,12 @@ export async function setVariantStock(formData: FormData) {
   revalidatePath("/admin/products");
 }
 
-export type UploadSignature =
-  | { ok: true; cloudName: string; apiKey: string; timestamp: number; folder: string; signature: string }
-  | { ok: false; message: string };
+export type { UploadSignature } from "@/lib/server/cloudinary-upload";
 
 const UPLOAD_FOLDER = "tlip/products";
 
-/**
- * Lets the admin's browser upload one photo straight to Cloudinary. The API
- * secret stays on the server; only a short-lived signature is sent.
- */
+/** Lets the admin's browser upload one product photo straight to Cloudinary. */
 export async function getUploadSignature(): Promise<UploadSignature> {
   await requireAdmin();
-  const cloudName = publicEnv.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  const { CLOUDINARY_API_KEY: apiKey, CLOUDINARY_API_SECRET: apiSecret } = getServerEnv();
-  if (!cloudName || !apiKey || !apiSecret) {
-    return { ok: false, message: "Photo uploads need the Cloudinary settings (see .env.example)." };
-  }
-  const timestamp = Math.floor(Date.now() / 1000);
-  const signature = await cloudinarySignature({ folder: UPLOAD_FOLDER, timestamp }, apiSecret);
-  return { ok: true, cloudName, apiKey, timestamp, folder: UPLOAD_FOLDER, signature };
+  return signUpload(UPLOAD_FOLDER);
 }

@@ -4,16 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
+import type { BannerSlide } from "@/lib/server/catalogue";
 
-export type BannerSlide = {
-  id: string;
-  /** 1440 × 720 (2:1) artwork from Cloudinary; the same image on phones and computers. */
-  imageUrl: string;
-  /** Describes the artwork, including any words in it. */
-  alt: string;
-  /** Where a tap goes; null for a banner that is only a picture. */
-  href: string | null;
-};
 
 const AUTOPLAY_MS = 7000;
 // From 1280px: between the 236px category list and tiles (712px); below that, full width.

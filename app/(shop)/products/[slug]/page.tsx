@@ -3,9 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Breadcrumbs, type Crumb } from "@/components/shop/listing-controls";
 import { DiscountBadge, Price } from "@/components/shop/price";
-import { ProductGrid } from "@/components/shop/product-card";
+import { ProductGrid } from "@/components/shop/product-grid";
 import { AddToCart } from "@/components/shop/add-to-cart";
 import { ProductImage } from "@/components/shop/product-image";
+import { RecordView } from "@/components/shop/record-view";
+import { WishlistButton } from "@/components/shop/wishlist-button";
 import { categoryPath } from "@/lib/categories";
 import { slugSchema } from "@/lib/listing";
 import { optionLabel, variantPrice } from "@/lib/product";
@@ -124,6 +126,8 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
                 inStock: v.in_stock,
               }))}
             />
+            <WishlistButton productId={product.id} productName={product.name} look="page" />
+            <RecordView productId={product.id} />
 
             {product.description && (
               <section aria-labelledby="description-heading" className="space-y-2">

@@ -77,6 +77,11 @@ export async function SiteFooter() {
                 </a>
               </li>
               <li>
+                <Link href="/wishlist" className={linkClass}>
+                  Your wishlist
+                </Link>
+              </li>
+              <li>
                 <Link href="/about" className={linkClass}>
                   About and contact
                 </Link>

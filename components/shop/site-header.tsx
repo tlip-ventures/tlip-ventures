@@ -9,6 +9,7 @@ import { CartLink } from "./cart-link";
 import { CategoryMenu } from "./category-menu";
 import { MenuTrigger } from "./menu-trigger";
 import { SearchForm } from "./search-form";
+import { WishlistLink } from "./wishlist-link";
 
 export async function SiteHeader() {
   const [settings, categories] = await Promise.all([getSettings(), getCategories()]);
@@ -82,6 +83,7 @@ export async function SiteHeader() {
             >
               <ChatIcon className="h-[22px] w-[22px]" />
             </a>
+            <WishlistLink />
             <CartLink />
           </div>
         </div>

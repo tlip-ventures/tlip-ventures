@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BagIcon, ChatIcon } from "@/components/ui/icons";
+import { BagIcon, ChatIcon, HeartIcon } from "@/components/ui/icons";
 import { useCartBadgeCount } from "@/lib/cart-store";
 import { useMenu } from "@/lib/menu-store";
 import { CategoriesIcon } from "./category-icon";
@@ -25,7 +25,7 @@ export function BottomBar({ chatUrl }: { chatUrl: string }) {
   return (
     <nav
       aria-label="Shortcuts"
-      className="fixed inset-x-0 bottom-0 z-40 grid h-[calc(4rem+env(safe-area-inset-bottom))] grid-cols-4 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 grid h-[calc(4rem+env(safe-area-inset-bottom))] grid-cols-5 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <Link href="/" aria-current={pathname === "/" ? "page" : undefined} className={`${itemClass} ${tone(pathname === "/")}`}>
         <svg viewBox="0 0 24 24" className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -39,6 +39,15 @@ export function BottomBar({ chatUrl }: { chatUrl: string }) {
         <CategoriesIcon className="h-[22px] w-[22px]" />
         Categories
       </MenuTrigger>
+
+      <Link
+        href="/wishlist"
+        aria-current={pathname === "/wishlist" ? "page" : undefined}
+        className={`${itemClass} ${tone(pathname === "/wishlist")}`}
+      >
+        <HeartIcon className="h-[22px] w-[22px]" />
+        Wishlist
+      </Link>
 
       <Link
         href="/cart"

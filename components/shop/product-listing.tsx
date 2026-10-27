@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { ListingParams } from "@/lib/listing";
 import type { ProductPage } from "@/lib/server/catalogue";
 import { Pagination, PriceLinks, SortLinks } from "./listing-controls";
-import { ProductGrid } from "./product-card";
+import { ProductGrid } from "./product-grid";
 
 type Props = {
   basePath: string;
