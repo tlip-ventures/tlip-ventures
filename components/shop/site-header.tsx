@@ -34,11 +34,14 @@ export async function SiteHeader() {
           <p className="flex flex-wrap gap-x-3">
             <span>Order on WhatsApp</span>
             <span aria-hidden="true">·</span>
-            <span>Pay the owner directly</span>
-            <span aria-hidden="true">·</span>
-            <span>Delivery arranged in the chat</span>
+            <span>Pay Tlip Ventures directly</span>
+            {/* Tablets only have room for the first two. */}
+            <span aria-hidden="true" className="hidden lg:inline">
+              ·
+            </span>
+            <span className="hidden lg:inline">Confirm delivery details with us on WhatsApp</span>
           </p>
-          <a href={chatUrl} className="flex min-h-11 items-center gap-1.5 font-semibold no-underline">
+          <a href={chatUrl} className="flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap font-semibold no-underline">
             <ChatIcon className="h-4 w-4" />
             Chat with us
           </a>

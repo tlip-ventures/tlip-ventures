@@ -111,7 +111,7 @@ export default async function HomePage() {
                 Order in 3 steps
               </h2>
               <ol className="flex flex-col gap-2.5 text-[13px] leading-[18px] text-ink-soft">
-                {["Add items and see your total", "Send your cart on WhatsApp", "Pay the owner, arrange delivery"].map(
+                {["Add items and see your total", "Send your cart on WhatsApp", "Pay Tlip Ventures, confirm delivery"].map(
                   (step, i) => (
                     <li key={step} className="flex items-start gap-2.5">
                       <span

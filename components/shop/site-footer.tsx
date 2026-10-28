@@ -35,8 +35,8 @@ export async function SiteFooter() {
               )}
             </p>
             <p className="max-w-72 text-sm leading-[22px] text-on-dark">
-              Home and kitchen goods for Ghanaian homes. Ordered on WhatsApp, paid to the owner, delivered by
-              arrangement.
+              Home and kitchen goods for Ghanaian homes. Order on WhatsApp, pay Tlip Ventures directly, then confirm
+              your delivery details with us.
             </p>
             {settings.tagline && <p className="text-sm text-on-dark">{settings.tagline}</p>}
           </div>
