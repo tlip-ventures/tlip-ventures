@@ -3,7 +3,7 @@ import Link from "next/link";
 const STEPS = [
   "Add what you like to your cart and see your total.",
   "Send the cart to us as a ready-made WhatsApp message.",
-  "Pay the owner directly and arrange delivery in the chat.",
+  "Pay Tlip Ventures directly, then confirm your delivery details with us on WhatsApp.",
 ];
 
 /** Dark green "How ordering works" panel: no card, no account, just WhatsApp. */
