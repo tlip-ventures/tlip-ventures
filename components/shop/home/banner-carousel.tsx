@@ -1,15 +1,14 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
-import type { BannerSlide } from "@/lib/server/catalogue";
 
+/** One slide: an uploaded banner, the green welcome panel or "Join our team", rendered on the server. */
+export type CarouselSlide = { id: string; content: ReactNode };
 
 const AUTOPLAY_MS = 7000;
-// From 1280px: between the 236px category list and tiles (712px); below that, full width.
-const SIZES = "(min-width: 1280px) 712px, (min-width: 768px) calc(100vw - 48px), calc(100vw - 24px)";
+const controlClass =
+  "flex h-11 w-11 cursor-pointer items-center justify-center rounded-full hover:bg-white hover:text-ink";
 
 const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
 function subscribeReducedMotion(onChange: () => void) {
@@ -24,11 +23,11 @@ function usePrefersReducedMotion(): boolean {
 
 /**
  * Home page banners, 2:1. Built on CSS scroll snapping, so swiping works on
- * touch screens (even before JavaScript loads); arrows and dots move between
- * slides. Plays slowly on its own, pausing while the pointer or keyboard focus
+ * touch screens (even before JavaScript loads); the arrows and dots under the
+ * slides move between them. Plays slowly on its own, pausing while the pointer or keyboard focus
  * is on it, when paused with its button, and never with reduced motion.
  */
-export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
+export function BannerCarousel({ slides }: { slides: CarouselSlide[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const [hovered, setHovered] = useState(false);
@@ -64,7 +63,7 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
     <section
       aria-roledescription="carousel"
       aria-label="Offers"
-      className="relative self-start overflow-hidden rounded-xl bg-brand-green"
+      className="self-start"
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
@@ -78,95 +77,57 @@ export function BannerCarousel({ slides }: { slides: BannerSlide[] }) {
           const track = event.currentTarget;
           setIndex(Math.round(track.scrollLeft / Math.max(1, track.clientWidth)));
         }}
-        className="flex aspect-[2/1] w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex aspect-[2/1] w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain rounded-xl bg-brand-green [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {slides.map((slide, i) => {
-          const image = (
-            <Image
-              src={slide.imageUrl}
-              alt={slide.alt}
-              fill
-              sizes={SIZES}
-              loading={i === 0 ? "eager" : "lazy"}
-              fetchPriority={i === 0 ? "high" : undefined}
-              className="object-cover"
-            />
-          );
-          return (
-            <div
-              key={slide.id}
-              role="group"
-              aria-roledescription="slide"
-              aria-label={`${i + 1} of ${count}`}
-              // Slides out of view can't be tabbed to.
-              inert={i !== index}
-              className="relative h-full w-full shrink-0 snap-start"
-            >
-              {slide.href ? (
-                <Link href={slide.href} className="absolute inset-0 block">
-                  {image}
-                </Link>
-              ) : (
-                image
-              )}
-            </div>
-          );
-        })}
+        {slides.map((slide, i) => (
+          <div
+            key={slide.id}
+            role="group"
+            aria-roledescription="slide"
+            aria-label={`${i + 1} of ${count}`}
+            // Slides out of view can't be tabbed to.
+            inert={i !== index}
+            className="relative h-full w-full shrink-0 snap-start"
+          >
+            {slide.content}
+          </div>
+        ))}
       </div>
 
+      {/* Controls sit under the slides, so they never cover a slide's words or products. */}
       {multiple && (
-        <>
-          <button
-            type="button"
-            onClick={() => goTo(index - 1)}
-            aria-label="Previous banner"
-            className="absolute left-2 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink shadow-sm hover:bg-white md:flex"
-          >
+        <div className="mt-1.5 flex items-center justify-center text-ink-soft">
+          <button type="button" onClick={() => goTo(index - 1)} aria-label="Previous banner" className={controlClass}>
             <ChevronLeftIcon className="h-[18px] w-[18px]" />
           </button>
-          <button
-            type="button"
-            onClick={() => goTo(index + 1)}
-            aria-label="Next banner"
-            className="absolute right-2 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-ink shadow-sm hover:bg-white md:flex"
-          >
+          {slides.map((slide, i) => (
+            <button
+              key={slide.id}
+              type="button"
+              onClick={() => goTo(i)}
+              aria-label={`Show banner ${i + 1}`}
+              aria-current={i === index ? "true" : undefined}
+              className="flex h-11 w-8 cursor-pointer items-center justify-center"
+            >
+              <span className={`block h-1.5 rounded-full ${i === index ? "w-5 bg-brand-green" : "w-1.5 bg-chip"}`} />
+            </button>
+          ))}
+          <button type="button" onClick={() => goTo(index + 1)} aria-label="Next banner" className={controlClass}>
             <ChevronRightIcon className="h-[18px] w-[18px]" />
           </button>
-          {/* Phones swipe, so the dots only show where you are; from 768px they are buttons. */}
-          <div aria-hidden="true" className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1 rounded-full bg-ink/35 px-1.5 py-1 md:hidden">
-            {slides.map((slide, i) => (
-              <span key={slide.id} className={`block h-[5px] rounded-full ${i === index ? "w-4 bg-white" : "w-[5px] bg-white/60"}`} />
-            ))}
-          </div>
-          <div className="absolute bottom-2.5 left-1/2 hidden -translate-x-1/2 items-center rounded-full bg-ink/35 px-1 md:flex">
-            {slides.map((slide, i) => (
-              <button
-                key={slide.id}
-                type="button"
-                onClick={() => goTo(i)}
-                aria-label={`Show banner ${i + 1}`}
-                aria-current={i === index ? "true" : undefined}
-                className="flex h-8 w-7 items-center justify-center"
-              >
-                <span className={`block h-1.5 rounded-full ${i === index ? "w-5 bg-white" : "w-1.5 bg-white/60"}`} />
-              </button>
-            ))}
-          </div>
           {!reducedMotion && (
             <button
               type="button"
               onClick={() => setStopped((s) => !s)}
               aria-label={stopped ? "Play banners" : "Pause banners"}
-              className="absolute bottom-0 right-0 flex h-11 w-11 items-center justify-center md:bottom-1 md:right-1"
+              className={controlClass}
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ink/45 text-white">
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
-                  {stopped ? <path d="M8 5v14l11-7z" /> : <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" />}
-                </svg>
-              </span>
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+                {stopped ? <path d="M8 5v14l11-7z" /> : <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" />}
+              </svg>
             </button>
           )}
-        </>
+        </div>
       )}
     </section>
   );

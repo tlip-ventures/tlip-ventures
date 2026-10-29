@@ -38,7 +38,7 @@ function ProductTile({ product, first }: { product: ProductCardData; first: bool
 }
 
 /**
- * The home page banner when no promotional banner is switched on: the welcome
+ * The home page's first slide when no promotional banner is switched on: the welcome
  * line on the left and, on the right, up to three of the products ticked
  * "Featured on the home page" in admin (one on phones). With no featured
  * products that have a photo, the shop's round logo shows instead.
@@ -49,7 +49,7 @@ export function DefaultBanner({ featured }: { featured: ProductCardData[] }) {
   return (
     <section
       aria-label="Welcome"
-      className={`relative grid aspect-[2/1] w-full self-start overflow-hidden rounded-xl bg-brand-green text-white ${
+      className={`relative grid h-full w-full overflow-hidden bg-brand-green text-white ${
         tiles.length > 0 ? "grid-cols-[1.1fr_0.9fr] md:grid-cols-2" : "grid-cols-[1.2fr_0.8fr]"
       }`}
     >
