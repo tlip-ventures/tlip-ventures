@@ -1,6 +1,6 @@
 Tlip Ventures — online shop
 What this is
-Mobile-first e-commerce site for Tlip Ventures, a home and kitchen goods shop in Ghana. Customers browse, add to cart, enter name and phone, and are handed off to the shop's WhatsApp with a pre-filled order message. The website takes NO payments and handles NO delivery: in the WhatsApp chat the owner confirms availability, agrees delivery and its fee, and shares a payment number or method. The owner manages products, stock and orders at /admin.
+Mobile-first e-commerce site for Tlip Ventures, a home and kitchen goods shop in Ghana. Customers browse, add to cart, enter name and phone, and are handed off to the shop's WhatsApp with a pre-filled order message. The website takes NO payments and handles NO delivery: in the WhatsApp chat the owner confirms availability, agrees delivery and its fee, and shares a payment number or method. The owner manages the website (products, photos, categories, banners, orders) at /admin, and runs the shop counter in Stock and sales at /pos: point of sale, stock, purchases, returns, money owed and reports, shared with staff.
 Stack
 
 * Next.js, latest stable, App Router, TypeScript strict. Server Components by default, Server Actions for mutations.
@@ -29,6 +29,7 @@ Commands
 * npm run db:types: generate lib/database.types.ts from the linked project (or use the Supabase connector's type generation); regenerate after every migration
 * npm run products:export -- <file.csv> / npm run products:import -- <file.csv> [--apply]: spreadsheet export and import of products, run locally with the secret key in .env.local (scripts/README.md). Import is a dry run unless --apply is given. Without a computer: put the CSV and photos under imports/ on main and run the "Import products" GitHub Action (.github/workflows/import-products.yml; repo secrets SUPABASE_SERVICE_ROLE_KEY, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET).
 * Testing on real phones before launch: docs/testing-checklist.md
+* Stock and sales go-live steps (owner): docs/pos-go-live.md
 * npm run smoke -- <site URL> [--whatsapp 0242959396]: read-only check of a deployed site (pages, 404s, SEO files, security headers, admin redirect). Launch steps: docs/launch.md
 * Supabase project: tlip-ventures (ref raxbsxepqyewbxoqcpaj). Migration file names must match the version recorded in the database.
 * Seed data: supabase/seed/categories.sql, settings.sql, demo_products.sql (all safe to re-run); demo_products_remove.sql deletes the demo products; make_admin.sql gives an existing Supabase Auth user access to /admin (create the user first in the dashboard)
@@ -37,17 +38,17 @@ Commands
 * Caching (ISR, open-next.config.ts): shop pages and storefront Supabase reads (lib/supabase/public.ts) are cached in Workers KV for 10 minutes; tag cache in KV, background refresh via a Durable Object queue. Admin saves call revalidatePath("/", "layout") to clear it at once (KV may take up to a minute in other regions). CSV imports and direct SQL edits show within 10 minutes. Search, cart lines and checkout always read live data. Anything time-dependent on a shop page (like reply hours) must be worked out in the browser.
 Folder layout
 
-* app/(shop)/ storefront routes; app/admin/ admin routes (protected); app/o/[token] order page
-* components/ui, components/shop, components/admin
-* lib/ supabase clients, cloudinary loader, money, phone, whatsapp message builder, zod schemas
-* lib/server/ server-only code
+* app/(shop)/ storefront routes; app/admin/ admin routes (protected); app/o/[token] order page; app/pos/ Stock and sales (login at /pos/login, pages under app/pos/(app)/, receipt, print and export routes)
+* components/ui, components/shop, components/admin, components/pos
+* lib/ supabase clients, cloudinary loader, money, phone, whatsapp message builder, zod schemas; lib/pos/ pure POS logic with tests (basket, receipt, periods, records, import, spreadsheet reader, xlsx writer, schemas)
+* lib/server/ server-only code; lib/server/pos/ POS queries, role guard (requirePosUser / requireOwner) and refreshPosAndShop()
 * supabase/migrations/ SQL migrations; supabase/seed/ seed data; scripts/ CSV import etc.
 
 Domain rules (do not break; ask before changing)
 
 1. Money is integer pesewas everywhere (GHS 450.00 = 45000). Format only for display: "GH₵ 450", "GH₵ 1,250.50". Never use floats for money.
 2. The database is the source of truth for prices. The checkout server action recalculates every line from the database and ignores prices sent by the browser.
-3. Stock is set by hand by the owner. Each variant has in_stock (boolean) and an optional stock_qty for the owner's reference. Never change stock automatically. Out-of-stock variants cannot be added to the cart or ordered.
+3. Shelf stock lives in the Stock & POS app (/pos): per variant, the sum of stock_movements (sales, purchases, returns, counts), never edited directly and never below zero. Each variant also has in_stock (boolean) and stock_qty, which the website reads. While settings.website_stock_sync is off, the owner sets them by hand in /admin; while it is on, a database trigger copies them from the shelf count (in_stock = on hand > 0) and hand edits are overridden. Website orders never change stock; "Mark as paid" on the order's sale in /pos does. Out-of-stock variants cannot be added to the cart or ordered.
 4. No delivery fees, zones or options anywhere (the customer's free-text location is the only delivery-related field; the owner agrees delivery in WhatsApp). No payment gateway. Order total = items total.
 5. Checkout collects only: customer name, phone, location (required free text: area and a landmark, or "Pickup"), optional note. Phone must be Ghanaian: accept 0XXXXXXXXX, +233XXXXXXXXX or 233XXXXXXXXX; store as 233XXXXXXXXX.
 6. WhatsApp hand-off: save the order first, then open https://wa.me/<settings.whatsapp_number>?text=<encodeURIComponent(message)>. Number format 233XXXXXXXXX (no +, no leading 0). Always show a fallback with the number and a "Copy order" button for desktop users.
@@ -73,7 +74,7 @@ Order link: https://<site>/o/<token>
 ```
 
 Order statuses
-awaiting_whatsapp -> confirmed -> paid -> dispatched -> delivered; also cancelled, not_sent. The owner changes status in admin.
+awaiting_whatsapp -> confirmed -> paid -> dispatched -> delivered; also cancelled, not_sent. The owner changes status in admin. Every order is mirrored as a /pos sale with the same code (awaiting_whatsapp = Ordered, confirmed = Pending, cancelled/not_sent = Cancelled); "paid" is set only by Mark as paid in /pos, and a paid order is cancelled by voiding its sale there.
 Data model
 
 * categories(id, name, slug, parent_id, image_url, sort_order)
@@ -86,7 +87,13 @@ Data model
 * settings(id = 1, store_name, whatsapp_number, shop_address, opening_hours, announcement, social_links jsonb, tagline, contact_email, response_promise, reply_open, reply_close, reply_days smallint[] 1=Mon..7=Sun; reply times are Ghana time)
 * banners(id, image_url, public_id, alt, link_url, is_active, sort_order, created_at, updated_at): home page carousel, 1440 × 720 (2:1) Cloudinary artwork, managed at /admin/banners; the home page shows the first 5 active ones, or, when none, a green "Quality home and kitchen goods in Ghana" panel showing up to 3 products ticked "Featured on the home page" (1 on phones; the logo if none). A "Join our team" slide (WhatsApp "I'd like to join your team" message) always follows; slides play slowly with controls under the banner. link_url is a site path ("/deals") or https:// address. Public reads active banners only.
 * Wishlist and recently viewed (last 12) are product ids in the browser's localStorage only (tlip-wishlist, tlip-recent); no customer accounts. Cards for them come from /api/products?ids=.
-* admins(user_id, role) A product with no options has exactly one variant with null option values.
+* admins(user_id, role, display_name, is_active, can_give_discounts, can_adjust_stock): role 'owner' (one; /admin and everything in /pos) or 'staff' (/pos only). A product with no options has exactly one variant with null option values.
+* Stock and sales (/pos), all money in pesewas:
+   * product_variants also has barcode and reorder_level (alert level); variant_costs(variant_id, cost_price) owner only
+   * stock_movements (append-only ledger: opening, sale, sale_void, purchase, purchase_void, return, adjustment, count) and stock_levels (on_hand cache, written only by the movement trigger); stock_counts, stock_count_lines; view pos_stock_rows
+   * customers (phone unique 233…); sales (code SL_1001… from sale_code_seq, or the order's TV- code for website orders; source shop|website|import; status ordered|pending|completed|cancelled|voided), sale_items, sale_item_costs (owner only), payments (cash/momo/bank; pay later = no payment yet)
+   * suppliers, purchases (PR_…), purchase_items, purchase_payments; returns (RT_…), return_items (back_on_shelf), refund_payments
+   * views pos_sales_list, pos_purchases_list, pos_returns_list give paid and owed; settings.receipt_footer and settings.website_stock_sync
 
 Catalogue
 
@@ -124,7 +131,18 @@ Conventions
 * Unit tests for lib/money, lib/phone and lib/whatsapp.
 * Before calling a task done: typecheck, lint, tests and build all pass.
 * Explain any new dependency before adding it.
-* Commit only when asked, with the message "Phase N: <summary>".
+* Commit only when asked, with the message "Phase N: <summary>" ("POS phase N: <summary>" for Stock and sales work).
+
+Stock and sales (/pos)
+
+* Design spec: design/pos/ (four screens and tokens.json); colours are the pos-* tokens in app/globals.css, Gloock for titles and big money. Money shows as "GH₵ 1,250.50". No developer credit in the UI.
+* Roles: staff sell, take payments, record returns and see stock; the owner also sees costs, profit, purchases, suppliers, reports, import and settings, and switches staff "Can give discounts" and "Can count and adjust stock". Checked in the UI, in server actions and in the database (private.is_owner(), is_member(), can_give_discounts(), can_adjust_stock()).
+* Every write goes through a SECURITY DEFINER pos_* function that checks the role; reads run as the user under RLS. Error code TV001 = would take the shelf below zero; TV002 = a website order status that must change in /pos. friendlyDbError passes their messages through.
+* Stock never goes below zero (except an imported 'opening' figure, shown as Recount until counted). A sale locks the shelf rows and is refused if short.
+* Website orders: mirrored as sales by a trigger at checkout (never failing the checkout); Mark as paid takes stock off the shelf and sets the order to paid.
+* Every POS change that can affect the shop (stock, prices, "On the website", the stock sync) calls refreshPosAndShop() so cached shop pages update at once.
+* Downloads: Excel via lib/pos/xlsx.ts (no library), PDF via the print pages (/pos/print/[list], "Save as PDF"). Import (/pos/import, owner): .xlsx/CSV read in the browser (lib/pos/spreadsheet.ts), checked (lib/pos/import.ts), dry-run then applied by pos_import_* functions; importing twice skips what is in.
+* Migrations: try new SQL first with execute_sql inside one transaction that ends in an exception (rolled back), with checks; sequences don't roll back, so save and restore them with setval in the test. Avoid the words drop/delete/truncate in execute_sql (the connector asks to confirm). Then apply_migration and name the file after the recorded version.
 
 Build phases
 0 Setup · 1 Database · 2 Storefront · 3 Cart + WhatsApp checkout · 4 Admin · 5 SEO + polish · 6 Content + testing · 7 Launch. Work one phase per session. Do not start work from a later phase unless asked.

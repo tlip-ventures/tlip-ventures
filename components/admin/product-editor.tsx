@@ -29,9 +29,11 @@ type Props = {
   initial: ProductFormInput;
   categories: CategoryNode[];
   uploadsEnabled: boolean;
+  /** Website stock follows the Stock & POS shelf count: in stock and quantity are read-only. */
+  stockFromShop?: boolean;
 };
 
-export function ProductEditor({ initial, categories, uploadsEnabled }: Props) {
+export function ProductEditor({ initial, categories, uploadsEnabled, stockFromShop = false }: Props) {
   const router = useRouter();
   const [form, setForm] = useState<ProductFormInput>(initial);
   const [hasOptions, setHasOptions] = useState(Boolean(initial.option1Name));
@@ -277,22 +279,31 @@ export function ProductEditor({ initial, categories, uploadsEnabled }: Props) {
                     <input id={id} className={input} value={v.sku} maxLength={60} aria-describedby={describedBy} onChange={(e) => setVariant(i, { sku: e.target.value })} />
                   )}
                 </Field>
-                <Field label="Quantity on hand (optional)" hint="For your reference only" error={err(`variants.${i}.stockQty`)}>
-                  {(id, describedBy) => (
-                    <input
-                      id={id}
-                      className={input}
-                      inputMode="numeric"
-                      value={v.stockQty}
-                      aria-invalid={err(`variants.${i}.stockQty`) ? true : undefined}
-                      aria-describedby={describedBy}
-                      onChange={(e) => setVariant(i, { stockQty: e.target.value })}
-                    />
-                  )}
-                </Field>
+                {!stockFromShop && (
+                  <Field label="Quantity on hand (optional)" hint="For your reference only" error={err(`variants.${i}.stockQty`)}>
+                    {(id, describedBy) => (
+                      <input
+                        id={id}
+                        className={input}
+                        inputMode="numeric"
+                        value={v.stockQty}
+                        aria-invalid={err(`variants.${i}.stockQty`) ? true : undefined}
+                        aria-describedby={describedBy}
+                        onChange={(e) => setVariant(i, { stockQty: e.target.value })}
+                      />
+                    )}
+                  </Field>
+                )}
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <Checkbox checked={v.inStock} onChange={(on) => setVariant(i, { inStock: on })} label="In stock (customers can order it)" />
+                {stockFromShop ? (
+                  <p className="text-sm text-neutral-700">
+                    {v.inStock ? `In stock: ${v.stockQty || 0} on the shelf.` : "Sold out."} Stock comes from{" "}
+                    <Link href="/pos/products">Stock and sales</Link>.
+                  </p>
+                ) : (
+                  <Checkbox checked={v.inStock} onChange={(on) => setVariant(i, { inStock: on })} label="In stock (customers can order it)" />
+                )}
                 {hasOptions && form.variants.length > 1 && (
                   <button
                     type="button"

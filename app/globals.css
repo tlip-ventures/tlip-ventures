@@ -28,6 +28,36 @@
   --font-sans: var(--font-cedi), var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-cedi), var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-cedi), var(--font-instrument-serif), "Times New Roman", Georgia, serif;
+
+  /* Stock & POS app at /pos (design/pos/). Separate names so the shop's look never shifts. */
+  --color-pos-paper: #f6f1e9; /* page */
+  --color-pos-paper-deep: #ece4d6; /* segmented controls, count chips, row rules */
+  --color-pos-forest: #0c3b29; /* sidebar, dark cards, active chips */
+  --color-pos-green: #0f6b43; /* primary buttons, active nav, links, switch on */
+  --color-pos-green-ink: #0b5c39; /* green text on tints */
+  --color-pos-tint-green: #e3eee7;
+  --color-pos-orange: #e8641e; /* New sale, Reorder, bars; ink text only, never white */
+  --color-pos-terracotta: #b84a14; /* money owed, WhatsApp receipt button (white text) */
+  --color-pos-rust: #a3410f; /* warning text on tints */
+  --color-pos-tint-orange: #fde9dc;
+  --color-pos-peach: #fdeee3; /* notice bands */
+  --color-pos-peach-line: #f3c9ad;
+  --color-pos-note-ink: #4a2410;
+  --color-pos-gold: #f2b705; /* small accents on forest only */
+  --color-pos-ink: #111111;
+  --color-pos-muted: #5e574e;
+  --color-pos-soft: #4f4a43;
+  --color-pos-faint: #8a8378; /* disabled text */
+  --color-pos-card-line: #e4dccd; /* card borders */
+  --color-pos-line: #d9cfbf; /* inputs, outline buttons */
+  --color-pos-row-hover: #faf7f2;
+  --color-pos-on-forest: #f6f1e9;
+  --color-pos-on-forest-muted: #b7c6bb;
+  --color-pos-nav-label: #8fa89a;
+  --color-pos-sage: #d8dfd2; /* product tile backgrounds */
+  --color-pos-clay: #e9d5c3;
+  --color-pos-switch-off: #c9bfae;
+  --font-pos-display: var(--font-cedi), var(--font-gloock), "Times New Roman", Georgia, serif;
 }
 
 @layer base {
@@ -67,6 +97,33 @@
     outline: 3px solid var(--color-brand-gold);
     outline-offset: 2px;
     box-shadow: 0 0 0 2px var(--color-ink);
+  }
+}
+
+/* Stock & POS app: links and its own focus ring (green on light, gold on the
+   forest sidebar). In the base layer so utility classes on a link still win. */
+@layer base {
+  .pos a {
+    color: var(--color-pos-green);
+  }
+
+  .pos a:hover {
+    color: var(--color-pos-forest);
+  }
+
+  .pos :focus-visible {
+    outline: 2px solid var(--color-pos-green);
+    outline-offset: 3px;
+    box-shadow: none;
+  }
+
+  .pos .pos-side :focus-visible {
+    outline-color: var(--color-pos-gold);
+  }
+
+  /* Table rows light up on hover, as in the design. */
+  .pos .pos-row:hover {
+    background: var(--color-pos-row-hover);
   }
 }
 

@@ -94,6 +94,10 @@ const admin = await get("/admin");
 check([302, 303, 307, 308].includes(admin.status) && (admin.headers.get("location") ?? "").includes("/admin/login"), "/admin sends visitors to the login page", `HTTP ${admin.status}`);
 const login = await get("/admin/login");
 check(login.status === 200 && login.body.includes("noindex"), "admin login loads and is hidden from search", `HTTP ${login.status}`);
+const pos = await get("/pos/products");
+check([302, 303, 307, 308].includes(pos.status) && (pos.headers.get("location") ?? "").includes("/pos/login"), "/pos sends visitors to its login page", `HTTP ${pos.status}`);
+const posLogin = await get("/pos/login");
+check(posLogin.status === 200 && posLogin.body.includes("noindex"), "stock app login loads and is hidden from search", `HTTP ${posLogin.status}`);
 const badCart = await get("/api/cart?ids=not-a-uuid");
 check(badCart.status === 400, "cart API rejects bad input", `HTTP ${badCart.status}`);
 

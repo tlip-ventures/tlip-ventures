@@ -150,3 +150,11 @@ export const EMPTY_PRODUCT: ProductFormInput = {
   categoryIds: [],
   images: [],
 };
+
+/** True while the website's stock follows the Stock & POS shelf count (settings.website_stock_sync). */
+export async function websiteStockFromShop(): Promise<boolean> {
+  const { supabase } = await requireAdmin();
+  const { data, error } = await supabase.from("settings").select("website_stock_sync").eq("id", 1).maybeSingle();
+  if (error) throw new Error(`Could not load settings: ${error.message}`);
+  return data?.website_stock_sync ?? false;
+}

@@ -4,10 +4,11 @@ import type { Database } from "@/lib/database.types";
 import { publicEnv } from "@/lib/env";
 
 /**
- * Runs before every /admin request: refreshes the Supabase session (Server
- * Components can't write cookies, so expiring tokens are renewed here) and
- * sends signed-out visitors to the login page. Admin pages and actions still
- * check requireAdmin() themselves; this is not the only guard.
+ * Runs before every /admin and /pos request: refreshes the Supabase session
+ * (Server Components can't write cookies, so expiring tokens are renewed here)
+ * and sends signed-out visitors to that area's login page. Pages and actions
+ * still check requireAdmin() / requirePosUser() themselves; this is not the
+ * only guard.
  */
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -33,9 +34,10 @@ export async function proxy(request: NextRequest) {
   // Verifies the token and refreshes it when it is about to expire.
   const { data } = await supabase.auth.getClaims();
 
-  if (!data?.claims && request.nextUrl.pathname !== "/admin/login") {
+  const loginPath = request.nextUrl.pathname.startsWith("/pos") ? "/pos/login" : "/admin/login";
+  if (!data?.claims && request.nextUrl.pathname !== loginPath) {
     const login = request.nextUrl.clone();
-    login.pathname = "/admin/login";
+    login.pathname = loginPath;
     login.search = "";
     login.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(login);
@@ -44,5 +46,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/pos", "/pos/:path*"],
 };

@@ -21,6 +21,9 @@ function constraintError(error: PostgrestError): WriteProductResult {
   if (error.code === "23505" && error.message.includes("unique_options")) {
     return { ok: false, message: "Please fix the highlighted fields.", errors: { variants: "Two options have the same values." } };
   }
+  if (error.code === "23503") {
+    return { ok: false, message: "An option with stock history can't be removed. Keep it and leave it out of stock instead." };
+  }
   return { ok: false, message: `Could not save: ${error.message}` };
 }
 
@@ -89,7 +92,7 @@ async function saveChildren(supabase: Supabase, productId: string, p: ProductFor
 
   if (removed.length) {
     const { error } = await supabase.from("product_variants").delete().in("id", removed);
-    if (error) return { ok: false, message: `Could not remove options: ${error.message}` };
+    if (error) return error.code === "23503" ? constraintError(error) : { ok: false, message: `Could not remove options: ${error.message}` };
   }
   for (const v of kept) {
     const { error } = await supabase.from("product_variants").update(variantRow(v)).eq("id", v.id!);

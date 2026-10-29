@@ -5,21 +5,31 @@ import { z } from "zod";
 import { adminDate } from "@/components/admin/order-table";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { formatPesewas } from "@/lib/money";
-import { nextStatus, ORDER_STATUSES, STATUS_LABELS } from "@/lib/order-status";
+import { nextStatus, ORDER_STATUSES, STATUS_LABELS, type OrderStatus } from "@/lib/order-status";
 import { formatGhanaPhone } from "@/lib/phone";
-import { getOrder } from "@/lib/server/admin-orders";
+import { getOrder, getOrderSale } from "@/lib/server/admin-orders";
 import { whatsappUrl } from "@/lib/whatsapp";
 import { updateOrderStatus } from "../actions";
 
 export const metadata: Metadata = { title: "Order" };
 
+const PAID_STAGES: readonly OrderStatus[] = ["paid", "dispatched", "delivered"];
+
 export default async function OrderPage({ params }: PageProps<"/admin/orders/[id]">) {
   const id = z.uuid().safeParse((await params).id);
   if (!id.success) notFound();
-  const order = await getOrder(id.data);
+  const [order, sale] = await Promise.all([getOrder(id.data), getOrderSale(id.data)]);
   if (!order) notFound();
 
   const next = nextStatus(order.status);
+  // Website sync: "paid" is set by Mark as paid in Stock and sales, which also
+  // takes the items off the shelf; until then the database refuses it here.
+  const salePaid = sale?.status === "completed" || sale?.status === "voided";
+  const blocked = (status: OrderStatus) => {
+    if (!sale || status === order.status || sale.status === "voided") return false;
+    // Paid there: only dispatched and delivered from here. Not paid yet: not "paid" from here.
+    return sale.status === "completed" ? !PAID_STAGES.includes(status) : PAID_STAGES.includes(status);
+  };
 
   return (
     <div className="space-y-6">
@@ -111,7 +121,14 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
           <h2 id="status-heading" className="text-lg font-bold text-brand-green">
             Status
           </h2>
-          {next && (
+          {next && sale && next === "paid" && !salePaid ? (
+            <Link
+              href={`/pos/sales/${sale.id}`}
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-green px-4 text-center font-bold text-white no-underline hover:bg-brand-green/90"
+            >
+              Mark as paid in Stock and sales
+            </Link>
+          ) : next && !blocked(next) && (
             <form action={updateOrderStatus}>
               <input type="hidden" name="orderId" value={order.id} />
               <input type="hidden" name="status" value={next} />
@@ -137,7 +154,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
                 className="min-h-11 flex-1 rounded-lg border border-neutral-400 bg-white px-2 text-base"
               >
                 {ORDER_STATUSES.map((status) => (
-                  <option key={status} value={status}>
+                  <option key={status} value={status} disabled={blocked(status)}>
                     {STATUS_LABELS[status]}
                   </option>
                 ))}
@@ -148,8 +165,9 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
             </div>
           </form>
           <p className="text-xs text-neutral-700">
-            Orders still awaiting WhatsApp after 48 hours become “Not sent” automatically. Stock is never changed by
-            orders; update it on the product.
+            Orders still awaiting WhatsApp after 48 hours become “Not sent” automatically. Every order is also a sale in{" "}
+            <Link href={sale ? `/pos/sales/${sale.id}` : "/pos/sales"}>Stock and sales</Link>: marking it paid there takes the items off the
+            shelf and sets it to Paid here. A paid order is cancelled there, not here.
           </p>
         </section>
       </div>
