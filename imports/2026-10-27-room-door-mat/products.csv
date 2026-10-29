@@ -1,0 +1,6 @@
+slug,name,brand,description,price,compare_at_price,categories,active,featured,option1_name,option2_name,option1_value,option2_value,variant_price,sku,in_stock,stock_qty,images
+room-door-mat,Room Door Mat,,"Soft plush door mat with rounded corners, a bound edge and a small ""Welcome"" footprint label. Available in beige, taupe, purple, brown and red.",50,,mats-rugs,yes,no,Colour,,Beige,,,,yes,,photos/room-door-mat-beige.jpg|photos/room-door-mat-taupe.jpg|photos/room-door-mat-purple.jpg|photos/room-door-mat-brown.jpg|photos/room-door-mat-red.jpg
+room-door-mat,,,,,,,,,,,Taupe,,,,yes,,
+room-door-mat,,,,,,,,,,,Purple,,,,yes,,
+room-door-mat,,,,,,,,,,,Brown,,,,yes,,
+room-door-mat,,,,,,,,,,,Red,,,,yes,,

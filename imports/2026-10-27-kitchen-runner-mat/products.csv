@@ -1,0 +1,6 @@
+slug,name,brand,description,price,compare_at_price,categories,active,featured,option1_name,option2_name,option1_value,option2_value,variant_price,sku,in_stock,stock_qty,images
+kitchen-runner-mat,Kitchen Runner Mat,,"Two-piece kitchen floor mat set: a short mat and a long runner, both printed with a kitchen design. Choose from five designs: Bless This Kitchen, Delicious, Cuisine Love, Kitchen Utensils and Gold Table Setting.",100,,mats-rugs,yes,no,Design,,Bless This Kitchen,,,,yes,,photos/kitchen-runner-mat-bless.jpg|photos/kitchen-runner-mat-delicious.jpg|photos/kitchen-runner-mat-cuisine.jpg|photos/kitchen-runner-mat-utensils.jpg|photos/kitchen-runner-mat-dining.jpg
+kitchen-runner-mat,,,,,,,,,,,Delicious,,,,yes,,
+kitchen-runner-mat,,,,,,,,,,,Cuisine Love,,,,yes,,
+kitchen-runner-mat,,,,,,,,,,,Kitchen Utensils,,,,yes,,
+kitchen-runner-mat,,,,,,,,,,,Gold Table Setting,,,,yes,,
