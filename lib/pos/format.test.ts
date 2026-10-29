@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDay, formatDayTime, formatLongDay, initials, personName, plural } from "./format";
+import { formatDay, formatDayTime, formatLongDay, initials, personName, phoneText, plural } from "./format";
 
 describe("dates in Ghana time", () => {
   it("formats days like the design", () => {
@@ -30,5 +30,13 @@ describe("names", () => {
   it("pluralises", () => {
     expect(plural(1, "product")).toBe("1 product");
     expect(plural(1250, "product")).toBe("1,250 products");
+  });
+});
+
+describe("phoneText", () => {
+  it("formats stored numbers and leaves others alone", () => {
+    expect(phoneText("233241234567")).toBe("024 123 4567");
+    expect(phoneText("12345")).toBe("12345");
+    expect(phoneText(null)).toBeNull();
   });
 });

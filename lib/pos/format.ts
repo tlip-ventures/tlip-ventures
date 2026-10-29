@@ -1,6 +1,8 @@
 // Dates and names for the Stock & POS app. Ghana is on GMT all year, so
 // "Ghana time" is UTC: dates are formatted in UTC whatever the device says.
 
+import { formatGhanaPhone } from "@/lib/phone";
+
 const TIME_ZONE = "UTC";
 
 const dayFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: TIME_ZONE });
@@ -50,4 +52,14 @@ export function personName(displayName: string | null, role: string): string {
 /** "1 product", "3 products" */
 export function plural(count: number, one: string, many = `${one}s`): string {
   return `${count.toLocaleString("en-US")} ${count === 1 ? one : many}`;
+}
+
+/** "024 123 4567" for a stored 233… number; anything else as it is. */
+export function phoneText(phone: string | null): string | null {
+  if (!phone) return null;
+  try {
+    return formatGhanaPhone(phone);
+  } catch {
+    return phone;
+  }
 }

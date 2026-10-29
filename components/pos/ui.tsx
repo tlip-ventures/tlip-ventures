@@ -38,6 +38,8 @@ const button = {
   green: "border border-pos-green bg-white px-3 font-bold text-pos-green-ink hover:bg-pos-tint-green",
   orange: "bg-pos-orange px-4 font-bold text-pos-ink hover:bg-[#d65a17]",
   dark: "bg-pos-ink px-3.5 font-bold text-white hover:bg-black",
+  // Cancel sale and other actions that can't be undone: terracotta, white text.
+  danger: "bg-pos-terracotta px-[18px] font-bold text-white hover:bg-[#963b0f]",
   quiet: "bg-transparent px-2 font-semibold text-pos-muted hover:text-pos-ink",
 } as const;
 

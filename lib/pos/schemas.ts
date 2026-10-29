@@ -169,3 +169,74 @@ export const newCustomerSchema = z.object({
   // Optional; checked and stored as 233XXXXXXXXX by the action.
   phone: z.string().trim().max(30),
 });
+
+/** "Mark paid", "Record payment" and "Record refund". */
+export const paymentSchema = z.object({
+  kind: z.enum(["sale", "purchase", "refund"]),
+  id: z.uuid(),
+  method: z.enum(["cash", "momo", "bank"], { message: "Choose how the money was paid." }),
+  amount: cedis("Enter the amount like 450 or 1250.50.").refine((v) => v > 0, "Enter the amount paid."),
+  note: z.string().trim().max(300, "At most 300 characters."),
+});
+
+export const voidSaleSchema = z.object({
+  saleId: z.uuid(),
+  reason: z.string().trim().min(1, "Say why the sale is cancelled.").max(300, "At most 300 characters."),
+});
+
+/** What the purchase form sends. Costs are typed in cedis. */
+export const purchaseSchema = z
+  .object({
+    supplierId: z.uuid({ message: "Choose the supplier." }),
+    received: z.boolean(),
+    note: z.string().trim().max(300, "At most 300 characters."),
+    lines: z
+      .array(
+        z.object({
+          variantId: z.uuid(),
+          qty: z.union([z.string(), z.number()]).transform((v, ctx) => {
+            const text = String(v).trim();
+            if (!/^\d{1,6}$/.test(text) || Number(text) < 1 || Number(text) > 100_000) {
+              ctx.addIssue({ code: "custom", message: "Quantity from 1." });
+              return z.NEVER;
+            }
+            return Number(text);
+          }),
+          unitCost: cedis("Cost like 280 or 12.50."),
+        }),
+      )
+      .min(1, "Add at least one item.")
+      .max(200, "At most 200 items on one purchase."),
+    paidNow: optionalCedis("Amount like 450 or 1250.50, or leave empty."),
+    method: z.enum(["cash", "momo", "bank"]),
+  })
+  .superRefine((p, ctx) => {
+    const total = p.lines.reduce((n, l) => n + l.qty * l.unitCost, 0);
+    if (p.paidNow !== null && p.paidNow > total) {
+      ctx.addIssue({ code: "custom", path: ["paidNow"], message: "That is more than the purchase." });
+    }
+  });
+
+export type PurchaseInput = z.input<typeof purchaseSchema>;
+
+/** What the return form sends. */
+export const returnSchema = z.object({
+  saleId: z.uuid().nullable(),
+  customerId: z.uuid().nullable(),
+  note: z.string().trim().max(300, "At most 300 characters."),
+  lines: z
+    .array(
+      z.object({
+        saleItemId: z.uuid().nullable(),
+        variantId: z.uuid().nullable(),
+        qty: z.number().int().min(1).max(999),
+        backOnShelf: z.boolean(),
+      }),
+    )
+    .min(1, "Choose what is being returned."),
+  refundTotal: cedis("Refund like 450 or 12.50, or 0."),
+  refundNow: z.boolean(),
+  method: z.enum(["cash", "momo", "bank"]),
+});
+
+export type ReturnInput = z.input<typeof returnSchema>;

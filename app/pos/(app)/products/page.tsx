@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { z } from "zod";
-import { CountIcon, PlusIcon, WarningIcon } from "@/components/pos/icons";
+import { CountIcon, DownloadIcon, PlusIcon, WarningIcon } from "@/components/pos/icons";
 import { FilterChips, Pager, SearchForm } from "@/components/pos/list-controls";
 import { ProductTile } from "@/components/pos/product-tile";
 import { RecountButton } from "@/components/pos/stock-dialogs";
-import { ButtonLink, Card, PageHeader, PageShell, Pill, ScrollTable, StatCard, StatGrid, TableHead, Th } from "@/components/pos/ui";
+import { buttonClass, ButtonLink, Card, PageHeader, PageShell, Pill, ScrollTable, StatCard, StatGrid, TableHead, Th } from "@/components/pos/ui";
 import { WebsiteSwitch } from "@/components/pos/website-switch";
 import { formatPesewas } from "@/lib/money";
 import {
@@ -47,9 +47,19 @@ export default async function ProductsAndStockPage({ searchParams }: PageProps<"
     return `/pos/products${s ? `?${s}` : ""}`;
   };
 
+  const exportQuery = href({ page: 1 }).split("?")[1] ?? "";
+
   return (
     <PageShell>
       <PageHeader eyebrow="Stock" title="Products and stock.">
+        <ButtonLink href={`/pos/print/stock${exportQuery ? `?${exportQuery}` : ""}`} kind="outline">
+          <DownloadIcon />
+          <span>Download PDF</span>
+        </ButtonLink>
+        <a href={`/pos/export/stock${exportQuery ? `?${exportQuery}` : ""}`} download className={buttonClass("outline")}>
+          <DownloadIcon />
+          <span>Excel</span>
+        </a>
         {user.canAdjustStock && (
           <ButtonLink href="/pos/count" kind="outline">
             <CountIcon />
@@ -169,7 +179,7 @@ export default async function ProductsAndStockPage({ searchParams }: PageProps<"
                             <RecountButton variantId={r.variantId} name={name} onHand={r.onHand} />
                           )}
                           {(r.state === "out" || r.state === "low") && user.isOwner && (
-                            <ButtonLink href="/pos/purchases" kind="orange" size="sm" className="px-3">
+                            <ButtonLink href={`/pos/purchases/new?variant=${r.variantId}`} kind="orange" size="sm" className="px-3">
                               Reorder
                             </ButtonLink>
                           )}

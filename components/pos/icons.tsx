@@ -73,3 +73,16 @@ export const CheckIcon = (props: IconProps) => <Icon d="m5 12 5 5 9-10" size={26
 export const ChatIcon = (props: IconProps) => (
   <Icon d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" strokeWidth={1.8} {...props} />
 );
+
+export const DownloadIcon = (props: IconProps) => <Icon d="M12 4v11 M7 10l5 5 5-5 M5 20h14" size={16} strokeWidth={1.8} {...props} />;
+
+export const ReturnsIcon = (props: IconProps) => <Icon d={NAV_ICON_PATHS.returns} size={26} {...props} />;
+
+/** The design's "More actions" dots. */
+export const MoreIcon = ({ size = 18, ...props }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+    <circle cx="12" cy="5" r="1.7" />
+    <circle cx="12" cy="12" r="1.7" />
+    <circle cx="12" cy="19" r="1.7" />
+  </svg>
+);

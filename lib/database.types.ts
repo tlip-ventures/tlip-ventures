@@ -292,6 +292,13 @@ export type Database = {
             foreignKeyName: "payments_sale_id_fkey"
             columns: ["sale_id"]
             isOneToOne: false
+            referencedRelation: "pos_sales_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
             referencedRelation: "sales"
             referencedColumns: ["id"]
           },
@@ -488,6 +495,345 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_items: {
+        Row: {
+          id: string
+          line_total: number
+          option_values: string | null
+          product_name: string
+          purchase_id: string
+          qty: number
+          unit_cost: number
+          variant_id: string | null
+        }
+        Insert: {
+          id?: string
+          line_total: number
+          option_values?: string | null
+          product_name: string
+          purchase_id: string
+          qty: number
+          unit_cost: number
+          variant_id?: string | null
+        }
+        Update: {
+          id?: string
+          line_total?: number
+          option_values?: string | null
+          product_name?: string
+          purchase_id?: string
+          qty?: number
+          unit_cost?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "pos_purchases_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "purchase_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_payments: {
+        Row: {
+          amount: number
+          created_by: string | null
+          id: string
+          method: Database["public"]["Enums"]["payment_method"]
+          note: string | null
+          paid_at: string
+          purchase_id: string
+        }
+        Insert: {
+          amount: number
+          created_by?: string | null
+          id?: string
+          method: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          paid_at?: string
+          purchase_id: string
+        }
+        Update: {
+          amount?: number
+          created_by?: string | null
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          paid_at?: string
+          purchase_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_payments_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "pos_purchases_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_payments_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchases: {
+        Row: {
+          cancelled_at: string | null
+          code: string
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          received_at: string | null
+          received_by: string | null
+          status: Database["public"]["Enums"]["purchase_status"]
+          supplier_id: string
+          total: number
+        }
+        Insert: {
+          cancelled_at?: string | null
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          status?: Database["public"]["Enums"]["purchase_status"]
+          supplier_id: string
+          total: number
+        }
+        Update: {
+          cancelled_at?: string | null
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          status?: Database["public"]["Enums"]["purchase_status"]
+          supplier_id?: string
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      refund_payments: {
+        Row: {
+          amount: number
+          created_by: string | null
+          id: string
+          method: Database["public"]["Enums"]["payment_method"]
+          note: string | null
+          paid_at: string
+          return_id: string
+        }
+        Insert: {
+          amount: number
+          created_by?: string | null
+          id?: string
+          method: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          paid_at?: string
+          return_id: string
+        }
+        Update: {
+          amount?: number
+          created_by?: string | null
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          paid_at?: string
+          return_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refund_payments_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "pos_returns_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_payments_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "returns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      return_items: {
+        Row: {
+          back_on_shelf: boolean
+          id: string
+          line_total: number
+          option_values: string | null
+          product_name: string
+          qty: number
+          return_id: string
+          sale_item_id: string | null
+          unit_price: number
+          variant_id: string | null
+        }
+        Insert: {
+          back_on_shelf: boolean
+          id?: string
+          line_total: number
+          option_values?: string | null
+          product_name: string
+          qty: number
+          return_id: string
+          sale_item_id?: string | null
+          unit_price: number
+          variant_id?: string | null
+        }
+        Update: {
+          back_on_shelf?: boolean
+          id?: string
+          line_total?: number
+          option_values?: string | null
+          product_name?: string
+          qty?: number
+          return_id?: string
+          sale_item_id?: string | null
+          unit_price?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_items_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "pos_returns_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_items_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "returns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_items_sale_item_id_fkey"
+            columns: ["sale_item_id"]
+            isOneToOne: false
+            referencedRelation: "sale_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "return_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      returns: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          id: string
+          note: string | null
+          refund_total: number
+          sale_id: string | null
+        }
+        Insert: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          id?: string
+          note?: string | null
+          refund_total: number
+          sale_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          id?: string
+          note?: string | null
+          refund_total?: number
+          sale_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "returns_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "returns_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "pos_sale_balances"
+            referencedColumns: ["sale_id"]
+          },
+          {
+            foreignKeyName: "returns_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "pos_sales_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "returns_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_item_costs: {
         Row: {
           sale_item_id: string
@@ -554,6 +900,13 @@ export type Database = {
             foreignKeyName: "sale_items_sale_id_fkey"
             columns: ["sale_id"]
             isOneToOne: false
+            referencedRelation: "pos_sales_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
             referencedRelation: "sales"
             referencedColumns: ["id"]
           },
@@ -588,6 +941,9 @@ export type Database = {
           status: Database["public"]["Enums"]["sale_status"]
           subtotal: number
           total: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           code?: string
@@ -603,6 +959,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["sale_status"]
           subtotal: number
           total: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           code?: string
@@ -618,6 +977,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["sale_status"]
           subtotal?: number
           total?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -807,8 +1169,10 @@ export type Database = {
           created_by: string | null
           id: number
           kind: Database["public"]["Enums"]["stock_movement_kind"]
+          purchase_id: string | null
           qty_change: number
           reason: string | null
+          return_id: string | null
           sale_id: string | null
           variant_id: string
         }
@@ -819,8 +1183,10 @@ export type Database = {
           created_by?: string | null
           id?: never
           kind: Database["public"]["Enums"]["stock_movement_kind"]
+          purchase_id?: string | null
           qty_change: number
           reason?: string | null
+          return_id?: string | null
           sale_id?: string | null
           variant_id: string
         }
@@ -831,8 +1197,10 @@ export type Database = {
           created_by?: string | null
           id?: never
           kind?: Database["public"]["Enums"]["stock_movement_kind"]
+          purchase_id?: string | null
           qty_change?: number
           reason?: string | null
+          return_id?: string | null
           sale_id?: string | null
           variant_id?: string
         }
@@ -845,11 +1213,46 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "stock_movements_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "pos_purchases_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "pos_returns_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_return_id_fkey"
+            columns: ["return_id"]
+            isOneToOne: false
+            referencedRelation: "returns"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "stock_movements_sale_id_fkey"
             columns: ["sale_id"]
             isOneToOne: false
             referencedRelation: "pos_sale_balances"
             referencedColumns: ["sale_id"]
+          },
+          {
+            foreignKeyName: "stock_movements_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "pos_sales_list"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "stock_movements_sale_id_fkey"
@@ -873,6 +1276,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      suppliers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Relationships: []
       }
       variant_costs: {
         Row: {
@@ -912,6 +1342,70 @@ export type Database = {
       }
     }
     Views: {
+      pos_purchases_list: {
+        Row: {
+          code: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string | null
+          owed: number | null
+          paid: number | null
+          received_at: string | null
+          status: Database["public"]["Enums"]["purchase_status"] | null
+          supplier_id: string | null
+          supplier_name: string | null
+          total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_returns_list: {
+        Row: {
+          code: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string | null
+          id: string | null
+          items: number | null
+          owed: number | null
+          paid: number | null
+          restocked: number | null
+          sale_code: string | null
+          sale_id: string | null
+          total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "returns_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "pos_sale_balances"
+            referencedColumns: ["sale_id"]
+          },
+          {
+            foreignKeyName: "returns_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "pos_sales_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "returns_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_sale_balances: {
         Row: {
           owed: number | null
@@ -920,6 +1414,40 @@ export type Database = {
           total: number | null
         }
         Relationships: []
+      }
+      pos_sales_list: {
+        Row: {
+          code: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          discount: number | null
+          id: string | null
+          order_id: string | null
+          owed: number | null
+          paid: number | null
+          source: Database["public"]["Enums"]["sale_source"] | null
+          status: Database["public"]["Enums"]["sale_status"] | null
+          total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pos_stock_rows: {
         Row: {
@@ -978,6 +1506,10 @@ export type Database = {
         Returns: number
       }
       pos_cancel_count: { Args: { p_count_id: string }; Returns: undefined }
+      pos_cancel_purchase: {
+        Args: { p_purchase_id: string }
+        Returns: undefined
+      }
       pos_complete_sale: {
         Args: {
           p_cash_received?: number
@@ -995,6 +1527,17 @@ export type Database = {
         }[]
       }
       pos_create_customer: {
+        Args: { p_name: string; p_phone?: string }
+        Returns: string
+      }
+      pos_create_return: {
+        Args: { p: Json }
+        Returns: {
+          code: string
+          return_id: string
+        }[]
+      }
+      pos_create_supplier: {
         Args: { p_name: string; p_phone?: string }
         Returns: string
       }
@@ -1022,6 +1565,24 @@ export type Database = {
           user_id: string
         }[]
       }
+      pos_receive_purchase: {
+        Args: { p_purchase_id: string }
+        Returns: undefined
+      }
+      pos_record_payment: {
+        Args: {
+          p_amount: number
+          p_id: string
+          p_kind: string
+          p_method: string
+          p_note?: string
+        }
+        Returns: number
+      }
+      pos_records_summary: {
+        Args: { p_kind: string; p_search?: string }
+        Returns: Json
+      }
       pos_recount: {
         Args: { p_counted: number; p_reason?: string; p_variant_id: string }
         Returns: number
@@ -1031,6 +1592,13 @@ export type Database = {
         Returns: undefined
       }
       pos_save_product: { Args: { p: Json }; Returns: string }
+      pos_save_purchase: {
+        Args: { p: Json }
+        Returns: {
+          code: string
+          purchase_id: string
+        }[]
+      }
       pos_start_count: { Args: { p_note?: string }; Returns: string }
       pos_stock_summary: { Args: never; Returns: Json }
       pos_update_user: {
@@ -1041,6 +1609,10 @@ export type Database = {
           p_is_active: boolean
           p_user_id: string
         }
+        Returns: undefined
+      }
+      pos_void_sale: {
+        Args: { p_reason: string; p_sale_id: string }
         Returns: undefined
       }
     }
@@ -1054,6 +1626,7 @@ export type Database = {
         | "cancelled"
         | "not_sent"
       payment_method: "cash" | "momo" | "bank"
+      purchase_status: "ordered" | "received" | "cancelled"
       sale_source: "shop" | "website" | "import"
       sale_status: "ordered" | "pending" | "completed" | "cancelled" | "voided"
       stock_count_status: "open" | "finished" | "cancelled"
@@ -1203,6 +1776,7 @@ export const Constants = {
         "not_sent",
       ],
       payment_method: ["cash", "momo", "bank"],
+      purchase_status: ["ordered", "received", "cancelled"],
       sale_source: ["shop", "website", "import"],
       sale_status: ["ordered", "pending", "completed", "cancelled", "voided"],
       stock_count_status: ["open", "finished", "cancelled"],
