@@ -4,6 +4,7 @@ import { duplicateField, friendlyDbError } from "./errors";
 describe("friendlyDbError", () => {
   it("passes on the stock functions' own messages", () => {
     expect(friendlyDbError({ code: "TV001", message: "Only 2 left on the shelf." })).toBe("Only 2 left on the shelf.");
+    expect(friendlyDbError({ code: "TV002", message: "Mark TV-1042 as paid in Stock and sales first." })).toBe("Mark TV-1042 as paid in Stock and sales first.");
     expect(friendlyDbError({ code: "42501", message: "You are not allowed to count or adjust stock." })).toBe(
       "You are not allowed to count or adjust stock.",
     );

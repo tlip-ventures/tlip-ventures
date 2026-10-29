@@ -18,6 +18,7 @@ export function ActionDialog({
   children,
   submitLabel,
   tone = "primary",
+  className = "",
 }: {
   label: string;
   title: string;
@@ -28,6 +29,8 @@ export function ActionDialog({
   submitLabel: string;
   /** "danger" for Cancel sale and similar. */
   tone?: "primary" | "danger";
+  /** Extra classes for the opening button, e.g. flex-1 in a row of buttons. */
+  className?: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [state, formAction, pending] = useActionState(action, null);
@@ -38,7 +41,7 @@ export function ActionDialog({
 
   return (
     <>
-      <button type="button" className={buttonClass(kind, size)} onClick={() => dialog.current?.showModal()}>
+      <button type="button" className={`${buttonClass(kind, size)} ${className}`} onClick={() => dialog.current?.showModal()}>
         {label}
       </button>
       {state?.ok && (

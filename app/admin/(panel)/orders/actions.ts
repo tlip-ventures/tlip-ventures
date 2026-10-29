@@ -19,7 +19,8 @@ export async function updateOrderStatus(formData: FormData) {
     .from("orders")
     .update({ status: parsed.data.status })
     .eq("id", parsed.data.orderId);
-  if (error) throw new Error(`Could not update the order: ${error.message}`);
+  // TV002: the website sync refuses a status that must be set in Stock and sales (see the order page).
+  if (error) throw new Error(error.code === "TV002" ? error.message : `Could not update the order: ${error.message}`);
 
   revalidatePath("/admin", "layout");
 }

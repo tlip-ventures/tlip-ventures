@@ -81,14 +81,24 @@ export async function getMoneyOwed(): Promise<MoneyOwed> {
   };
 }
 
-export type WebsiteOrder = { id: string; code: string; total: number; status: "pending" | "ordered"; createdAt: string; phone: string | null };
+export type WebsiteOrder = {
+  id: string;
+  code: string;
+  total: number;
+  status: "pending" | "ordered";
+  createdAt: string;
+  name: string | null;
+  phone: string | null;
+};
 
 /** Baskets sent from the shop site that haven't been paid yet (website sync). */
 export async function getWebsiteOrders(): Promise<{ orders: WebsiteOrder[]; total: number }> {
   const { supabase } = await requirePosUser();
+  // Makes any basket whose sale wasn't made at checkout (normally none).
+  await supabase.rpc("pos_sync_website_orders");
   const { data, count, error } = await supabase
     .from("pos_sales_list")
-    .select("id, code, total, status, created_at, customer_phone", { count: "exact" })
+    .select("id, code, total, status, created_at, customer_name, customer_phone", { count: "exact" })
     .eq("source", "website")
     .in("status", ["pending", "ordered"])
     .order("created_at", { ascending: false })
@@ -101,6 +111,7 @@ export async function getWebsiteOrders(): Promise<{ orders: WebsiteOrder[]; tota
       total: o.total!,
       status: o.status as "pending" | "ordered",
       createdAt: o.created_at!,
+      name: o.customer_name,
       phone: o.customer_phone,
     })),
     total: count ?? 0,

@@ -15,7 +15,7 @@ import {
 import type { RecordRow, RecordsSummary } from "@/lib/server/pos/records";
 import { DownloadIcon, MoreIcon, PlusIcon, ReturnsIcon } from "./icons";
 import { FilterChips, Pager, SearchForm } from "./list-controls";
-import { PaymentButton } from "./record-actions";
+import { MarkOrderPaidButton, PaymentButton } from "./record-actions";
 import { buttonClass, ButtonLink, Card, PageHeader, PageShell, Pill, ScrollTable, StatGrid, TableHead, Th } from "./ui";
 
 export type RecordsParams = { q: string; filter: RecordFilter; page: number };
@@ -183,7 +183,11 @@ export function RecordsView({
                       </td>
                       <td className="whitespace-nowrap py-2 pl-3 pr-[18px] text-right">
                         <span className="inline-flex items-center gap-1.5">
-                          {r.owed > 0 && <PaymentButton kind={SETTLE_KIND[kind]} id={r.id} owed={r.owed} code={r.code} />}
+                          {r.saleStatus === "ordered" || r.saleStatus === "pending" ? (
+                            <MarkOrderPaidButton saleId={r.id} code={r.code} total={r.total} />
+                          ) : (
+                            r.owed > 0 && <PaymentButton kind={SETTLE_KIND[kind]} id={r.id} owed={r.owed} code={r.code} />
+                          )}
                           <Link
                             href={detail}
                             aria-label={`More actions for ${r.code}`}

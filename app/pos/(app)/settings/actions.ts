@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { friendlyDbError } from "@/lib/pos/errors";
 import { newStaffSchema, staffPermissionsSchema } from "@/lib/pos/schemas";
 import { requirePosUser } from "@/lib/server/pos/auth";
@@ -88,4 +89,22 @@ export async function addStaff(_prev: ActionResult | null, formData: FormData): 
 
   revalidatePath("/pos/settings");
   return { ok: true, message: `${p.displayName} can now sign in at /pos with ${p.email}.` };
+}
+
+/**
+ * Owner: the website's "in stock" comes from the shelf count. Switching it on
+ * brings every product in line at once (a database trigger does it).
+ */
+export async function setWebsiteStockSync(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const { supabase, isOwner } = await requirePosUser();
+  if (!isOwner) return { ok: false, message: "Only the owner can change this." };
+  const on = z.enum(["true", "false"]).safeParse(formData.get("on"));
+  if (!on.success) return { ok: false, message: "Choose on or off." };
+  const { error } = await supabase.from("settings").update({ website_stock_sync: on.data === "true" }).eq("id", 1);
+  if (error) return { ok: false, message: friendlyDbError(error) };
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: on.data === "true" ? "The website now shows stock from this app." : "Stock on the website is set by hand again.",
+  };
 }

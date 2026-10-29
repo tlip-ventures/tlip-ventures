@@ -1,7 +1,7 @@
 import Form from "next/form";
 import Link from "next/link";
 import { formatPesewas } from "@/lib/money";
-import { formatDay, phoneText, plural } from "@/lib/pos/format";
+import { formatDay, plural } from "@/lib/pos/format";
 import { barHeight, chartTop, percentChange, PERIOD_LABELS, PERIODS, shortMoney, type Period } from "@/lib/pos/periods";
 import { paymentPill, saleStatusPill } from "@/lib/pos/records";
 import type { MoneyOwed, PeriodFigures, WebsiteOrder } from "@/lib/server/pos/dashboard";
@@ -9,6 +9,7 @@ import type { RecordRow } from "@/lib/server/pos/records";
 import type { StockRow } from "@/lib/server/pos/stock";
 import { BellIcon, ChatIcon, SearchIcon } from "./icons";
 import { ProductTile } from "./product-tile";
+import { MarkOrderPaidButton } from "./record-actions";
 import { buttonClass, Pill, ScrollTable, TableHead, Th } from "./ui";
 
 // The design's Dashboard (design/pos/dashboard.html), piece by piece.
@@ -299,12 +300,14 @@ export function WebsiteOrders({ orders, total }: { orders: WebsiteOrder[]; total
           return (
             <div key={o.id} className="flex flex-col gap-2.5 rounded-lg border border-pos-paper-deep p-3.5">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-sm font-bold">{o.code}</span>
+                <Link href={`/pos/sales/${o.id}`} className="text-sm font-bold text-pos-ink no-underline hover:underline">
+                  {o.code}
+                </Link>
                 <span className="text-base font-bold tabular-nums">{formatPesewas(o.total)}</span>
               </div>
               <div className="flex items-center justify-between gap-2 text-[13px] text-pos-muted">
                 <span>
-                  {phoneText(o.phone) ?? "Online customer"} · {formatDay(o.createdAt)}
+                  {o.name ?? "Online customer"} · {formatDay(o.createdAt)}
                 </span>
                 <Pill className={pill.className}>{pill.label}</Pill>
               </div>
@@ -314,16 +317,14 @@ export function WebsiteOrders({ orders, total }: { orders: WebsiteOrder[]; total
                     Open chat
                   </a>
                 )}
-                <Link href={`/pos/sales/${o.id}`} className={`${buttonClass("primary", "sm")} min-h-10 flex-1`}>
-                  Open order
-                </Link>
+                <MarkOrderPaidButton saleId={o.id} code={o.code} total={o.total} buttonKind="primary" className="min-h-10 flex-1" />
               </div>
             </div>
           );
         })
       )}
       {total > orders.length && (
-        <Link href="/pos/sales?filter=unpaid" className="self-start text-[13px] font-bold">
+        <Link href="/pos/sales?q=TV-" className="self-start text-[13px] font-bold">
           {plural(total - orders.length, "more order")}
         </Link>
       )}

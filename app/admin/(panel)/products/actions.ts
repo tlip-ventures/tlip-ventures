@@ -36,7 +36,7 @@ export async function deleteProduct(productId: string): Promise<{ ok: boolean; m
   return { ok: true };
 }
 
-/** Quick stock switch from the product list. Stock only ever changes by hand (domain rule 3). */
+/** Quick stock switch from the product list, while the website stock sync is off (domain rule 3). */
 export async function setVariantStock(formData: FormData) {
   const { supabase } = await requireAdmin();
   const parsed = z

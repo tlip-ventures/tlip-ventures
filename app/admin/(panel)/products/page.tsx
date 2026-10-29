@@ -5,7 +5,7 @@ import Link from "next/link";
 import { z } from "zod";
 import { formatPesewas } from "@/lib/money";
 import { pageCount } from "@/lib/pagination";
-import { ADMIN_PRODUCTS_PAGE_SIZE, listAdminProducts, PRODUCT_FILTERS, type ProductFilter } from "@/lib/server/admin-products";
+import { ADMIN_PRODUCTS_PAGE_SIZE, listAdminProducts, PRODUCT_FILTERS, websiteStockFromShop, type ProductFilter } from "@/lib/server/admin-products";
 import { setVariantStock } from "./actions";
 
 export const metadata: Metadata = { title: "Products" };
@@ -26,7 +26,10 @@ const FILTER_LABELS: Record<ProductFilter, string> = {
 
 export default async function AdminProductsPage({ searchParams }: PageProps<"/admin/products">) {
   const params = paramsSchema.parse(await searchParams);
-  const { products, total } = await listAdminProducts({ search: params.q, filter: params.filter, page: params.page });
+  const [{ products, total }, stockFromShop] = await Promise.all([
+    listAdminProducts({ search: params.q, filter: params.filter, page: params.page }),
+    websiteStockFromShop(),
+  ]);
   const pages = pageCount(total, ADMIN_PRODUCTS_PAGE_SIZE);
 
   const href = (changes: Partial<typeof params>) => {
@@ -118,23 +121,34 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
                 <ul className="flex flex-wrap gap-2" aria-label={`Stock for ${product.name}`}>
                   {product.variants.map((variant) => (
                     <li key={variant.id}>
-                      <form action={setVariantStock}>
-                        <input type="hidden" name="variantId" value={variant.id} />
-                        <input type="hidden" name="inStock" value={String(!variant.inStock)} />
-                        <button
-                          type="submit"
-                          aria-label={`${variant.label ?? "Stock"}: ${variant.inStock ? "in stock" : "out of stock"}. Mark as ${variant.inStock ? "out of stock" : "in stock"}.`}
+                      {stockFromShop ? (
+                        <span
                           className={`inline-flex min-h-11 items-center gap-1 rounded-lg border px-3 text-sm font-semibold ${
-                            variant.inStock
-                              ? "border-brand-green bg-brand-green/10 text-brand-green"
-                              : "border-dashed border-neutral-400 text-neutral-700"
+                            variant.inStock ? "border-brand-green bg-brand-green/10 text-brand-green" : "border-dashed border-neutral-400 text-neutral-700"
                           }`}
                         >
                           {variant.label && <span>{variant.label}:</span>}
-                          <span>{variant.inStock ? "In stock" : "Out of stock"}</span>
-                          {variant.stockQty !== null && <span className="font-normal">({variant.stockQty})</span>}
-                        </button>
-                      </form>
+                          <span>{variant.inStock ? `${variant.stockQty ?? 0} on the shelf` : "Sold out"}</span>
+                        </span>
+                      ) : (
+                        <form action={setVariantStock}>
+                          <input type="hidden" name="variantId" value={variant.id} />
+                          <input type="hidden" name="inStock" value={String(!variant.inStock)} />
+                          <button
+                            type="submit"
+                            aria-label={`${variant.label ?? "Stock"}: ${variant.inStock ? "in stock" : "out of stock"}. Mark as ${variant.inStock ? "out of stock" : "in stock"}.`}
+                            className={`inline-flex min-h-11 items-center gap-1 rounded-lg border px-3 text-sm font-semibold ${
+                              variant.inStock
+                                ? "border-brand-green bg-brand-green/10 text-brand-green"
+                                : "border-dashed border-neutral-400 text-neutral-700"
+                            }`}
+                          >
+                            {variant.label && <span>{variant.label}:</span>}
+                            <span>{variant.inStock ? "In stock" : "Out of stock"}</span>
+                            {variant.stockQty !== null && <span className="font-normal">({variant.stockQty})</span>}
+                          </button>
+                        </form>
+                      )}
                     </li>
                   ))}
                 </ul>

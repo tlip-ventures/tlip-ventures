@@ -70,3 +70,11 @@ export async function getOrder(id: string) {
   if (error) throw new Error(`Could not load order: ${error.message}`);
   return data;
 }
+
+/** The Stock & POS sale mirroring this order (website sync), if any. */
+export async function getOrderSale(orderId: string): Promise<{ id: string; status: string } | null> {
+  const { supabase } = await requireAdmin();
+  const { data, error } = await supabase.from("sales").select("id, status").eq("order_id", orderId).maybeSingle();
+  if (error) throw new Error(`Could not load the order's sale: ${error.message}`);
+  return data;
+}

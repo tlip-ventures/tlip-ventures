@@ -12,6 +12,7 @@ export function friendlyDbError(error: DbError | null | undefined, fallback = GE
   if (!error) return fallback;
   switch (error.code) {
     case "TV001": // would take the shelf below zero
+    case "TV002": // website order status that must change in /pos
     case "42501": // not allowed
     case "22023": // bad input
     case "P0002": // gone

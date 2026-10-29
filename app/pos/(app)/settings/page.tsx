@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { ExternalIcon } from "@/components/pos/icons";
 import { AddStaffForm, PersonForm } from "@/components/pos/people-forms";
-import { ButtonLink, Card, PageHeader, PageShell } from "@/components/pos/ui";
+import { ButtonLink, Card, PageHeader, PageShell, Pill } from "@/components/pos/ui";
+import { WebsiteStockSyncButton } from "@/components/pos/website-stock-sync";
 import { formatDay } from "@/lib/pos/format";
 import { requireOwner } from "@/lib/server/pos/auth";
 
@@ -9,8 +10,15 @@ export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
   const { supabase, userId } = await requireOwner();
-  const { data, error } = await supabase.rpc("pos_list_users");
+  const [{ data, error }, settings, all, empty] = await Promise.all([
+    supabase.rpc("pos_list_users"),
+    supabase.from("settings").select("website_stock_sync").eq("id", 1).single(),
+    supabase.from("stock_levels").select("variant_id", { count: "exact", head: true }),
+    supabase.from("stock_levels").select("variant_id", { count: "exact", head: true }).lte("on_hand", 0),
+  ]);
   if (error) throw new Error(`Could not load people: ${error.message}`);
+  if (settings.error) throw new Error(`Could not load settings: ${settings.error.message}`);
+  const syncOn = settings.data.website_stock_sync;
 
   return (
     <PageShell>
@@ -47,6 +55,24 @@ export default async function SettingsPage() {
             </li>
           ))}
         </ul>
+      </Card>
+
+      <Card label="Website stock">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+          <div className="flex max-w-[640px] flex-col gap-1">
+            <h2 className="m-0 flex flex-wrap items-center gap-2 text-lg font-bold leading-6">
+              Website stock from this app
+              <Pill className={syncOn ? "bg-pos-tint-green text-pos-green-ink" : "bg-pos-paper-deep text-pos-soft"}>{syncOn ? "On" : "Off"}</Pill>
+            </h2>
+            <span className="text-[13px] leading-[19px] text-pos-muted">
+              {syncOn
+                ? "The website shows a product as in stock while there is at least one on the shelf here. Sales, deliveries and counts update it straight away."
+                : "Off: you tick “In stock” by hand in the website admin. Switch it on once your stock is imported, so the website follows the shelf count."}{" "}
+              Website orders arrive as Ordered sales either way; Mark as paid takes them off the shelf.
+            </span>
+          </div>
+          <WebsiteStockSyncButton on={syncOn} outOfStock={empty.count ?? 0} total={all.count ?? 0} />
+        </div>
       </Card>
 
       <Card label="Add a staff member">

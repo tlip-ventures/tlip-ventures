@@ -1013,6 +1013,7 @@ export type Database = {
           social_links: Json
           store_name: string
           tagline: string | null
+          website_stock_sync: boolean
           whatsapp_number: string
         }
         Insert: {
@@ -1029,6 +1030,7 @@ export type Database = {
           social_links?: Json
           store_name?: string
           tagline?: string | null
+          website_stock_sync?: boolean
           whatsapp_number: string
         }
         Update: {
@@ -1045,6 +1047,7 @@ export type Database = {
           social_links?: Json
           store_name?: string
           tagline?: string | null
+          website_stock_sync?: boolean
           whatsapp_number?: string
         }
         Relationships: []
@@ -1506,6 +1509,10 @@ export type Database = {
         Returns: number
       }
       pos_cancel_count: { Args: { p_count_id: string }; Returns: undefined }
+      pos_cancel_website_order: {
+        Args: { p_sale_id: string }
+        Returns: undefined
+      }
       pos_cancel_purchase: {
         Args: { p_purchase_id: string }
         Returns: undefined
@@ -1560,6 +1567,10 @@ export type Database = {
         Args: { p_bounds: string[]; p_prev_from: string; p_prev_to: string }
         Returns: Json
       }
+      pos_mark_order_paid: {
+        Args: { p_cash_received?: number; p_method: string; p_sale_id: string }
+        Returns: { change_given: number; code: string; total: number }[]
+      }
       pos_people: {
         Args: never
         Returns: {
@@ -1605,6 +1616,7 @@ export type Database = {
       }
       pos_start_count: { Args: { p_note?: string }; Returns: string }
       pos_stock_summary: { Args: never; Returns: Json }
+      pos_sync_website_orders: { Args: never; Returns: number }
       pos_top_products: {
         Args: { p_from: string; p_limit?: number; p_to: string }
         Returns: {

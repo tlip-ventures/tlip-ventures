@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { BackLink, Facts, MoneySummary, PaymentsCard } from "@/components/pos/detail";
 import { ChatIcon } from "@/components/pos/icons";
-import { PaymentButton, VoidSaleButton } from "@/components/pos/record-actions";
+import { CancelWebsiteOrderButton, MarkOrderPaidButton, PaymentButton, VoidSaleButton } from "@/components/pos/record-actions";
 import { buttonClass, ButtonLink, Card, Notice, PageHeader, PageShell, Pill, ScrollTable, TableHead, Th } from "@/components/pos/ui";
 import { formatPesewas } from "@/lib/money";
 import { formatDay, formatDayTime, phoneText } from "@/lib/pos/format";
@@ -25,6 +25,8 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
 
   const status = saleStatusPill(sale.status);
   const pay = paymentPill(sale.paid, sale.owed, sale.cancelled);
+  // A basket sent from the website that hasn't been paid yet.
+  const waiting = sale.source === "website" && (sale.status === "ordered" || sale.status === "pending");
   const canReturn = sale.status === "completed" && sale.lines.some((l) => l.qty > l.returned);
   const whatsapp = receiptWhatsappUrl(
     receipt.customer?.phone ?? null,
@@ -46,7 +48,14 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
     <PageShell>
       <BackLink href="/pos/sales" label="Sales" />
       <PageHeader eyebrow="Sale" title={sale.code}>
-        {sale.owed > 0 && <PaymentButton kind="sale" id={sale.id} owed={sale.owed} code={sale.code} buttonKind="primary" size="md" />}
+        {waiting && <MarkOrderPaidButton saleId={sale.id} code={sale.code} total={sale.total} buttonKind="primary" size="md" />}
+        {waiting && sale.customer?.phone && (
+          <a href={`https://wa.me/${sale.customer.phone}`} target="_blank" rel="noopener noreferrer" className={buttonClass("outline")}>
+            <ChatIcon size={16} />
+            Open chat
+          </a>
+        )}
+        {!waiting && sale.owed > 0 && <PaymentButton kind="sale" id={sale.id} owed={sale.owed} code={sale.code} buttonKind="primary" size="md" />}
         <a href={`/pos/receipt/${sale.id}`} target="_blank" rel="noopener" className={buttonClass("outline")}>
           Print receipt
         </a>
@@ -62,7 +71,15 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
         {user.isOwner && sale.status === "completed" && sale.returns.length === 0 && (
           <VoidSaleButton saleId={sale.id} code={sale.code} paid={sale.paid} />
         )}
+        {waiting && <CancelWebsiteOrderButton saleId={sale.id} code={sale.code} />}
       </PageHeader>
+
+      {waiting && (
+        <Notice tone="good">
+          Website order waiting on WhatsApp. Its items stay on the shelf count until you mark it paid; confirm the price and delivery with the
+          customer first.
+        </Notice>
+      )}
 
       {sale.voided && (
         <Notice tone="bad">

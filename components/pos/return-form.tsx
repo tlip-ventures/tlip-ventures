@@ -22,7 +22,7 @@ export function FindSaleForm() {
   return (
     <form action={action} className="flex flex-col gap-3">
       <label className={dialogLabelClass}>
-        <span>Sale number on the receipt</span>
+        <span>Sale number on the receipt (SL_… or TV-…)</span>
         <span className="flex gap-2">
           <input name="code" placeholder="SL_1210" autoCapitalize="characters" required maxLength={20} className={`${dialogInputClass} max-w-[220px]`} />
           <button type="submit" disabled={pending} className={buttonClass("primary")}>

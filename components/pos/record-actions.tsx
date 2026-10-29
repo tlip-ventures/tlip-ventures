@@ -1,8 +1,9 @@
 "use client";
 
-import { recordPayment, voidSale } from "@/app/pos/(app)/payments/actions";
+import { useState } from "react";
+import { cancelWebsiteOrder, markOrderPaid, recordPayment, voidSale } from "@/app/pos/(app)/payments/actions";
 import { cancelPurchase, receivePurchase } from "@/app/pos/(app)/purchases/actions";
-import { formatPesewas, pesewasToInput } from "@/lib/money";
+import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
 import { METHOD_LABELS } from "@/lib/pos/records";
 import { ActionDialog, dialogInputClass, dialogLabelClass } from "./action-dialog";
 import type { ButtonKind } from "./ui";
@@ -116,6 +117,72 @@ export function CancelPurchaseButton({ purchaseId, code }: { purchaseId: string;
     <ActionDialog label="Cancel purchase" title={`Cancel ${code}?`} kind="outline" size="md" action={cancelPurchase} submitLabel="Cancel purchase" tone="danger">
       <input type="hidden" name="purchaseId" value={purchaseId} />
       <p className="m-0 text-sm leading-[22px] text-pos-soft">The delivery isn&apos;t coming. Nothing is added to the shelf.</p>
+    </ActionDialog>
+  );
+}
+
+/** Website basket paid in WhatsApp: takes the items off the shelf. */
+export function MarkOrderPaidButton({
+  saleId,
+  code,
+  total,
+  buttonKind = "green",
+  size = "sm",
+  className,
+}: {
+  saleId: string;
+  code: string;
+  total: number;
+  buttonKind?: ButtonKind;
+  size?: "md" | "sm";
+  className?: string;
+}) {
+  const [cash, setCash] = useState("");
+  const received = parseCedis(cash);
+  const change = received === null ? null : received - total;
+  return (
+    <ActionDialog
+      label="Mark as paid"
+      title={`${code} paid?`}
+      kind={buttonKind}
+      size={size}
+      action={markOrderPaid}
+      submitLabel="Mark as paid"
+      className={className}
+    >
+      <input type="hidden" name="saleId" value={saleId} />
+      <p className="m-0 text-sm leading-[22px] text-pos-soft">
+        The customer paid <strong className="text-pos-ink">{formatPesewas(total)}</strong>. Its items come off the shelf count now.
+      </p>
+      <MethodChoice />
+      <label className={dialogLabelClass}>
+        <span>Cash received (optional, for change)</span>
+        <input
+          name="cashReceived"
+          value={cash}
+          onChange={(e) => setCash(e.target.value)}
+          inputMode="decimal"
+          placeholder={pesewasToInput(total)}
+          className={dialogInputClass}
+        />
+      </label>
+      {change !== null && change > 0 && (
+        <p className="m-0 flex justify-between rounded-md bg-pos-tint-green px-3 py-2.5 text-sm font-bold text-pos-green-ink" aria-live="polite">
+          <span>Change to give (cash)</span>
+          <span className="tabular-nums">{formatPesewas(change)}</span>
+        </p>
+      )}
+    </ActionDialog>
+  );
+}
+
+export function CancelWebsiteOrderButton({ saleId, code }: { saleId: string; code: string }) {
+  return (
+    <ActionDialog label="Cancel order" title={`Cancel ${code}?`} kind="outline" size="md" action={cancelWebsiteOrder} submitLabel="Cancel order" tone="danger">
+      <input type="hidden" name="saleId" value={saleId} />
+      <p className="m-0 text-sm leading-[22px] text-pos-soft">
+        The customer isn&apos;t going ahead. The order is cancelled on the website too. Nothing was taken off the shelf.
+      </p>
     </ActionDialog>
   );
 }

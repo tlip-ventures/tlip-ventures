@@ -184,6 +184,13 @@ export const voidSaleSchema = z.object({
   reason: z.string().trim().min(1, "Say why the sale is cancelled.").max(300, "At most 300 characters."),
 });
 
+/** "Mark as paid" on a website order: paid in full; cash received only for change. */
+export const markOrderPaidSchema = z.object({
+  saleId: z.uuid(),
+  method: z.enum(["cash", "momo", "bank"], { message: "Choose how the customer paid." }),
+  cashReceived: optionalCedis("Cash like 500 or 1250.50, or leave it empty."),
+});
+
 /** What the purchase form sends. Costs are typed in cedis. */
 export const purchaseSchema = z
   .object({

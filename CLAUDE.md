@@ -46,7 +46,7 @@ Domain rules (do not break; ask before changing)
 
 1. Money is integer pesewas everywhere (GHS 450.00 = 45000). Format only for display: "GH₵ 450", "GH₵ 1,250.50". Never use floats for money.
 2. The database is the source of truth for prices. The checkout server action recalculates every line from the database and ignores prices sent by the browser.
-3. Stock is set by hand by the owner. Each variant has in_stock (boolean) and an optional stock_qty for the owner's reference. Never change stock automatically. Out-of-stock variants cannot be added to the cart or ordered.
+3. Shelf stock lives in the Stock & POS app (/pos): per variant, the sum of stock_movements (sales, purchases, returns, counts), never edited directly and never below zero. Each variant also has in_stock (boolean) and stock_qty, which the website reads. While settings.website_stock_sync is off, the owner sets them by hand in /admin; while it is on, a database trigger copies them from the shelf count (in_stock = on hand > 0) and hand edits are overridden. Website orders never change stock; "Mark as paid" on the order's sale in /pos does. Out-of-stock variants cannot be added to the cart or ordered.
 4. No delivery fees, zones or options anywhere (the customer's free-text location is the only delivery-related field; the owner agrees delivery in WhatsApp). No payment gateway. Order total = items total.
 5. Checkout collects only: customer name, phone, location (required free text: area and a landmark, or "Pickup"), optional note. Phone must be Ghanaian: accept 0XXXXXXXXX, +233XXXXXXXXX or 233XXXXXXXXX; store as 233XXXXXXXXX.
 6. WhatsApp hand-off: save the order first, then open https://wa.me/<settings.whatsapp_number>?text=<encodeURIComponent(message)>. Number format 233XXXXXXXXX (no +, no leading 0). Always show a fallback with the number and a "Copy order" button for desktop users.
@@ -72,7 +72,7 @@ Order link: https://<site>/o/<token>
 ```
 
 Order statuses
-awaiting_whatsapp -> confirmed -> paid -> dispatched -> delivered; also cancelled, not_sent. The owner changes status in admin.
+awaiting_whatsapp -> confirmed -> paid -> dispatched -> delivered; also cancelled, not_sent. The owner changes status in admin. Every order is mirrored as a /pos sale with the same code (awaiting_whatsapp = Ordered, confirmed = Pending, cancelled/not_sent = Cancelled); "paid" is set only by Mark as paid in /pos, and a paid order is cancelled by voiding its sale there.
 Data model
 
 * categories(id, name, slug, parent_id, image_url, sort_order)

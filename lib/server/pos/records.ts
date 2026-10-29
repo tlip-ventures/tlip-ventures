@@ -270,8 +270,9 @@ export async function getReturnDetail(id: string) {
 /** A sale by its code (SL_1210), for starting a return from the receipt. */
 export async function findSaleIdByCode(code: string): Promise<string | null> {
   const { supabase } = await requirePosUser();
-  const clean = code.trim().toUpperCase().replace(/^SL[\s-]?/, "SL_");
-  if (!/^SL_\d{1,9}$/.test(clean)) return null;
+  // SL_1210 from the till, TV-1042 from the website.
+  const clean = code.trim().toUpperCase().replace(/^SL[\s_-]?/, "SL_").replace(/^TV[\s_-]?/, "TV-");
+  if (!/^(SL_|TV-)\d{1,9}$/.test(clean)) return null;
   const { data, error } = await supabase.from("sales").select("id").eq("code", clean).maybeSingle();
   if (error) throw new Error(`Could not look up the sale: ${error.message}`);
   return data?.id ?? null;

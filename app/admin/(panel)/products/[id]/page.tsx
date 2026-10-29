@@ -5,7 +5,7 @@ import { z } from "zod";
 import { ProductEditor } from "@/components/admin/product-editor";
 import { buildCategoryTree } from "@/lib/categories";
 import { publicEnv } from "@/lib/env";
-import { getAdminProduct, productToForm } from "@/lib/server/admin-products";
+import { getAdminProduct, productToForm, websiteStockFromShop } from "@/lib/server/admin-products";
 import { getCategories } from "@/lib/server/catalogue";
 import { getServerEnv } from "@/lib/server/env";
 
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Edit product" };
 export default async function EditProductPage({ params, searchParams }: PageProps<"/admin/products/[id]">) {
   const id = z.uuid().safeParse((await params).id);
   if (!id.success) notFound();
-  const [product, categories] = await Promise.all([getAdminProduct(id.data), getCategories()]);
+  const [product, categories, stockFromShop] = await Promise.all([getAdminProduct(id.data), getCategories(), websiteStockFromShop()]);
   if (!product) notFound();
   const justCreated = (await searchParams).saved === "1";
   const env = getServerEnv();
@@ -36,6 +36,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
         initial={productToForm(product)}
         categories={buildCategoryTree(categories)}
         uploadsEnabled={uploadsEnabled}
+        stockFromShop={stockFromShop}
       />
     </div>
   );

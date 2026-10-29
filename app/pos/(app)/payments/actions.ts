@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { formatPesewas } from "@/lib/money";
 import { friendlyDbError } from "@/lib/pos/errors";
-import { paymentSchema, voidSaleSchema } from "@/lib/pos/schemas";
+import { z } from "zod";
+import { markOrderPaidSchema, paymentSchema, voidSaleSchema } from "@/lib/pos/schemas";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import type { ActionResult } from "../products/actions";
 
@@ -52,4 +53,42 @@ export async function voidSale(_prev: ActionResult | null, formData: FormData): 
   if (error) return { ok: false, message: friendlyDbError(error) };
   revalidatePath("/pos", "layout");
   return { ok: true, message: "Sale cancelled. Its items are back on the shelf count." };
+}
+
+/**
+ * "Mark as paid" on a website order: the database checks the shelf, takes the
+ * items off it, records the payment and sets the order to paid.
+ */
+export async function markOrderPaid(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const { supabase } = await requirePosUser();
+  const parsed = markOrderPaidSchema.safeParse({
+    saleId: formData.get("saleId"),
+    method: formData.get("method"),
+    cashReceived: formData.get("cashReceived") ?? "",
+  });
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const p = parsed.data;
+
+  const { data, error } = await supabase.rpc("pos_mark_order_paid", {
+    p_sale_id: p.saleId,
+    p_method: p.method,
+    p_cash_received: p.method === "cash" && p.cashReceived !== null ? p.cashReceived : undefined,
+  });
+  if (error) return { ok: false, message: friendlyDbError(error) };
+  revalidatePath("/pos", "layout");
+  revalidatePath("/admin", "layout");
+  const change = data?.[0]?.change_given ?? 0;
+  return { ok: true, message: change > 0 ? `Paid, stock updated. Give ${formatPesewas(change)} change.` : "Paid, stock updated." };
+}
+
+/** A website basket that won't be paid: cancels the sale and the order. */
+export async function cancelWebsiteOrder(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const { supabase } = await requirePosUser();
+  const id = z.uuid().safeParse(formData.get("saleId"));
+  if (!id.success) return { ok: false, message: "Unknown order." };
+  const { error } = await supabase.rpc("pos_cancel_website_order", { p_sale_id: id.data });
+  if (error) return { ok: false, message: friendlyDbError(error) };
+  revalidatePath("/pos", "layout");
+  revalidatePath("/admin", "layout");
+  return { ok: true, message: "Order cancelled." };
 }

@@ -48,7 +48,7 @@ the option columns.
 | `option1_value`, `option2_value` | e.g. `Black`, `Large`, on every row of a product with options. |
 | `variant_price` | Optional price for this option in cedis; empty = the product price. |
 | `sku` | Optional stock code, unique across the shop. |
-| `in_stock` | `yes` (default) or `no`. Stock never changes by itself. |
+| `in_stock` | `yes` (default) or `no`. Ignored while the website stock comes from Stock and sales (the shelf count decides). |
 | `stock_qty` | Optional count for your own reference. |
 | `images` | Photo URLs or file paths separated by `\|`, first = main photo. Empty = keep current. |
 
