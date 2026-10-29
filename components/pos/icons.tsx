@@ -86,3 +86,5 @@ export const MoreIcon = ({ size = 18, ...props }: IconProps) => (
     <circle cx="12" cy="19" r="1.7" />
   </svg>
 );
+
+export const BellIcon = (props: IconProps) => <Icon d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z M10 20a2 2 0 0 0 4 0" size={20} {...props} />;

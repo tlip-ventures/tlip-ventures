@@ -1556,6 +1556,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      pos_period_figures: {
+        Args: { p_bounds: string[]; p_prev_from: string; p_prev_to: string }
+        Returns: Json
+      }
       pos_people: {
         Args: never
         Returns: {
@@ -1601,6 +1605,16 @@ export type Database = {
       }
       pos_start_count: { Args: { p_note?: string }; Returns: string }
       pos_stock_summary: { Args: never; Returns: Json }
+      pos_top_products: {
+        Args: { p_from: string; p_limit?: number; p_to: string }
+        Returns: {
+          option_values: string
+          product_name: string
+          profit: number
+          qty: number
+          revenue: number
+        }[]
+      }
       pos_update_user: {
         Args: {
           p_can_adjust_stock: boolean
