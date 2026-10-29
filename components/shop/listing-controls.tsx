@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listingQuery, SORTS, type ListingParams, type Sort } from "@/lib/listing";
+import { listingQuery, PRICE_RANGES, priceFilterLabel, SORTS, type ListingParams, type Sort } from "@/lib/listing";
 import { pageCount } from "@/lib/pagination";
 
 type Base = { basePath: string; params: ListingParams };
@@ -14,7 +14,7 @@ export function SortLinks({ basePath, params }: Base) {
           return (
             <li key={sort}>
               <Link
-                href={`${basePath}${listingQuery({ q: params.q, sort })}`}
+                href={`${basePath}${listingQuery({ ...params, sort, page: 1 })}`}
                 aria-current={current ? "true" : undefined}
                 className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-medium no-underline ${
                   current
@@ -23,6 +23,41 @@ export function SortLinks({ basePath, params }: Base) {
                 }`}
               >
                 {label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+/** Price ranges as plain links, like the sort links. "Any price" clears the filter. */
+export function PriceLinks({ basePath, params }: Base) {
+  const custom = !PRICE_RANGES.some((r) => r.min === params.min && r.max === params.max) ? priceFilterLabel(params.min, params.max) : null;
+  const options = [
+    { label: "Any price", min: null, max: null },
+    ...PRICE_RANGES,
+    // A range typed into the address bar still shows as selected.
+    ...(custom ? [{ label: custom, min: params.min, max: params.max }] : []),
+  ];
+  return (
+    <nav aria-label="Filter by price" className="-mx-4 overflow-x-auto px-4">
+      <ul className="flex gap-2 whitespace-nowrap">
+        {options.map((option) => {
+          const current = option.min === params.min && option.max === params.max;
+          return (
+            <li key={option.label}>
+              <Link
+                href={`${basePath}${listingQuery({ ...params, min: option.min, max: option.max, page: 1 })}`}
+                aria-current={current ? "true" : undefined}
+                className={`inline-flex min-h-11 items-center rounded-full border px-4 text-sm no-underline ${
+                  current
+                    ? "border-brand-green bg-tint-green font-semibold text-brand-green"
+                    : "border-chip bg-white text-ink hover:border-brand-green hover:text-ink"
+                }`}
+              >
+                {option.label}
               </Link>
             </li>
           );

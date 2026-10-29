@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/shop/listing-controls";
 import { ProductListing } from "@/components/shop/product-listing";
-import { parseListingParams } from "@/lib/listing";
+import { parseListingParams, priceFilter } from "@/lib/listing";
 import { listProducts } from "@/lib/server/catalogue";
 import { listingPath, pageMetadata } from "@/lib/seo";
 
@@ -17,7 +17,7 @@ export async function generateMetadata({ searchParams }: PageProps<"/products">)
 
 export default async function ProductsPage({ searchParams }: PageProps<"/products">) {
   const params = parseListingParams(await searchParams);
-  const result = await listProducts({ sort: params.sort, page: params.page });
+  const result = await listProducts({ ...priceFilter(params), sort: params.sort, page: params.page });
   if (!result) notFound();
 
   return (

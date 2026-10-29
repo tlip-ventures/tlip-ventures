@@ -1,18 +1,23 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BrandBand } from "@/components/ui/brand-band";
+import { ChatIcon, MenuIcon } from "@/components/ui/icons";
 import { buildCategoryTree } from "@/lib/categories";
 import { getCategories, getSettings } from "@/lib/server/catalogue";
+import { whatsappUrl } from "@/lib/whatsapp";
 import { CartLink } from "./cart-link";
-import { MenuDisclosure } from "./menu-disclosure";
+import { CategoryMenu } from "./category-menu";
+import { MenuTrigger } from "./menu-trigger";
 import { SearchForm } from "./search-form";
+import { WishlistLink } from "./wishlist-link";
 
 export async function SiteHeader() {
   const [settings, categories] = await Promise.all([getSettings(), getCategories()]);
   const tree = buildCategoryTree(categories);
+  const chatUrl = whatsappUrl(settings.whatsapp_number);
 
   return (
-    <header className="bg-brand-green text-white">
+    <>
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:text-ink"
@@ -22,77 +27,72 @@ export async function SiteHeader() {
       {settings.announcement && (
         <p className="bg-ink px-4 py-2 text-center text-sm text-white">{settings.announcement}</p>
       )}
-      <div className="relative mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-3 sm:gap-x-4 px-4 py-3">
-        <Link
-          href="/"
-          className="flex min-h-11 items-center gap-2 rounded text-white no-underline sm:gap-3"
-          aria-label={`${settings.store_name} home`}
-        >
-          <Image src="/brand/logo.webp" alt="" width={48} height={48} unoptimized preload className="h-11 w-11 sm:h-12 sm:w-12" />
-          <span className="font-heading text-base font-bold leading-none sm:text-xl">{settings.store_name}</span>
-        </Link>
 
-        <div className="order-last w-full md:order-none md:flex-1">
-          <SearchForm id="header-search" />
-        </div>
-
-        <div className="ml-auto flex items-center gap-2 md:ml-0">
-          <MenuDisclosure
-            summary={
-              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-white/60 px-2.5 font-semibold sm:px-3 hover:bg-white/10 [&::-webkit-details-marker]:hidden">
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                  <path d="M4 7h16M4 12h16M4 17h16" />
-                </svg>
-                {/* Short label on phones so the button fits beside the logo at 360px. */}
-                <span className="sm:hidden">Menu</span>
-                <span className="hidden sm:inline">Categories</span>
-              </summary>
-            }
-          >
-            <nav
-              aria-label="Categories"
-              className="absolute inset-x-0 top-full z-40 max-h-[75vh] overflow-y-auto border-t border-white/20 bg-brand-green px-4 pb-6 pt-2 shadow-lg"
-            >
-              <ul className="mx-auto grid max-w-6xl gap-x-6 sm:grid-cols-2 lg:grid-cols-4">
-                {tree.map((parent) => (
-                  <li key={parent.id} className="border-b border-white/15 py-2 last:border-0 sm:border-0">
-                    <Link
-                      href={`/categories/${parent.slug}`}
-                      className="flex min-h-11 items-center font-heading text-lg font-bold text-white no-underline hover:underline"
-                    >
-                      {parent.name}
-                    </Link>
-                    {parent.children.length > 0 && (
-                      <ul>
-                        {parent.children.map((child) => (
-                          <li key={child.id}>
-                            <Link
-                              href={`/categories/${child.slug}`}
-                              className="flex min-h-11 items-center pl-3 text-white/95 no-underline hover:underline"
-                            >
-                              {child.name}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-                <li className="py-2 sm:col-span-2 lg:col-span-4">
-                  <Link
-                    href="/products"
-                    className="flex min-h-11 items-center font-semibold text-white underline underline-offset-4"
-                  >
-                    Browse all products
-                  </Link>
-                </li>
-              </ul>
-            </nav>
-          </MenuDisclosure>
-          <CartLink />
+      {/* How ordering works, in one line. Phones get it lower on the home page. */}
+      <div className="hidden border-b border-line bg-white md:block">
+        <div className="mx-auto flex min-h-11 max-w-7xl items-center justify-between gap-4 px-8 text-[13px] leading-[18px] text-ink-soft">
+          <p className="flex flex-wrap gap-x-3">
+            <span>Order on WhatsApp</span>
+            <span aria-hidden="true">·</span>
+            <span>Pay Tlip Ventures directly</span>
+            {/* Tablets only have room for the first two. */}
+            <span aria-hidden="true" className="hidden lg:inline">
+              ·
+            </span>
+            <span className="hidden lg:inline">Confirm delivery details with us on WhatsApp</span>
+          </p>
+          <a href={chatUrl} className="flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap font-semibold no-underline">
+            <ChatIcon className="h-4 w-4" />
+            Chat with us
+          </a>
         </div>
       </div>
-      <BrandBand />
-    </header>
+
+      <header className="bg-brand-green text-white lg:sticky lg:top-0 lg:z-30">
+        <div className="relative mx-auto flex max-w-7xl flex-wrap items-center gap-x-1 gap-y-1.5 px-1 pb-3 pt-1.5 md:gap-x-3 md:px-6 lg:h-[76px] lg:flex-nowrap lg:gap-x-6 lg:px-8 lg:py-0">
+          <MenuTrigger className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white no-underline hover:bg-white/10 hover:text-white md:border md:border-white/40 md:pl-2.5 md:pr-3.5">
+            <MenuIcon className="h-6 w-6 md:h-[22px] md:w-[22px]" />
+            <span className="sr-only md:not-sr-only">Menu</span>
+          </MenuTrigger>
+
+          <Link
+            href="/"
+            className="flex min-h-11 shrink-0 items-center gap-2 rounded text-white no-underline hover:text-white md:gap-2.5"
+            aria-label={`${settings.store_name} home`}
+          >
+            <Image
+              src="/brand/logo.webp"
+              alt=""
+              width={44}
+              height={44}
+              unoptimized
+              preload
+              className="h-[34px] w-[34px] rounded-full bg-white md:h-11 md:w-11"
+            />
+            <span className="whitespace-nowrap font-display text-2xl leading-none md:text-[30px]">
+              {settings.store_name}
+            </span>
+          </Link>
+
+          <div className="order-last w-full px-2 md:px-0 lg:order-none lg:min-w-0 lg:flex-1">
+            <SearchForm id="header-search" variant="header" />
+          </div>
+
+          <div className="ml-auto flex shrink-0 items-center md:gap-2 lg:ml-0">
+            <a
+              href={chatUrl}
+              aria-label="Chat with us on WhatsApp"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-white hover:bg-white/10 hover:text-white lg:hidden"
+            >
+              <ChatIcon className="h-[22px] w-[22px]" />
+            </a>
+            <WishlistLink />
+            <CartLink />
+          </div>
+        </div>
+        <BrandBand />
+      </header>
+      <CategoryMenu categories={tree} storeName={settings.store_name} chatUrl={chatUrl} />
+    </>
   );
 }

@@ -157,7 +157,7 @@ export function ProductEditor({ initial, categories, uploadsEnabled }: Props) {
               />
             )}
           </Field>
-          <Field label="“Was” price (GH₵, optional)" hint="Shows a Sale badge" error={err("compareAtPrice")}>
+          <Field label="“Was” price (GH₵, optional)" hint="Shows a discount badge (e.g. −16%) and lists the product under Deals" error={err("compareAtPrice")}>
             {(id, describedBy) => (
               <input
                 id={id}

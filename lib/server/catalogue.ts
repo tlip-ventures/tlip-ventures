@@ -1,11 +1,12 @@
 import "server-only";
 import { cache } from "react";
 import { z } from "zod";
+import { MAX_ACTIVE_BANNERS } from "@/lib/banners";
 import type { Category } from "@/lib/categories";
 import type { Tables } from "@/lib/database.types";
 import type { Sort } from "@/lib/listing";
 import { pageRange, PAGE_SIZE } from "@/lib/pagination";
-import { optionLabel, priceSummary, variantPrice, type PriceSummary } from "@/lib/product";
+import { cardAddAction, optionLabel, priceSummary, variantPrice, type CardAddAction, type PriceSummary } from "@/lib/product";
 import { createPublicClient } from "@/lib/supabase/public";
 
 // Storefront reads, as an anonymous visitor (no cookies), so shop pages can be
@@ -26,6 +27,8 @@ export type ProductCardData = {
   brand: string | null;
   image: ProductImage | null;
   pricing: PriceSummary;
+  /** What the card's add button does: add the only variant, or send the customer to pick one. */
+  addAction: CardAddAction;
 };
 
 const socialLinksSchema = z.record(z.string(), z.unknown());
@@ -71,7 +74,7 @@ export const getCategoryBySlug = cache(async (slug: string): Promise<Category | 
 
 // One cover image per card: the embedded images are ordered and limited below.
 const CARD_SELECT =
-  "id, slug, name, brand, price, compare_at_price, product_images(url, alt, sort_order), product_variants(in_stock, price_override)";
+  "id, slug, name, brand, price, compare_at_price, product_images(url, alt, sort_order), product_variants(id, option1_value, option2_value, in_stock, price_override)";
 const CARD_IN_CATEGORY_SELECT = `${CARD_SELECT}, product_categories!inner(category_id)` as const;
 
 type CardRow = {
@@ -82,7 +85,13 @@ type CardRow = {
   price: number;
   compare_at_price: number | null;
   product_images: { url: string; alt: string }[];
-  product_variants: { in_stock: boolean; price_override: number | null }[];
+  product_variants: {
+    id: string;
+    option1_value: string | null;
+    option2_value: string | null;
+    in_stock: boolean;
+    price_override: number | null;
+  }[];
 };
 
 function toCard(row: CardRow): ProductCardData {
@@ -94,8 +103,45 @@ function toCard(row: CardRow): ProductCardData {
     brand: row.brand,
     image: image ? { url: image.url, alt: image.alt || row.name } : null,
     pricing: priceSummary(row, row.product_variants),
+    addAction: cardAddAction(row, row.product_variants),
   };
 }
+
+export type BannerSlide = { id: string; imageUrl: string; alt: string; href: string | null };
+
+/** The home page banners switched on in admin, in order (at most MAX_ACTIVE_BANNERS). */
+export async function getActiveBanners(): Promise<BannerSlide[]> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("banners")
+    .select("id, image_url, alt, link_url")
+    .eq("is_active", true)
+    .order("sort_order")
+    .order("created_at")
+    .limit(MAX_ACTIVE_BANNERS);
+  if (error) throw new Error(`Could not load banners: ${error.message}`);
+  return data.map((b) => ({ id: b.id, imageUrl: b.image_url, alt: b.alt, href: b.link_url }));
+}
+
+/** How many of the most recently added products get a "New" badge. */
+export const NEW_BADGE_COUNT = 12;
+
+/**
+ * Ids of the NEW_BADGE_COUNT most recently added active products, in the same
+ * order as the "newest" listing. Cached per request, so every grid on a page shares one query.
+ */
+export const getNewestProductIds = cache(async (): Promise<Set<string>> => {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("id")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .order("id")
+    .limit(NEW_BADGE_COUNT);
+  if (error) throw new Error(`Could not load the newest products: ${error.message}`);
+  return new Set(data.map((row) => row.id));
+});
 
 export type ListProductsOptions = {
   /** Only products linked to one of these categories. */
@@ -103,6 +149,14 @@ export type ListProductsOptions = {
   /** A tsquery from toPrefixTsQuery(). */
   search?: string;
   featured?: boolean;
+  /** Only products with a "was" price (compare_at_price, always above the price). */
+  deals?: boolean;
+  /**
+   * Price filter in pesewas on the product's price, from minPrice (inclusive) to
+   * maxPrice (exclusive). Variant price overrides are not considered.
+   */
+  minPrice?: number | null;
+  maxPrice?: number | null;
   excludeId?: string;
   sort?: Sort;
   page?: number;
@@ -116,7 +170,7 @@ export type ProductPage = { products: ProductCardData[]; total: number };
  * is past the end, so the caller can show a 404.
  */
 export async function listProducts(options: ListProductsOptions = {}): Promise<ProductPage | null> {
-  const { categoryIds, search, featured, excludeId, sort = "newest", page = 1, pageSize = PAGE_SIZE } = options;
+  const { categoryIds, search, featured, deals, minPrice, maxPrice, excludeId, sort = "newest", page = 1, pageSize = PAGE_SIZE } = options;
   // Search results aren't cached: every search is different.
   const supabase = createPublicClient({ cache: !search });
 
@@ -130,6 +184,9 @@ export async function listProducts(options: ListProductsOptions = {}): Promise<P
   query = query.eq("is_active", true);
   if (search) query = query.textSearch("search_vector", search, { config: "english" });
   if (featured) query = query.eq("is_featured", true);
+  if (deals) query = query.not("compare_at_price", "is", null);
+  if (minPrice != null) query = query.gte("price", minPrice);
+  if (maxPrice != null) query = query.lt("price", maxPrice);
   if (excludeId) query = query.neq("id", excludeId);
 
   if (sort === "price-asc") query = query.order("price", { ascending: true });
@@ -151,6 +208,35 @@ export async function listProducts(options: ListProductsOptions = {}): Promise<P
   const total = count ?? 0;
   if (page > 1 && from >= total) return null;
   return { products: (data as CardRow[]).map(toCard), total };
+}
+
+/** A saved product card plus whether it gets the "New" badge (for client-side lists). */
+export type SavedProductCard = ProductCardData & { isNew: boolean };
+
+/**
+ * Cards for the given products, in the same order, for the wishlist and
+ * recently viewed lists. Products that are hidden or deleted are left out.
+ */
+export async function getProductCards(ids: readonly string[]): Promise<SavedProductCard[]> {
+  if (ids.length === 0) return [];
+  // Not cached: every visitor's saved list is different.
+  const supabase = createPublicClient({ cache: false });
+  const [{ data, error }, newest] = await Promise.all([
+    supabase
+      .from("products")
+      .select(CARD_SELECT)
+      .in("id", ids)
+      .eq("is_active", true)
+      .order("sort_order", { referencedTable: "product_images" })
+      .limit(1, { referencedTable: "product_images" }),
+    getNewestProductIds(),
+  ]);
+  if (error) throw new Error(`Could not load products: ${error.message}`);
+  const byId = new Map((data as CardRow[]).map((row) => [row.id, row]));
+  return ids.flatMap((id) => {
+    const row = byId.get(id);
+    return row ? [{ ...toCard(row), isNew: newest.has(id) }] : [];
+  });
 }
 
 export type ProductVariant = Pick<

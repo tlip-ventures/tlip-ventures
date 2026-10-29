@@ -2,10 +2,11 @@
 
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
-import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import type { PlacedOrder } from "@/app/(shop)/cart/actions";
 import {
   addLine,
+  cartCount,
   markProblems,
   refreshLines,
   removeLine,
@@ -15,35 +16,9 @@ import {
   type LineProblem,
   type NewCartLine,
 } from "@/lib/cart";
+import { safeStorage } from "@/lib/safe-storage";
 
 const STORAGE_KEY = "tlip-cart";
-
-// localStorage can be missing (server rendering) or throw (blocked storage,
-// some private modes). Fall back to memory so the cart still works for this visit.
-const memory = new Map<string, string>();
-const safeStorage: StateStorage = {
-  getItem: (key) => {
-    try {
-      return localStorage.getItem(key);
-    } catch {
-      return memory.get(key) ?? null;
-    }
-  },
-  setItem: (key, value) => {
-    try {
-      localStorage.setItem(key, value);
-    } catch {
-      memory.set(key, value);
-    }
-  },
-  removeItem: (key) => {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      memory.delete(key);
-    }
-  },
-};
 
 type CartState = {
   lines: CartLine[];
@@ -96,4 +71,11 @@ const subscribeHydration = (onChange: () => void) => useCart.persist.onFinishHyd
  */
 export function useCartHydrated(): boolean {
   return useSyncExternalStore(subscribeHydration, () => useCart.persist.hasHydrated(), () => false);
+}
+
+/** Number of items for cart badges: 0 until the saved cart has loaded, so the HTML matches. */
+export function useCartBadgeCount(): number {
+  const hydrated = useCartHydrated();
+  const count = useCart((s) => cartCount(s.lines));
+  return hydrated ? count : 0;
 }

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/shop/listing-controls";
 import { ProductListing } from "@/components/shop/product-listing";
 import { categoryAndChildIds, categoryPath } from "@/lib/categories";
-import { parseListingParams, slugSchema } from "@/lib/listing";
+import { parseListingParams, priceFilter, slugSchema } from "@/lib/listing";
 import { getCategories, getCategoryBySlug, listProducts } from "@/lib/server/catalogue";
 import { listingPath, pageMetadata } from "@/lib/seo";
 
@@ -32,6 +32,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
   const listing = parseListingParams(await searchParams);
   const result = await listProducts({
     categoryIds: categoryAndChildIds(categories, category),
+    ...priceFilter(listing),
     sort: listing.sort,
     page: listing.page,
   });

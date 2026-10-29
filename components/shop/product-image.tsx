@@ -9,29 +9,28 @@ type Props = {
   eager?: boolean;
 };
 
-/** Square product photo from Cloudinary, or a plain placeholder when there is none yet. */
+/** Square product photo from Cloudinary, or a "Photo coming soon" tile when there is none yet. */
 export function ProductImage({ image, sizes, eager = false }: Props) {
+  if (!image) {
+    return (
+      <div className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg bg-tint-green p-3 text-center text-xs font-semibold leading-4 text-brand-green">
+        <Image src="/brand/logo.webp" alt="" width={44} height={44} unoptimized className="h-9 w-9 opacity-90 md:h-11 md:w-11" />
+        Photo coming soon
+      </div>
+    );
+  }
   return (
-    <div className="relative aspect-square overflow-hidden rounded-lg bg-neutral-100">
-      {image ? (
-        <Image
-          src={image.url}
-          alt={image.alt}
-          fill
-          sizes={sizes}
-          loading={eager ? "eager" : "lazy"}
-          fetchPriority={eager ? "high" : undefined}
-          className="object-contain"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center text-neutral-400" role="img" aria-label="No photo yet">
-          <svg viewBox="0 0 24 24" className="h-1/3 w-1/3" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-            <rect x="3" y="5" width="18" height="14" rx="2" />
-            <circle cx="9" cy="10" r="1.5" />
-            <path d="m21 16-5-5-8 8" />
-          </svg>
-        </div>
-      )}
+    <div className="relative aspect-square overflow-hidden rounded-lg bg-well">
+      <Image
+        src={image.url}
+        alt={image.alt}
+        fill
+        sizes={sizes}
+        loading={eager ? "eager" : "lazy"}
+        fetchPriority={eager ? "high" : undefined}
+        // Multiply blends a photo's white background into the grey well.
+        className="object-contain mix-blend-multiply"
+      />
     </div>
   );
 }
