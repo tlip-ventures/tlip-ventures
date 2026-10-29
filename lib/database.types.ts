@@ -1549,6 +1549,18 @@ export type Database = {
         Returns: string
       }
       pos_finish_count: { Args: { p_count_id: string }; Returns: number }
+      pos_import_people: {
+        Args: { p_apply: boolean; p_kind: string; p_rows: Json }
+        Returns: Json
+      }
+      pos_import_products: {
+        Args: { p_apply: boolean; p_rows: Json; p_set_stock: boolean; p_update_prices: boolean }
+        Returns: Json
+      }
+      pos_import_records: {
+        Args: { p_apply: boolean; p_kind: string; p_rows: Json }
+        Returns: Json
+      }
       pos_list_users: {
         Args: never
         Returns: {

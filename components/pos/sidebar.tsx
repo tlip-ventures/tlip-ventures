@@ -37,6 +37,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { icon: "customers", name: "Customers", href: "/pos/customers" },
       { icon: "reports", name: "Reports", href: "/pos/reports", ownerOnly: true },
+      { icon: "import", name: "Import data", href: "/pos/import", ownerOnly: true },
       { icon: "settings", name: "Settings", href: "/pos/settings", ownerOnly: true },
     ],
   },

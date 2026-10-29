@@ -62,7 +62,12 @@ export async function listRecords(kind: RecordKind, options: { search?: string; 
       createdAt: r.created_at!,
       code: r.code!,
       party: r.customer_name ?? (r.source === "website" ? "Online customer" : "Walk-in customer"),
-      sub: r.source === "website" ? "From the website · Accra shop" : `Sold by ${by(r.created_by)} · Accra shop`,
+      sub:
+        r.source === "website"
+          ? "From the website · Accra shop"
+          : r.source === "import"
+            ? "From the old system · Accra shop"
+            : `Sold by ${by(r.created_by)} · Accra shop`,
       saleStatus: r.status!,
       total: r.total!,
       paid: r.paid!,

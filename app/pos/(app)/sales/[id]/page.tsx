@@ -91,7 +91,7 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
         <Facts
           items={[
             ["Date", formatDayTime(sale.createdAt)],
-            ["Sold by", sale.source === "website" ? "From the website" : sale.soldBy],
+            ["Sold by", sale.source === "website" ? "From the website" : sale.source === "import" ? "Imported from the old system" : sale.soldBy],
             [
               "Customer",
               sale.customer ? (

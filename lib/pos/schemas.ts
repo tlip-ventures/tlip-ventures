@@ -247,3 +247,56 @@ export const returnSchema = z.object({
 });
 
 export type ReturnInput = z.input<typeof returnSchema>;
+
+// ---------------------------------------------------------------------------
+// Data import: rows already read and checked in the browser (lib/pos/import),
+// checked again here before they reach the database. Money in pesewas.
+// ---------------------------------------------------------------------------
+
+const pesewas = z.number().int().min(0).max(1_000_000_000);
+const rowNumber = z.number().int().min(1).max(1_000_000);
+const shortText = (max: number) => z.string().trim().min(1).max(max);
+const ghanaPhone = z.string().regex(/^233[235]\d{8}$/);
+
+export const importProductRowSchema = z.object({
+  row: rowNumber,
+  name: shortText(200),
+  slug: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/).max(80),
+  sku: shortText(60).nullable(),
+  barcode: z.string().regex(/^\S{1,64}$/).nullable(),
+  category: shortText(80).nullable(),
+  price: pesewas,
+  cost: pesewas.nullable(),
+  qty: z.number().int().min(-100_000).max(100_000).nullable(),
+  reorder: z.number().int().min(0).max(100_000).nullable(),
+});
+
+export const importPersonRowSchema = z.object({ row: rowNumber, name: shortText(100), phone: ghanaPhone.nullable() });
+
+export const importRecordRowSchema = z.object({
+  row: rowNumber,
+  code: shortText(40),
+  date: z.iso.datetime(),
+  party: shortText(100).nullable(),
+  phone: ghanaPhone.nullable(),
+  total: pesewas,
+  paid: pesewas,
+  method: z.enum(["cash", "momo", "bank"]),
+  lines: z
+    .array(z.object({ name: shortText(200), qty: z.number().int().min(1).max(100_000), unitPrice: pesewas, unitCost: pesewas.nullable() }))
+    .max(500),
+});
+
+export const importBatchSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("products"),
+    apply: z.boolean(),
+    updatePrices: z.boolean(),
+    setStock: z.boolean(),
+    rows: z.array(importProductRowSchema).min(1).max(400),
+  }),
+  z.object({ kind: z.enum(["customers", "suppliers"]), apply: z.boolean(), rows: z.array(importPersonRowSchema).min(1).max(400) }),
+  z.object({ kind: z.enum(["sales", "purchases"]), apply: z.boolean(), rows: z.array(importRecordRowSchema).min(1).max(200) }),
+]);
+
+export type ImportBatch = z.input<typeof importBatchSchema>;
