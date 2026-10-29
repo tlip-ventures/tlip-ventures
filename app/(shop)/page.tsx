@@ -4,6 +4,8 @@ import { CategoryIcon } from "@/components/shop/category-icon";
 import { BannerCarousel } from "@/components/shop/home/banner-carousel";
 import { CategoryCirclesDesktop, CategoryCirclesPhone } from "@/components/shop/home/category-circles";
 import { DefaultBanner } from "@/components/shop/home/default-banner";
+import { ImageBanner } from "@/components/shop/home/image-banner";
+import { JOIN_TEAM_MESSAGE, JoinTeamSlide } from "@/components/shop/home/join-team-slide";
 import { HowOrdering } from "@/components/shop/home/how-ordering";
 import { ProductSection } from "@/components/shop/home/product-section";
 import { RecentlyViewed } from "@/components/shop/home/recently-viewed";
@@ -103,7 +105,15 @@ export default async function HomePage() {
             </Link>
           </nav>
 
-          {banners.length > 0 ? <BannerCarousel slides={banners} /> : <DefaultBanner featured={featured?.products ?? []} />}
+          <BannerCarousel
+            slides={[
+              // Banners switched on in admin take the green panel's place.
+              ...(banners.length > 0
+                ? banners.map((banner, i) => ({ id: banner.id, content: <ImageBanner banner={banner} first={i === 0} /> }))
+                : [{ id: "welcome", content: <DefaultBanner featured={featured?.products ?? []} /> }]),
+              { id: "join-team", content: <JoinTeamSlide applyUrl={whatsappUrl(settings.whatsapp_number, JOIN_TEAM_MESSAGE)} /> },
+            ]}
+          />
 
           <div className="hidden flex-col gap-4 xl:flex">
             <section aria-labelledby="steps-heading" className="flex flex-1 flex-col gap-3 rounded-xl bg-white p-5">
