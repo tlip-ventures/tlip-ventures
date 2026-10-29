@@ -122,6 +122,33 @@ export type Database = {
           },
         ]
       }
+      customers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           id: string
@@ -218,6 +245,57 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          cash_received: number | null
+          change_given: number | null
+          created_by: string | null
+          id: string
+          method: Database["public"]["Enums"]["payment_method"]
+          note: string | null
+          paid_at: string
+          sale_id: string | null
+        }
+        Insert: {
+          amount: number
+          cash_received?: number | null
+          change_given?: number | null
+          created_by?: string | null
+          id?: string
+          method: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          paid_at?: string
+          sale_id?: string | null
+        }
+        Update: {
+          amount?: number
+          cash_received?: number | null
+          change_given?: number | null
+          created_by?: string | null
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          paid_at?: string
+          sale_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "pos_sale_balances"
+            referencedColumns: ["sale_id"]
+          },
+          {
+            foreignKeyName: "payments_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_categories: {
         Row: {
@@ -410,12 +488,161 @@ export type Database = {
         }
         Relationships: []
       }
+      sale_item_costs: {
+        Row: {
+          sale_item_id: string
+          unit_cost: number
+        }
+        Insert: {
+          sale_item_id: string
+          unit_cost: number
+        }
+        Update: {
+          sale_item_id?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_item_costs_sale_item_id_fkey"
+            columns: ["sale_item_id"]
+            isOneToOne: true
+            referencedRelation: "sale_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_items: {
+        Row: {
+          id: string
+          line_total: number
+          option_values: string | null
+          product_name: string
+          qty: number
+          sale_id: string
+          unit_price: number
+          variant_id: string | null
+        }
+        Insert: {
+          id?: string
+          line_total: number
+          option_values?: string | null
+          product_name: string
+          qty: number
+          sale_id: string
+          unit_price: number
+          variant_id?: string | null
+        }
+        Update: {
+          id?: string
+          line_total?: number
+          option_values?: string | null
+          product_name?: string
+          qty?: number
+          sale_id?: string
+          unit_price?: number
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "pos_sale_balances"
+            referencedColumns: ["sale_id"]
+          },
+          {
+            foreignKeyName: "sale_items_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "sale_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales: {
+        Row: {
+          code: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          discount: number
+          id: string
+          note: string | null
+          order_id: string | null
+          source: Database["public"]["Enums"]["sale_source"]
+          status: Database["public"]["Enums"]["sale_status"]
+          subtotal: number
+          total: number
+        }
+        Insert: {
+          code?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          discount?: number
+          id?: string
+          note?: string | null
+          order_id?: string | null
+          source?: Database["public"]["Enums"]["sale_source"]
+          status?: Database["public"]["Enums"]["sale_status"]
+          subtotal: number
+          total: number
+        }
+        Update: {
+          code?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          discount?: number
+          id?: string
+          note?: string | null
+          order_id?: string | null
+          source?: Database["public"]["Enums"]["sale_source"]
+          status?: Database["public"]["Enums"]["sale_status"]
+          subtotal?: number
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settings: {
         Row: {
           announcement: string | null
           contact_email: string | null
           id: number
           opening_hours: string | null
+          receipt_footer: string | null
           reply_close: string | null
           reply_days: number[]
           reply_open: string | null
@@ -431,6 +658,7 @@ export type Database = {
           contact_email?: string | null
           id?: number
           opening_hours?: string | null
+          receipt_footer?: string | null
           reply_close?: string | null
           reply_days?: number[]
           reply_open?: string | null
@@ -446,6 +674,7 @@ export type Database = {
           contact_email?: string | null
           id?: number
           opening_hours?: string | null
+          receipt_footer?: string | null
           reply_close?: string | null
           reply_days?: number[]
           reply_open?: string | null
@@ -580,6 +809,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["stock_movement_kind"]
           qty_change: number
           reason: string | null
+          sale_id: string | null
           variant_id: string
         }
         Insert: {
@@ -591,6 +821,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["stock_movement_kind"]
           qty_change: number
           reason?: string | null
+          sale_id?: string | null
           variant_id: string
         }
         Update: {
@@ -602,6 +833,7 @@ export type Database = {
           kind?: Database["public"]["Enums"]["stock_movement_kind"]
           qty_change?: number
           reason?: string | null
+          sale_id?: string | null
           variant_id?: string
         }
         Relationships: [
@@ -610,6 +842,20 @@ export type Database = {
             columns: ["count_id"]
             isOneToOne: false
             referencedRelation: "stock_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "pos_sale_balances"
+            referencedColumns: ["sale_id"]
+          },
+          {
+            foreignKeyName: "stock_movements_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
           {
@@ -666,6 +912,15 @@ export type Database = {
       }
     }
     Views: {
+      pos_sale_balances: {
+        Row: {
+          owed: number | null
+          paid: number | null
+          sale_id: string | null
+          total: number | null
+        }
+        Relationships: []
+      }
       pos_stock_rows: {
         Row: {
           barcode: string | null
@@ -723,6 +978,26 @@ export type Database = {
         Returns: number
       }
       pos_cancel_count: { Args: { p_count_id: string }; Returns: undefined }
+      pos_complete_sale: {
+        Args: {
+          p_cash_received?: number
+          p_customer_id: string
+          p_discount: number
+          p_items: Json
+          p_method: string
+          p_note?: string
+        }
+        Returns: {
+          change_given: number
+          code: string
+          sale_id: string
+          total: number
+        }[]
+      }
+      pos_create_customer: {
+        Args: { p_name: string; p_phone?: string }
+        Returns: string
+      }
       pos_finish_count: { Args: { p_count_id: string }; Returns: number }
       pos_list_users: {
         Args: never
@@ -778,6 +1053,9 @@ export type Database = {
         | "delivered"
         | "cancelled"
         | "not_sent"
+      payment_method: "cash" | "momo" | "bank"
+      sale_source: "shop" | "website" | "import"
+      sale_status: "ordered" | "pending" | "completed" | "cancelled" | "voided"
       stock_count_status: "open" | "finished" | "cancelled"
       stock_movement_kind:
         | "opening"
@@ -924,6 +1202,9 @@ export const Constants = {
         "cancelled",
         "not_sent",
       ],
+      payment_method: ["cash", "momo", "bank"],
+      sale_source: ["shop", "website", "import"],
+      sale_status: ["ordered", "pending", "completed", "cancelled", "voided"],
       stock_count_status: ["open", "finished", "cancelled"],
       stock_movement_kind: [
         "opening",

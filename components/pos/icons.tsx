@@ -67,3 +67,9 @@ export const BackIcon = (props: IconProps) => <Icon d="M15 18l-6-6 6-6" strokeWi
 export const ExternalIcon = (props: IconProps) => (
   <Icon d="M14 4h6v6 M20 4l-9 9 M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" size={16} strokeWidth={1.8} {...props} />
 );
+
+export const CheckIcon = (props: IconProps) => <Icon d="m5 12 5 5 9-10" size={26} strokeWidth={2.2} {...props} />;
+
+export const ChatIcon = (props: IconProps) => (
+  <Icon d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" strokeWidth={1.8} {...props} />
+);

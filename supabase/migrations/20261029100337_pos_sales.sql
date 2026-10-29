@@ -249,6 +249,22 @@ begin
   end if;
   v_total := v_subtotal - p_discount;
 
+  -- Check the shelf before taking a sale number, so a refused sale leaves no gap
+  -- in SL_ numbers. (The stock movement trigger checks again.)
+  select greatest(s.on_hand, 0) as on_hand,
+         p.name || coalesce(' (' || nullif(concat_ws(' / ', v.option1_value, v.option2_value), '') || ')', '') as name
+  into v_line
+  from jsonb_to_recordset(v_basket) as b (variant_id uuid, qty integer)
+  join public.stock_levels s on s.variant_id = b.variant_id
+  join public.product_variants v on v.id = b.variant_id
+  join public.products p on p.id = v.product_id
+  where s.on_hand < b.qty
+  order by p.name
+  limit 1;
+  if found then
+    raise exception 'Only % left of %.', v_line.on_hand, v_line.name using errcode = 'TV001';
+  end if;
+
   if p_method = 'cash' then
     if p_cash_received is not null and p_cash_received < v_total then
       raise exception 'The cash received is less than the total.' using errcode = '22023';

@@ -142,3 +142,30 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
   }
   return errors;
 }
+
+/** What the till sends to save a sale. Prices are not sent: the database works them out. */
+export const completeSaleSchema = z
+  .object({
+    items: z
+      .array(z.object({ variantId: z.uuid(), qty: z.number().int().min(1).max(999) }))
+      .min(1, "The basket is empty.")
+      .max(200, "At most 200 lines in one sale."),
+    customerId: z.uuid().nullable(),
+    discount: z.number().int().min(0).max(100_000_000),
+    method: z.enum(["cash", "momo", "bank", "later"]),
+    // Cash only, in pesewas; null means the exact amount.
+    cashReceived: z.number().int().min(0).max(100_000_000).nullable(),
+  })
+  .superRefine((s, ctx) => {
+    if (s.method === "later" && !s.customerId) {
+      ctx.addIssue({ code: "custom", path: ["customerId"], message: "Choose the customer who will pay later." });
+    }
+  });
+
+export type CompleteSaleInput = z.input<typeof completeSaleSchema>;
+
+export const newCustomerSchema = z.object({
+  name: z.string().trim().min(1, "Enter the customer's name.").max(100, "At most 100 characters."),
+  // Optional; checked and stored as 233XXXXXXXXX by the action.
+  phone: z.string().trim().max(30),
+});

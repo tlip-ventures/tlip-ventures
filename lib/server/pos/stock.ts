@@ -78,17 +78,15 @@ export async function listStockRows(options: {
   topCategoryId?: string;
   page?: number;
   pageSize?: number;
+  /** "attention": recount, out and low first (the stock list); "name": A–Z (the till). */
+  order?: "attention" | "name";
 }) {
   const { supabase, isOwner } = await requirePosUser();
   const { from, to } = pageRange(options.page ?? 1, options.pageSize ?? STOCK_PAGE_SIZE);
 
-  let query = supabase
-    .from("pos_stock_rows")
-    .select(ROW_COLUMNS, { count: "exact" })
-    .order("state_rank")
-    .order("on_hand")
-    .order("product_name")
-    .order("variant_id");
+  let query = supabase.from("pos_stock_rows").select(ROW_COLUMNS, { count: "exact" });
+  query = options.order === "name" ? query.order("product_name") : query.order("state_rank").order("on_hand").order("product_name");
+  query = query.order("variant_id");
 
   if (options.filter && options.filter !== "all") query = query.in("stock_state", statesForFilter(options.filter));
   if (options.topCategoryId) query = query.eq("top_category_id", options.topCategoryId);
