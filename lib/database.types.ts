@@ -29,6 +29,42 @@ export type Database = {
         }
         Relationships: []
       }
+      banners: {
+        Row: {
+          alt: string
+          created_at: string
+          id: string
+          image_url: string
+          is_active: boolean
+          link_url: string | null
+          public_id: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          alt: string
+          created_at?: string
+          id?: string
+          image_url: string
+          is_active?: boolean
+          link_url?: string | null
+          public_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          alt?: string
+          created_at?: string
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          link_url?: string | null
+          public_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           id: string
@@ -118,6 +154,7 @@ export type Database = {
           customer_name: string
           id: string
           items_total: number
+          location: string | null
           notes: string | null
           order_code: string
           phone: string
@@ -130,6 +167,7 @@ export type Database = {
           customer_name: string
           id?: string
           items_total: number
+          location?: string | null
           notes?: string | null
           order_code?: string
           phone: string
@@ -142,6 +180,7 @@ export type Database = {
           customer_name?: string
           id?: string
           items_total?: number
+          location?: string | null
           notes?: string | null
           order_code?: string
           phone?: string
@@ -311,8 +350,13 @@ export type Database = {
       settings: {
         Row: {
           announcement: string | null
+          contact_email: string | null
           id: number
           opening_hours: string | null
+          reply_close: string | null
+          reply_days: number[]
+          reply_open: string | null
+          response_promise: string | null
           shop_address: string | null
           social_links: Json
           store_name: string
@@ -321,8 +365,13 @@ export type Database = {
         }
         Insert: {
           announcement?: string | null
+          contact_email?: string | null
           id?: number
           opening_hours?: string | null
+          reply_close?: string | null
+          reply_days?: number[]
+          reply_open?: string | null
+          response_promise?: string | null
           shop_address?: string | null
           social_links?: Json
           store_name?: string
@@ -331,8 +380,13 @@ export type Database = {
         }
         Update: {
           announcement?: string | null
+          contact_email?: string | null
           id?: number
           opening_hours?: string | null
+          reply_close?: string | null
+          reply_days?: number[]
+          reply_open?: string | null
+          response_promise?: string | null
           shop_address?: string | null
           social_links?: Json
           store_name?: string
@@ -346,6 +400,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_order: {
+        Args: {
+          p_customer_name: string
+          p_items: Json
+          p_location: string
+          p_notes: string
+          p_phone: string
+        }
+        Returns: {
+          order_code: string
+          public_token: string
+        }[]
+      }
       expire_unsent_orders: { Args: never; Returns: number }
     }
     Enums: {

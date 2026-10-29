@@ -2,6 +2,8 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"main": ".open-next/worker.js",
 	"name": "tlip-ventures",
+	// Tlip Ventures' own Cloudflare account (tlipventures@gmail.com). Not a secret.
+	"account_id": "db7f681a64c54fb6ca1547db40c68c15",
 	"compatibility_date": "2026-10-19",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 	"assets": {
@@ -18,6 +20,15 @@
 	],
 	// Product images are served by Cloudinary through a custom next/image loader,
 	// so no Cloudflare IMAGES binding. No R2 incremental cache until we use ISR.
+	// Checkout spam protection: at most 3 orders a minute from one IP address.
+	// See lib/server/rate-limit.ts. namespace_id is any number unique in the account.
+	"ratelimits": [
+		{
+			"name": "CHECKOUT_RATE_LIMITER",
+			"namespace_id": "1001",
+			"simple": { "limit": 3, "period": 60 }
+		}
+	],
 	// Keep variables set in the Cloudflare dashboard when deploying from the CLI or Workers Builds.
 	"keep_vars": true,
 	"observability": {

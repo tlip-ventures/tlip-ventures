@@ -16,13 +16,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Check Cloudflare secrets are set
+      # The Cloudflare account ID is in wrangler.jsonc (it is not a secret), so only the token is needed here.
+      - name: Check the Cloudflare token is set
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::error::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in GitHub: Settings > Secrets and variables > Actions."
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::Add CLOUDFLARE_API_TOKEN in GitHub: Settings > Secrets and variables > Actions."
             exit 1
           fi
 
@@ -42,6 +42,26 @@ jobs:
         run: npm run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # Public NEXT_PUBLIC_* values come from the committed .env file.
           # Don't set them here: even an empty value would override .env.
+
+      # The Worker's server-only secrets live in this repo's Actions secrets (the
+      # Import products job uses the same ones), so a fresh Cloudflare account needs
+      # nothing added by hand. Empty ones are skipped; the values are never printed.
+      - name: Copy server secrets to the Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: |
+          umask 077
+          node -e '
+            const names = ["SUPABASE_SERVICE_ROLE_KEY", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"];
+            const set = Object.fromEntries(names.filter((n) => process.env[n]).map((n) => [n, process.env[n]]));
+            const missing = names.filter((n) => !set[n]);
+            if (missing.length) console.log(`::warning::Not set in GitHub, so not copied: ${missing.join(", ")}`);
+            require("fs").writeFileSync(process.env.RUNNER_TEMP + "/worker-secrets.json", JSON.stringify(set));
+          '
+          npx wrangler secret bulk "$RUNNER_TEMP/worker-secrets.json"
+          rm -f "$RUNNER_TEMP/worker-secrets.json"

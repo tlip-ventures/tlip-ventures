@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPesewas, lineTotal, sumPesewas } from "./money";
+import { formatPesewas, lineTotal, parseCedis, pesewasToDecimal, pesewasToInput, sumPesewas } from "./money";
 
 describe("formatPesewas", () => {
   it("drops decimals for whole cedis", () => {
@@ -54,5 +54,48 @@ describe("sumPesewas", () => {
 
   it("rejects floats", () => {
     expect(() => sumPesewas([100, 0.1])).toThrow(TypeError);
+  });
+});
+
+describe("parseCedis", () => {
+  it.each([
+    ["450", 45000],
+    ["1,250.50", 125050],
+    ["1250.5", 125050],
+    ["0.01", 1],
+    ["GH₵ 12.05", 1205],
+    ["ghs 10", 1000],
+    [" 99 ", 9900],
+    ["0", 0],
+  ])("reads %s", (input, expected) => {
+    expect(parseCedis(input)).toBe(expected);
+  });
+
+  it.each([[""], ["abc"], ["-5"], ["1.234"], ["1e3"], ["12.3.4"], ["123456789"], ["0.1.0"]])("rejects %s", (input) => {
+    expect(parseCedis(input)).toBeNull();
+  });
+
+  it("avoids float rounding errors", () => {
+    expect(parseCedis("0.29")).toBe(29);
+    expect(parseCedis("1.15")).toBe(115);
+  });
+});
+
+describe("pesewasToInput", () => {
+  it("round-trips with parseCedis", () => {
+    for (const p of [0, 1, 99, 45000, 125050, 99999999]) {
+      expect(parseCedis(pesewasToInput(p))).toBe(p);
+    }
+    expect(pesewasToInput(125050)).toBe("1250.50");
+    expect(pesewasToInput(null)).toBe("");
+  });
+});
+
+describe("pesewasToDecimal", () => {
+  it("always shows two decimals", () => {
+    expect(pesewasToDecimal(45000)).toBe("450.00");
+    expect(pesewasToDecimal(125050)).toBe("1250.50");
+    expect(pesewasToDecimal(5)).toBe("0.05");
+    expect(pesewasToDecimal(-150)).toBe("-1.50");
   });
 });

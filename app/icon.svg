@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="t">
-  <title id="t">Tlip Ventures</title>
-  <rect width="120" height="120" rx="16" fill="#111111"/>
-  <path d="M14 56 60 18l46 38v8H14z" fill="#E8641E"/>
-  <rect x="52" y="38" width="16" height="12" rx="2" fill="#F2B705"/>
-  <text x="60" y="84" text-anchor="middle" font-family="'Roboto Slab','Zilla Slab',Georgia,serif" font-weight="700" font-size="21" fill="#FFFFFF">Tlip</text>
-  <text x="60" y="102" text-anchor="middle" font-family="'Roboto Slab','Zilla Slab',Georgia,serif" font-weight="700" font-size="13" letter-spacing="1" fill="#FFFFFF">VENTURES</text>
-  <text x="60" y="114" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="7" fill="#F2B705">Judges 6:24</text>
-</svg>

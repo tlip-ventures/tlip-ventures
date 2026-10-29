@@ -31,7 +31,18 @@ from (values
   ('home-organization', 'Packing Cubes', 'packing-cubes', 30),
   ('laundry-cleaning', 'Washing Machines', 'washing-machines', 10),
   ('laundry-cleaning', 'Irons & Garment Steamers', 'irons-garment-steamers', 20),
-  ('laundry-cleaning', 'Cleaning Items & Tools', 'cleaning-items-tools', 30)
+  ('laundry-cleaning', 'Cleaning Items & Tools', 'cleaning-items-tools', 30),
+  -- Added with the shop's price list (October 2026).
+  ('kitchen-appliances', 'Fufu & Swallow Makers', 'fufu-swallow-makers', 35),
+  ('kitchen-appliances', 'Food Dehydrators', 'food-dehydrators', 70),
+  ('kitchen-appliances', 'Ice Makers', 'ice-makers', 80),
+  ('kitchen-appliances', 'Snack & Dessert Makers', 'snack-dessert-makers', 90),
+  ('cooking-baking', 'Rice & Multi Cookers', 'rice-multi-cookers', 5),
+  ('home-organization', 'Mats & Rugs', 'mats-rugs', 40),
+  ('home-organization', 'Home Essentials', 'home-essentials', 50),
+  ('laundry-cleaning', 'Laundry Baskets & Drying Racks', 'laundry-baskets-drying-racks', 25),
+  ('bathroom', 'Bathroom Accessories', 'bathroom-accessories', 10),
+  ('kids-baby', 'Baby Feeding', 'baby-feeding', 10)
 ) as c (parent_slug, name, slug, sort_order)
 join public.categories p on p.slug = c.parent_slug
 on conflict (slug) do nothing;

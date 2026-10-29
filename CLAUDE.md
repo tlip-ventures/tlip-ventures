@@ -17,7 +17,7 @@ Commands
 * npm run build: Next.js production build (plain `next build`)
 * npm run preview: build for Workers with OpenNext, then serve on the local Workers runtime (wrangler dev) at http://localhost:8787
 * npm run deploy: build for Workers and deploy to Cloudflare (needs `wrangler login` or CLOUDFLARE_API_TOKEN)
-* Automatic deploys: .github/workflows/deploy.yml runs on every push to main (and manually from the Actions tab). Needs repo secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID; NEXT_PUBLIC_* go in repo Actions variables.
+* Automatic deploys: .github/workflows/deploy.yml runs on every push to main (and manually from the Actions tab). Needs repo secret CLOUDFLARE_API_TOKEN (the Cloudflare account ID is in wrangler.jsonc); after deploying it copies the repo secrets SUPABASE_SERVICE_ROLE_KEY, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET into the Worker's secrets (wrangler secret bulk). NEXT_PUBLIC_* come from the committed .env.
 * npm run upload: build and upload a new Worker version without making it live
 * npm run cf-typegen: regenerate cloudflare-env.d.ts after changing wrangler.jsonc bindings
 * npm run typecheck: `next typegen` then `tsc --noEmit`
@@ -27,8 +27,11 @@ Commands
 * npm run db:new -- <name>: new SQL migration in supabase/migrations/
 * npm run db:push: apply migrations to the linked Supabase project (first `npx supabase login` and `npx supabase link --project-ref <ref>`)
 * npm run db:types: generate lib/database.types.ts from the linked project (or use the Supabase connector's type generation); regenerate after every migration
+* npm run products:export -- <file.csv> / npm run products:import -- <file.csv> [--apply]: spreadsheet export and import of products, run locally with the secret key in .env.local (scripts/README.md). Import is a dry run unless --apply is given. Without a computer: put the CSV and photos under imports/ on main and run the "Import products" GitHub Action (.github/workflows/import-products.yml; repo secrets SUPABASE_SERVICE_ROLE_KEY, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET).
+* Testing on real phones before launch: docs/testing-checklist.md
+* npm run smoke -- <site URL> [--whatsapp 0242959396]: read-only check of a deployed site (pages, 404s, SEO files, security headers, admin redirect). Launch steps: docs/launch.md
 * Supabase project: tlip-ventures (ref raxbsxepqyewbxoqcpaj). Migration file names must match the version recorded in the database.
-* Seed data: supabase/seed/categories.sql, settings.sql, demo_products.sql (all safe to re-run); demo_products_remove.sql deletes the demo products
+* Seed data: supabase/seed/categories.sql, settings.sql, demo_products.sql (all safe to re-run); demo_products_remove.sql deletes the demo products; make_admin.sql gives an existing Supabase Auth user access to /admin (create the user first in the dashboard)
 * is_admin() lives in the `private` schema (not exposed by the API); RLS policies call private.is_admin()
 * Environment: public values (Supabase URL + publishable key, site URL) are in the committed .env; never put secrets there. Use .env.local for local overrides and secrets. On Cloudflare, NEXT_PUBLIC_* are inlined at build time; secrets are Worker secrets. Cache Components are off (they hang on Workers).
 Folder layout
@@ -44,10 +47,10 @@ Domain rules (do not break; ask before changing)
 1. Money is integer pesewas everywhere (GHS 450.00 = 45000). Format only for display: "GH₵ 450", "GH₵ 1,250.50". Never use floats for money.
 2. The database is the source of truth for prices. The checkout server action recalculates every line from the database and ignores prices sent by the browser.
 3. Stock is set by hand by the owner. Each variant has in_stock (boolean) and an optional stock_qty for the owner's reference. Never change stock automatically. Out-of-stock variants cannot be added to the cart or ordered.
-4. No delivery fields, fees, zones or options anywhere. No payment gateway. Order total = items total.
-5. Checkout collects only: customer name, phone, optional note. Phone must be Ghanaian: accept 0XXXXXXXXX, +233XXXXXXXXX or 233XXXXXXXXX; store as 233XXXXXXXXX.
+4. No delivery fees, zones or options anywhere (the customer's free-text location is the only delivery-related field; the owner agrees delivery in WhatsApp). No payment gateway. Order total = items total.
+5. Checkout collects only: customer name, phone, location (required free text: area and a landmark, or "Pickup"), optional note. Phone must be Ghanaian: accept 0XXXXXXXXX, +233XXXXXXXXX or 233XXXXXXXXX; store as 233XXXXXXXXX.
 6. WhatsApp hand-off: save the order first, then open https://wa.me/<settings.whatsapp_number>?text=<encodeURIComponent(message)>. Number format 233XXXXXXXXX (no +, no leading 0). Always show a fallback with the number and a "Copy order" button for desktop users.
-7. Order codes TV-1001, TV-1002... from a Postgres sequence. The public order page uses a random unguessable token (not the code) and shows items and total only, never name or phone.
+7. Order codes TV-1001, TV-1002... from a Postgres sequence. The public order page uses a random unguessable token (not the code) and shows items and total only, never name, phone or location.
 8. Order lines copy product name, option values and unit price at checkout.
 9. Orders still awaiting_whatsapp after 48 hours become not_sent (pg_cron job).
 10. Secrets (Supabase secret/service-role key, Cloudinary API secret) are server-only. Never import them into client components or prefix them with NEXT_PUBLIC_.
@@ -62,6 +65,8 @@ Order: TV-1042
 2 x Foldable storage stool - GH₵ 240
 Items total: GH₵ 690
 Name: Ama Mensah | Phone: 024 123 4567
+Location: Dansoman, near Sharp Curve
+Note: Please call before delivery
 Order link: https://<site>/o/<token>
 
 ```
@@ -75,36 +80,41 @@ Data model
 * product_categories(product_id, category_id)
 * product_images(id, product_id, url, public_id, alt, sort_order)
 * product_variants(id, product_id, option1_value, option2_value, sku, in_stock, stock_qty, price_override)
-* orders(id, order_code, public_token, customer_name, phone, notes, items_total, status, created_at, updated_at)
+* orders(id, order_code, public_token, customer_name, phone, location, notes, items_total, status, created_at, updated_at)
 * order_items(id, order_id, variant_id, product_name, option_values, unit_price, qty, line_total)
-* settings(id = 1, store_name, whatsapp_number, shop_address, opening_hours, announcement, social_links jsonb, tagline)
+* settings(id = 1, store_name, whatsapp_number, shop_address, opening_hours, announcement, social_links jsonb, tagline, contact_email, response_promise, reply_open, reply_close, reply_days smallint[] 1=Mon..7=Sun; reply times are Ghana time)
+* banners(id, image_url, public_id, alt, link_url, is_active, sort_order, created_at, updated_at): home page carousel, 1440 × 720 (2:1) Cloudinary artwork, managed at /admin/banners; the home page shows the first 5 active ones, or, when none, a green "Quality home and kitchen goods in Ghana" panel showing up to 3 products ticked "Featured on the home page" (1 on phones; the logo if none). link_url is a site path ("/deals") or https:// address. Public reads active banners only.
+* Wishlist and recently viewed (last 12) are product ids in the browser's localStorage only (tlip-wishlist, tlip-recent); no customer accounts. Cards for them come from /api/products?ids=.
 * admins(user_id, role) A product with no options has exactly one variant with null option values.
 
 Catalogue
 
-* Kitchen Appliances: Blenders, Juicers, Food Processors, Stand & Hand Mixers, Kettles, Dispensers
-* Cooking & Baking: Ovens, Gas Burners, Coal Pots
+* Kitchen Appliances: Blenders, Juicers, Food Processors, Fufu & Swallow Makers, Stand & Hand Mixers, Kettles, Dispensers, Food Dehydrators, Ice Makers, Snack & Dessert Makers
+* Cooking & Baking: Rice & Multi Cookers, Ovens, Gas Burners, Coal Pots
 * Kitchen Storage & Utensils: Utensils, Food Racks, Storage Organizers & Racks
-* Home Organization: Storage Organizers & Racks, Foldable & Storage Stools, Packing Cubes
-* Laundry & Cleaning: Washing Machines, Irons & Garment Steamers, Cleaning Items & Tools
-* Bathroom: subcategories to be confirmed
-* Kids & Baby: subcategories to be confirmed A product can sit in several subcategories. Expect thousands of products: paginate (24 per page) and index slugs, category joins and the search vector.
+* Home Organization: Storage Organizers & Racks, Foldable & Storage Stools, Packing Cubes, Mats & Rugs, Home Essentials
+* Laundry & Cleaning: Washing Machines, Laundry Baskets & Drying Racks, Irons & Garment Steamers, Cleaning Items & Tools
+* Bathroom: Bathroom Accessories
+* Kids & Baby: Baby Feeding A product can sit in several subcategories. Expect thousands of products: paginate (24 per page) and index slugs, category joins and the search vector.
 
 Brand and design
 
 * Name: Tlip Ventures. Logo tagline: Judges 6:24.
 * Tailwind theme colours:
-   * brand-orange #E8641E: primary buttons, "Order on WhatsApp", sale badges
-   * brand-orange-dark #B84A14: orange text and links on white
-   * brand-green #0F6B43: header, footer, menus, headings
-   * brand-gold #F2B705: small accents only
-   * ink #111111: body text, logo badge background
-   * white page and product-card backgrounds
-* White text on brand-orange only at 16px bold or larger. Meet WCAG AA contrast elsewhere.
-* Fonts via next/font: a slab serif for headings (Zilla Slab or Roboto Slab, echoing the logo lettering), Inter for body.
-* An orange/green block band (from the shopfront) may decorate the header or footer.
-* Logo: placeholder at public/brand/logo.svg until the real file arrives.
-* Mobile-first, designed at 360px wide first. Most customers are on phones and mobile data: keep client JS small, lazy-load images, no heavy libraries or carousels.
+   * brand-orange #E8641E: block band, search button, Deals bar, count badges; only dark (ink) text or icons on it, never white
+   * brand-orange-dark #B84A14: "Order on WhatsApp" and other WhatsApp buttons (white text on it), sale text and discount badges, orange text on white
+   * brand-orange-deep #963B0F: hover state of brand-orange-dark buttons
+   * brand-green #0F6B43: header, primary buttons (Add to cart), links, menus
+   * brand-green-dark #0C3B29: footer, dark panels, link hover
+   * brand-gold #F2B705: small accents, on dark green only
+   * ink #111111: body text, logo badge background; secondary text #4F4A43 / #6B665E
+   * page #F3F1ED behind white panels and product cards (marketplace look); image wells #F6F5F2; tints #E7F0EB (green) and #FDEEE3 (orange); discount badge #FDE9DC with brand-orange-dark text
+* White text goes on brand-orange-dark, never on brand-orange (white on #E8641E is only 3.3:1; ink on it is 5.6:1). Meet WCAG AA contrast everywhere.
+* Fonts via next/font: Instrument Sans (400–700) for all UI text and headings; Instrument Serif (with italic) only for the wordmark, banner headlines and the "No card, no account. Just WhatsApp." panel. Neither has the cedi sign, so app/fonts/cedi-sign.woff2 (Inter's ₵ only) comes first in the font stack.
+* Design reference: the marketplace redesign (desktop, phone and pop-up category menu), modelled on Jumia Ghana but cleaner. Radius 12px panels, 8–10px cards and buttons, pills for chips and counts.
+* The orange/green block band (from the shopfront) sits under the header and above the footer; keep it.
+* Logo: round badge. Original in docs/brand/logo-source.jpg, cut-out in docs/brand/logo-cutout.png; site files public/brand/logo.webp (header), logo.png, icon-192/512.png, app/icon.png, app/apple-icon.png. Share image: public/brand/share.png.
+* Mobile-first, designed at 360px wide first. Most customers are on phones and mobile data: keep client JS small, lazy-load images, no heavy libraries. The only carousel is the hand-built home page banner (no carousel library).
 
 Conventions
 

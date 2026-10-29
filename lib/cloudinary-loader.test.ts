@@ -41,7 +41,7 @@ describe("cloudinaryUrl", () => {
   });
 
   it("passes local files through with a width parameter", () => {
-    expect(cloudinaryUrl({ src: "/brand/logo.svg", width: 128 }, CLOUD)).toBe("/brand/logo.svg?w=128");
+    expect(cloudinaryUrl({ src: "/brand/logo.webp", width: 128 }, CLOUD)).toBe("/brand/logo.webp?w=128");
   });
 
   it("throws for a public ID when no cloud name is configured", () => {
