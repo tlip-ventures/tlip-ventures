@@ -34,6 +34,7 @@ Commands
 * Seed data: supabase/seed/categories.sql, settings.sql, demo_products.sql (all safe to re-run); demo_products_remove.sql deletes the demo products; make_admin.sql gives an existing Supabase Auth user access to /admin (create the user first in the dashboard)
 * is_admin() lives in the `private` schema (not exposed by the API); RLS policies call private.is_admin()
 * Environment: public values (Supabase URL + publishable key, site URL) are in the committed .env; never put secrets there. Use .env.local for local overrides and secrets. On Cloudflare, NEXT_PUBLIC_* are inlined at build time; secrets are Worker secrets. Cache Components are off (they hang on Workers).
+* Caching (ISR, open-next.config.ts): shop pages and storefront Supabase reads (lib/supabase/public.ts) are cached in Workers KV for 10 minutes; tag cache in KV, background refresh via a Durable Object queue. Admin saves call revalidatePath("/", "layout") to clear it at once (KV may take up to a minute in other regions). CSV imports and direct SQL edits show within 10 minutes. Search, cart lines and checkout always read live data. Anything time-dependent on a shop page (like reply hours) must be worked out in the browser.
 Folder layout
 
 * app/(shop)/ storefront routes; app/admin/ admin routes (protected); app/o/[token] order page

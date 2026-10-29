@@ -6,10 +6,12 @@ import type { Tables } from "@/lib/database.types";
 import type { Sort } from "@/lib/listing";
 import { pageRange, PAGE_SIZE } from "@/lib/pagination";
 import { optionLabel, priceSummary, variantPrice, type PriceSummary } from "@/lib/product";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 
-// Storefront reads. RLS already hides inactive products from the public, but
-// a signed-in admin can see them, so every query here also filters is_active.
+// Storefront reads, as an anonymous visitor (no cookies), so shop pages can be
+// cached. Everything except search and cart lines goes through the data cache;
+// see lib/supabase/public.ts. RLS hides inactive products from the public, and
+// every query here also filters is_active.
 
 export type Settings = Omit<Tables<"settings">, "social_links"> & {
   social_links: Record<string, string>;
@@ -44,7 +46,7 @@ function parseSocialLinks(value: unknown): Record<string, string> {
 
 /** The single settings row. Cached per request, so the layout and page share one query. */
 export const getSettings = cache(async (): Promise<Settings> => {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase.from("settings").select("*").eq("id", 1).single();
   if (error) throw new Error(`Could not load settings: ${error.message}`);
   return { ...data, social_links: parseSocialLinks(data.social_links) };
@@ -52,7 +54,7 @@ export const getSettings = cache(async (): Promise<Settings> => {
 
 /** Every category (a few dozen rows), sorted. Cached per request. */
 export const getCategories = cache(async (): Promise<Category[]> => {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("categories")
     .select("id, name, slug, parent_id, image_url, sort_order")
@@ -115,7 +117,8 @@ export type ProductPage = { products: ProductCardData[]; total: number };
  */
 export async function listProducts(options: ListProductsOptions = {}): Promise<ProductPage | null> {
   const { categoryIds, search, featured, excludeId, sort = "newest", page = 1, pageSize = PAGE_SIZE } = options;
-  const supabase = await createClient();
+  // Search results aren't cached: every search is different.
+  const supabase = createPublicClient({ cache: !search });
 
   let query = categoryIds
     ? supabase
@@ -167,7 +170,7 @@ export type ProductDetail = Pick<
 
 /** One active product with all its images and variants. Cached per request for generateMetadata. */
 export const getProductBySlug = cache(async (slug: string): Promise<ProductDetail | null> => {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("products")
     .select(
@@ -210,7 +213,8 @@ export type CartVariant = {
  */
 export async function getCartVariants(variantIds: readonly string[]): Promise<CartVariant[]> {
   if (variantIds.length === 0) return [];
-  const supabase = await createClient();
+  // Never cached: the cart and checkout need current prices and stock.
+  const supabase = createPublicClient({ cache: false });
   const { data, error } = await supabase
     .from("product_variants")
     .select(
@@ -243,7 +247,7 @@ export async function getCartVariants(variantIds: readonly string[]): Promise<Ca
  * batches because Supabase returns at most 1,000 rows per request.
  */
 export async function listProductSlugs(): Promise<{ slug: string; updated_at: string }[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const batch = 1000;
   const all: { slug: string; updated_at: string }[] = [];
   for (let from = 0; from < 50_000; from += batch) {

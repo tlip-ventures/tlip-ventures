@@ -18,8 +18,17 @@
 			"service": "tlip-ventures"
 		}
 	],
+	// Page and data cache (see open-next.config.ts). The ids are not secrets.
+	"kv_namespaces": [
+		{ "binding": "NEXT_INC_CACHE_KV", "id": "6705e5333712482da02cc0f45d366901" },
+		{ "binding": "NEXT_TAG_CACHE_KV", "id": "53bd396875e647828b6bbf391405f39f" }
+	],
+	"durable_objects": {
+		"bindings": [{ "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" }]
+	},
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["DOQueueHandler"] }],
 	// Product images are served by Cloudinary through a custom next/image loader,
-	// so no Cloudflare IMAGES binding. No R2 incremental cache until we use ISR.
+	// so no Cloudflare IMAGES binding.
 	// Checkout spam protection: at most 3 orders a minute from one IP address.
 	// See lib/server/rate-limit.ts. namespace_id is any number unique in the account.
 	"ratelimits": [
