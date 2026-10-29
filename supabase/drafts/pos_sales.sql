@@ -186,6 +186,8 @@ declare
   v_item_id uuid;
   v_left integer;
   v_change integer;
+  -- The basket with one entry per variant: [{"variant_id", "qty"}, ...]
+  v_basket jsonb;
 begin
   if not private.is_member() then
     raise exception 'Sign in again to sell.' using errcode = '42501';
@@ -209,24 +211,34 @@ begin
     raise exception 'This customer no longer exists.' using errcode = 'P0002';
   end if;
 
-  -- One line per variant (the same item scanned twice adds up).
-  create temp table pos_basket on commit drop as
-  select i.variant_id, sum(i.qty)::integer as qty
-  from jsonb_to_recordset(p_items) as i (variant_id uuid, qty integer)
-  group by i.variant_id;
+  if exists (
+    select 1 from jsonb_to_recordset(p_items) as i (variant_id uuid, qty integer)
+    where i.variant_id is null or i.qty is null or i.qty < 1 or i.qty > 999
+  ) then
+    raise exception 'Each item needs a quantity from 1 to 999.' using errcode = '22023';
+  end if;
 
-  if exists (select 1 from pos_basket where variant_id is null or qty is null or qty < 1 or qty > 999) then
+  -- One entry per variant (the same item scanned twice adds up).
+  select jsonb_agg(jsonb_build_object('variant_id', x.variant_id, 'qty', x.qty) order by x.variant_id)
+  into v_basket
+  from (
+    select i.variant_id, sum(i.qty)::integer as qty
+    from jsonb_to_recordset(p_items) as i (variant_id uuid, qty integer)
+    group by i.variant_id
+  ) x;
+  if exists (select 1 from jsonb_to_recordset(v_basket) as b (variant_id uuid, qty integer) where b.qty > 999) then
     raise exception 'Each item needs a quantity from 1 to 999.' using errcode = '22023';
   end if;
 
   -- Lock the shelf rows first, in a fixed order, so two tills can't both sell the last one.
-  perform 1 from public.stock_levels s join pos_basket b on b.variant_id = s.variant_id
+  perform 1 from public.stock_levels s
+  join jsonb_to_recordset(v_basket) as b (variant_id uuid, qty integer) on b.variant_id = s.variant_id
   order by s.variant_id
   for update of s;
 
   select count(*), count(v.id), coalesce(sum(coalesce(v.price_override, p.price) * b.qty), 0)
   into v_lines, v_found, v_subtotal
-  from pos_basket b
+  from jsonb_to_recordset(v_basket) as b (variant_id uuid, qty integer)
   left join public.product_variants v on v.id = b.variant_id
   left join public.products p on p.id = v.product_id;
   if v_found <> v_lines then
@@ -253,7 +265,7 @@ begin
            nullif(concat_ws(' / ', v.option1_value, v.option2_value), '') as option_values,
            coalesce(v.price_override, p.price) as unit_price,
            c.cost_price
-    from pos_basket b
+    from jsonb_to_recordset(v_basket) as b (variant_id uuid, qty integer)
     join public.product_variants v on v.id = b.variant_id
     join public.products p on p.id = v.product_id
     left join public.variant_costs c on c.variant_id = v.id
@@ -290,7 +302,6 @@ begin
     );
   end if;
 
-  drop table pos_basket;
   return query select v_sale_id, v_code, v_total, v_change;
 end;
 $$;
