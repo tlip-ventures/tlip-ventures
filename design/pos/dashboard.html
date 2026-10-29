@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tlip Ventures dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gloock&amp;family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f1e9}
+a{color:#0f6b43}a:hover{color:#0c3b29}
+:focus-visible{outline:2px solid #0f6b43;outline-offset:3px}
+.tv-side :focus-visible{outline-color:#f2b705}
+.tv-nav:hover{background:rgba(246,241,233,0.08)}
+.tv-row:hover{background:#faf7f2}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; background: #f6f1e9; color: #111111; font-family: 'Instrument Sans', 'Helvetica Neue', Arial, sans-serif">
+
+  <!-- Sidebar -->
+  <aside class="tv-side" style="flex: 1 1 248px; background: #0c3b29; color: #f6f1e9; display: flex; flex-direction: column">
+    <div aria-hidden="true" style="display: flex; height: 6px">
+      <div style="flex: 1; background: #0f6b43"></div><div style="flex: 1; background: #e8641e"></div><div style="flex: 1; background: #0f6b43"></div><div style="flex: 1; background: #e8641e"></div><div style="flex: 1; background: #0f6b43"></div><div style="flex: 1; background: #e8641e"></div>
+    </div>
+    <div style="padding: 22px 20px 18px; display: flex; flex-direction: column; gap: 4px">
+      <span style="font-family: 'Gloock', Georgia, serif; font-size: 26px; line-height: 1">Tlip Ventures</span>
+      <span style="font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #f2b705">Stock and sales</span>
+    </div>
+    <div style="padding: 0 16px 8px">
+      <a href="Pos.dc.html" style="display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; border-radius: 6px; background: #e8641e; color: #111111; text-decoration: none; font-size: 14px; font-weight: 700">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+        <span>New sale</span>
+      </a>
+    </div>
+    <nav aria-label="Main" style="display: flex; flex-direction: column; gap: 2px; padding: 8px 12px 16px; flex: 1">
+      <sc-for list="{{nav}}" as="g" hint-placeholder-count="5">
+        <div style="display: flex; flex-direction: column; gap: 2px; padding-top: 12px">
+          <span style="padding: 0 10px 4px; font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #8fa89a">{{g.label}}</span>
+          <sc-for list="{{g.items}}" as="it" hint-placeholder-count="2">
+            <a href="{{it.href}}" class="tv-nav" aria-current="{{it.current}}" style="display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 0 10px; border-radius: 6px; background: {{it.bg}}; color: {{it.color}}; text-decoration: none; font-size: 14px; font-weight: {{it.weight}}">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{it.d}}"></path></svg>
+              <span style="flex: 1">{{it.name}}</span>
+              <sc-if value="{{it.hasBadge}}" hint-placeholder-val="{{ false }}">
+                <span style="min-width: 22px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: #f2b705; color: #111111; font-size: 12px; line-height: 20px; font-weight: 700; text-align: center">{{it.badge}}</span>
+              </sc-if>
+            </a>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+    <div style="margin: 0 12px 16px; padding: 12px; border-radius: 6px; background: rgba(246, 241, 233, 0.06); display: flex; align-items: center; gap: 10px">
+      <span style="width: 36px; height: 36px; flex: none; border-radius: 999px; background: #f6f1e9; color: #0c3b29; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700">OW</span>
+      <span style="display: flex; flex-direction: column; min-width: 0">
+        <span style="font-size: 14px; font-weight: 600">Owner</span>
+        <span style="font-size: 12px; color: #b7c6bb">Accra shop</span>
+      </span>
+    </div>
+  </aside>
+
+  <!-- Content -->
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 32px 40px; box-sizing: border-box">
+    <div style="max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px">
+
+      <!-- Top bar -->
+      <header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 13px; line-height: 18px; color: #5e574e">Thursday, 29 October 2026</span>
+          <h1 style="margin: 0; font-family: 'Gloock', Georgia, serif; font-size: 40px; line-height: 1.05; font-weight: 400; letter-spacing: -0.01em">Good morning. Here is the shop.</h1>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+          <label for="tv-q" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search products, sales or customers</label>
+          <div style="display: flex; align-items: center; gap: 10px; width: 300px; max-width: 100%; height: 44px; padding: 0 14px; box-sizing: border-box; border-radius: 6px; background: #ffffff; border: 1px solid #d9cfbf; color: #5e574e">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-3.5-3.5"></path></svg>
+            <input id="tv-q" type="search" placeholder="Search products, sales, customers" style="flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: #111111; outline: none">
+          </div>
+          <button type="button" aria-label="Notifications, 3 new" style="position: relative; width: 44px; height: 44px; border-radius: 6px; border: 1px solid #d9cfbf; background: #ffffff; color: #111111; display: flex; align-items: center; justify-content: center; cursor: pointer">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z M10 20a2 2 0 0 0 4 0"></path></svg>
+            <span style="position: absolute; top: 6px; right: 6px; width: 9px; height: 9px; border-radius: 999px; background: #e8641e; border: 2px solid #ffffff"></span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Money row -->
+      <section aria-labelledby="tv-money" style="display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+          <h2 id="tv-money" style="margin: 0; font-size: 13px; line-height: 18px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #5e574e">Money</h2>
+          <div role="group" aria-label="Period" style="display: flex; padding: 3px; border-radius: 8px; background: #ece4d6">
+            <sc-for list="{{periods}}" as="p" hint-placeholder-count="3">
+              <button type="button" onClick="{{p.pick}}" aria-pressed="{{p.pressed}}" style="min-height: 38px; padding: 0 16px; border: 0; border-radius: 6px; background: {{p.bg}}; color: #111111; font: inherit; font-size: 13px; font-weight: {{p.weight}}; cursor: pointer; box-shadow: {{p.shadow}}">{{p.label}}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 14px">
+          <div style="background: #0c3b29; color: #f6f1e9; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 10px; min-height: 148px; box-sizing: border-box">
+            <span style="font-size: 13px; font-weight: 600; color: #b7c6bb">Sales {{periodWord}}</span>
+            <span style="font-family: 'Gloock', Georgia, serif; font-size: 38px; line-height: 1; font-variant-numeric: tabular-nums">{{salesText}}</span>
+            <span style="font-size: 13px; line-height: 18px; color: #b7c6bb"><span style="color: #f2b705; font-weight: 700">{{salesDelta}}</span> on {{prevWord}} · {{salesCount}} sales</span>
+          </div>
+          <div style="background: #ffffff; border: 1px solid #e4dccd; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 10px; min-height: 148px; box-sizing: border-box">
+            <span style="font-size: 13px; font-weight: 600; color: #5e574e">Profit {{periodWord}}</span>
+            <span style="font-family: 'Gloock', Georgia, serif; font-size: 38px; line-height: 1; font-variant-numeric: tabular-nums">{{profitText}}</span>
+            <span style="font-size: 13px; line-height: 18px; color: #5e574e">After what you paid suppliers for those items</span>
+          </div>
+          <a href="Sales.dc.html" style="background: #ffffff; border: 1px solid #e4dccd; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 10px; min-height: 148px; box-sizing: border-box; text-decoration: none; color: #111111">
+            <span style="font-size: 13px; font-weight: 600; color: #5e574e">Customers owe you</span>
+            <span style="font-family: 'Gloock', Georgia, serif; font-size: 38px; line-height: 1; color: #b84a14; font-variant-numeric: tabular-nums">GH₵ 885</span>
+            <span style="font-size: 13px; line-height: 18px; color: #5e574e">2 unpaid sales · <span style="color: #0f6b43; font-weight: 700">Collect</span></span>
+          </a>
+          <a href="Sales.dc.html" style="background: #ffffff; border: 1px solid #e4dccd; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 10px; min-height: 148px; box-sizing: border-box; text-decoration: none; color: #111111">
+            <span style="font-size: 13px; font-weight: 600; color: #5e574e">You owe suppliers</span>
+            <span style="font-family: 'Gloock', Georgia, serif; font-size: 38px; line-height: 1; font-variant-numeric: tabular-nums">GH₵ 19,795</span>
+            <span style="font-size: 13px; line-height: 18px; color: #5e574e">Hot Kumasi, Errands Ventures · <span style="color: #0f6b43; font-weight: 700">See bills</span></span>
+          </a>
+        </div>
+      </section>
+
+      <!-- Chart + restock -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 14px">
+        <section aria-labelledby="tv-chart" style="background: #ffffff; border: 1px solid #e4dccd; border-radius: 10px; padding: 20px 20px 16px; display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px">
+            <h2 id="tv-chart" style="margin: 0; font-size: 18px; line-height: 24px; font-weight: 700">Sales and purchases</h2>
+            <div style="display: flex; gap: 16px; font-size: 13px; color: #5e574e">
+              <span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #0f6b43"></span>Sales {{salesText}}</span>
+              <span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #e8641e"></span>Purchases {{buyText}}</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px">
+            <div aria-hidden="true" style="display: flex; flex-direction: column; justify-content: space-between; height: 220px; font-size: 11px; color: #5e574e; text-align: right; min-width: 52px; font-variant-numeric: tabular-nums">
+              <span>{{axisTop}}</span><span>{{axisMid}}</span><span>GH₵ 0</span>
+            </div>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+              <div role="img" aria-label="{{chartAria}}" style="position: relative; height: 220px; display: flex; align-items: flex-end; gap: 6px; border-bottom: 1px solid #d9cfbf">
+                <div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; border-top: 1px dashed #e4dccd"></div>
+                <div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed #e4dccd"></div>
+                <sc-for list="{{bars}}" as="b" hint-placeholder-count="7">
+                  <div style="position: relative; flex: 1; min-width: 0; height: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 3px">
+                    <span title="{{b.sTip}}" style="display: block; width: 42%; max-width: 22px; height: {{b.sH}}; background: #0f6b43; border-radius: 3px 3px 0 0"></span>
+                    <span title="{{b.pTip}}" style="display: block; width: 42%; max-width: 22px; height: {{b.pH}}; background: #e8641e; border-radius: 3px 3px 0 0"></span>
+                  </div>
+                </sc-for>
+              </div>
+              <div aria-hidden="true" style="display: flex; gap: 6px">
+                <sc-for list="{{bars}}" as="b" hint-placeholder-count="7">
+                  <span style="flex: 1; min-width: 0; text-align: center; font-size: 11px; line-height: 14px; color: #5e574e; white-space: nowrap; overflow: hidden">{{b.label}}</span>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="tv-restock" style="background: #ffffff; border: 1px solid #e4dccd; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px; background: #fdeee3">
+            <div style="display: flex; flex-direction: column; gap: 2px">
+              <h2 id="tv-restock" style="margin: 0; font-size: 18px; line-height: 24px; font-weight: 700">Restock soon</h2>
+              <span style="font-size: 13px; color: #5e574e">5 items sold out or below their alert level</span>
+            </div>
+            <a href="Stock.dc.html" style="display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 6px; background: #111111; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 700; white-space: nowrap">Reorder all</a>
+          </div>
+          <div style="display: flex; flex-direction: column">
+            <sc-for list="{{restock}}" as="r" hint-placeholder-count="5">
+              <div class="tv-row" style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 20px; border-top: 1px solid #ece4d6">
+                <span style="width: 40px; height: 40px; flex: none; border-radius: 6px; background: {{r.tile}}; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #0c3b29">{{r.code}}</span>
+                <span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+                  <span style="font-size: 14px; line-height: 20px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.name}}</span>
+                  <span style="font-size: 12px; line-height: 16px; color: #5e574e">Accra shop</span>
+                </span>
+                <span style="padding: 3px 8px; border-radius: 4px; background: {{r.pillBg}}; color: {{r.pillFg}}; font-size: 12px; line-height: 18px; font-weight: 700; white-space: nowrap">{{r.state}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+      </div>
+
+      <!-- Website orders + recent sales -->
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px">
+        <section aria-labelledby="tv-web" style="flex: 1 1 320px; min-width: 0; box-sizing: border-box; background: #ffffff; border: 1px solid #e4dccd; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <span style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #0f6b43">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg>
+              From the website
+            </span>
+            <h2 id="tv-web" style="margin: 0; font-size: 18px; line-height: 24px; font-weight: 700">Orders waiting on WhatsApp</h2>
+            <span style="font-size: 13px; line-height: 18px; color: #5e574e">Baskets customers sent from the shop site. Confirm once they pay.</span>
+          </div>
+          <sc-for list="{{web}}" as="w" hint-placeholder-count="2">
+            <div style="border: 1px solid #ece4d6; border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px">
+                <span style="font-size: 14px; font-weight: 700">{{w.ref}}</span>
+                <span style="font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums">{{w.total}}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; color: #5e574e">
+                <span>Online customer · {{w.date}}</span>
+                <span style="padding: 2px 8px; border-radius: 4px; background: {{w.pillBg}}; color: {{w.pillFg}}; font-size: 12px; line-height: 18px; font-weight: 700">{{w.status}}</span>
+              </div>
+              <div style="display: flex; gap: 8px">
+                <a href="#" style="flex: 1; display: flex; align-items: center; justify-content: center; min-height: 40px; border-radius: 6px; border: 1px solid #d9cfbf; color: #111111; text-decoration: none; font-size: 13px; font-weight: 700">Open chat</a>
+                <button type="button" onClick="{{w.pay}}" style="flex: 1; min-height: 40px; border: 0; border-radius: 6px; background: {{w.btnBg}}; color: {{w.btnFg}}; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer">{{w.btn}}</button>
+              </div>
+            </div>
+          </sc-for>
+        </section>
+
+        <section aria-labelledby="tv-recent" style="flex: 2.2 1 560px; min-width: 0; background: #ffffff; border: 1px solid #e4dccd; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px">
+            <h2 id="tv-recent" style="margin: 0; font-size: 18px; line-height: 24px; font-weight: 700">Recent sales</h2>
+            <a href="Sales.dc.html" style="display: inline-flex; align-items: center; min-height: 40px; font-size: 13px; font-weight: 700; text-decoration: none">All sales</a>
+          </div>
+          <div style="overflow-x: auto">
+            <table style="width: 100%; min-width: 620px; border-collapse: collapse; font-size: 14px">
+              <thead>
+                <tr style="background: #f6f1e9; text-align: left; color: #5e574e; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase">
+                  <th scope="col" style="padding: 10px 20px; font-weight: 600">Sale</th>
+                  <th scope="col" style="padding: 10px 12px; font-weight: 600">Customer</th>
+                  <th scope="col" style="padding: 10px 12px; font-weight: 600">Status</th>
+                  <th scope="col" style="padding: 10px 12px; font-weight: 600; text-align: right">Total</th>
+                  <th scope="col" style="padding: 10px 12px; font-weight: 600; text-align: right">Still owed</th>
+                  <th scope="col" style="padding: 10px 20px; font-weight: 600">Payment</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{recent}}" as="s" hint-placeholder-count="5">
+                  <tr class="tv-row" style="border-top: 1px solid #ece4d6">
+                    <td style="padding: 12px 20px; font-weight: 700">{{s.ref}}</td>
+                    <td style="padding: 12px">{{s.customer}}</td>
+                    <td style="padding: 12px"><span style="padding: 2px 8px; border-radius: 4px; background: {{s.stBg}}; color: {{s.stFg}}; font-size: 12px; line-height: 18px; font-weight: 700">{{s.status}}</span></td>
+                    <td style="padding: 12px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums">{{s.total}}</td>
+                    <td style="padding: 12px; text-align: right; color: {{s.dueFg}}; font-variant-numeric: tabular-nums">{{s.due}}</td>
+                    <td style="padding: 12px 20px"><span style="padding: 2px 8px; border-radius: 4px; background: {{s.payBg}}; color: {{s.payFg}}; font-size: 12px; line-height: 18px; font-weight: 700">{{s.pay}}</span></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <footer style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding-top: 18px; border-top: 1px solid #d9cfbf; font-size: 13px; color: #5e574e">
+        <span>Tlip Ventures · Stock and sales · Prices in Ghana cedis (GH₵)</span>
+      </footer>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1560}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { period: 'week', paid: {} };
+  }
+  fmt(n) {
+    var p = Math.round(n * 100) % 100 !== 0;
+    return 'GH₵ ' + n.toLocaleString('en-US', { minimumFractionDigits: p ? 2 : 0, maximumFractionDigits: 2 });
+  }
+  short(n) {
+    if (n >= 1000) return 'GH₵ ' + (Math.round(n / 100) / 10) + 'k';
+    return 'GH₵ ' + n;
+  }
+  nav(active) {
+    var I = {
+      dash: 'M4 13h6V4H4z M14 20h6v-9h-6z M14 4h6v4h-6z M4 20h6v-3H4z',
+      pos: 'M3 8h18v12H3z M7 8V4h10v4 M7 12h2 M11 12h2 M15 12h2 M7 16h10',
+      sales: 'M6 3h12v18l-3-2-3 2-3-2-3 2z M9 8h6 M9 12h6',
+      returns: 'M9 14 4 9l5-5 M4 9h11a5 5 0 0 1 0 10h-3',
+      products: 'M3 7l9-4 9 4v10l-9 4-9-4z M3 7l9 4 9-4 M12 11v10',
+      count: 'M9 3h6v3H9z M7 4.5H5V21h14V4.5h-2 M9 13l2 2 4-4',
+      purchases: 'M3 6h11v10H3z M14 10h4l3 3v3h-7 M7 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M17 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z',
+      suppliers: 'M4 21V6l8-3v18 M12 9h8v12 M3 21h18 M8 9v.01 M8 13v.01 M8 17v.01 M16 13v.01 M16 17v.01',
+      customers: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M3 21a6 6 0 0 1 12 0 M16 3.5a4 4 0 0 1 0 7 M21 21a6 6 0 0 0-4-5.6',
+      reports: 'M4 20V10 M10 20V4 M16 20v-7 M21 20H3'
+    };
+    var groups = [
+      ['Overview', [['dash', 'Dashboard', 'Main.dc.html', '']]],
+      ['Sell', [['pos', 'Point of sale', 'Pos.dc.html', ''], ['sales', 'Sales', 'Sales.dc.html', ''], ['returns', 'Returns', 'Sales.dc.html', '']]],
+      ['Stock', [['products', 'Products and stock', 'Stock.dc.html', '5'], ['count', 'Stock count', '#', '']]],
+      ['Buy', [['purchases', 'Purchases', 'Sales.dc.html', ''], ['suppliers', 'Suppliers', '#', '']]],
+      ['People', [['customers', 'Customers', '#', ''], ['reports', 'Reports', '#', '']]]
+    ];
+    return groups.map(function (g) {
+      return { label: g[0], items: g[1].map(function (it) {
+        var on = it[0] === active;
+        return { name: it[1], href: it[2], d: I[it[0]], badge: it[3], hasBadge: !!it[3],
+          bg: on ? '#0f6b43' : 'transparent', color: on ? '#f6f1e9' : '#b7c6bb', weight: on ? '700' : '500', current: on ? 'page' : 'false' };
+      }) };
+    });
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    // Sample figures for the design; the live system computes them from sales and purchases.
+    var P = {
+      week: { word: 'this week', prev: 'last week', delta: '+12%', count: 31, profit: 2870,
+        labels: ['Fri 23', 'Sat 24', 'Sun 25', 'Mon 26', 'Tue 27', 'Wed 28', 'Thu 29'],
+        s: [1240, 860, 1985, 420, 1310, 2150, 1575], p: [0, 3200, 0, 0, 1450, 0, 0] },
+      month: { word: 'in October', prev: 'September', delta: '+8%', count: 118, profit: 10940,
+        labels: ['1–7', '8–14', '15–21', '22–28', '29–31'],
+        s: [7820, 9310, 8460, 9125, 1575], p: [5200, 0, 7450, 4650, 0] },
+      year: { word: 'in 2026', prev: '2025', delta: '+19%', count: 912, profit: 82400,
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+        s: [24100, 21800, 26350, 23900, 28750, 25400, 27100, 29800, 31250, 36290], p: [18000, 9500, 15200, 12000, 21400, 8800, 16700, 14300, 19900, 17300] }
+    };
+    var cur = P[st.period];
+    var sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
+    var max = Math.max.apply(null, cur.s.concat(cur.p));
+    var step = max > 20000 ? 10000 : (max > 4000 ? 2000 : 1000);
+    var top = Math.ceil(max / step) * step;
+    var bars = cur.labels.map(function (l, i) {
+      return { label: l,
+        sH: Math.max(1, cur.s[i] / top * 100) + '%', pH: (cur.p[i] ? Math.max(1, cur.p[i] / top * 100) : 0) + '%',
+        sTip: l + ' sales ' + self.fmt(cur.s[i]), pTip: l + ' purchases ' + self.fmt(cur.p[i]) };
+    });
+    var periods = [['week', 'This week'], ['month', 'This month'], ['year', 'This year']].map(function (p) {
+      var on = st.period === p[0];
+      return { label: p[1], pressed: on ? 'true' : 'false', bg: on ? '#ffffff' : 'transparent', weight: on ? '700' : '500',
+        shadow: on ? '0 1px 2px rgba(17,17,17,0.12)' : 'none', pick: function () { self.setState({ period: p[0] }); } };
+    });
+
+    var tiles = ['#d8dfd2', '#e9d5c3', '#ece4d6'];
+    var restock = [
+      ['RDCM', 'Metal rolling donut cutter', -4], ['NBP10', 'Non-stick baking paper, 10 m', -2],
+      ['NBP20', 'Non-stick baking paper, 20 m', -2], ['CCSD', 'Design paper cake cup set', -1],
+      ['SPB', 'Silicone piping bag, reusable', 0]
+    ].map(function (r, i) {
+      var over = r[2] < 0;
+      return { code: r[0], name: r[1], tile: tiles[i % 3],
+        state: over ? 'Oversold by ' + (-r[2]) : 'Out of stock',
+        pillBg: over ? '#fde9dc' : '#ece4d6', pillFg: over ? '#a3410f' : '#5e574e' };
+    });
+
+    var STATUS = {
+      Completed: ['#e3eee7', '#0b5c39'], Pending: ['#ece4d6', '#4f4a43'], Ordered: ['#fde9dc', '#a3410f'],
+      Paid: ['#e3eee7', '#0b5c39'], Unpaid: ['#fde9dc', '#a3410f']
+    };
+    var web = [['SL_1209', 385, 'Ordered', '16 May 2023'], ['SL_1208', 500, 'Pending', '16 May 2023']].map(function (w) {
+      var done = !!st.paid[w[0]];
+      var s = done ? 'Paid' : w[2];
+      return { ref: w[0], total: self.fmt(w[1]), date: w[3], status: s, pillBg: STATUS[s][0], pillFg: STATUS[s][1],
+        btn: done ? 'Paid, stock updated' : 'Mark as paid', btnBg: done ? '#e3eee7' : '#0f6b43', btnFg: done ? '#0b5c39' : '#ffffff',
+        pay: function () { var p = Object.assign({}, self.state.paid); p[w[0]] = !p[w[0]]; self.setState({ paid: p }); } };
+    });
+    var recent = [
+      ['SL_1209', 'Ordered', 385, 0], ['SL_1208', 'Pending', 500, 0], ['SL_1207', 'Completed', 335, 335],
+      ['SL_1206', 'Completed', 285, 285], ['SL_1205', 'Completed', 365, 365]
+    ].map(function (r) {
+      var done = !!st.paid[r[0]];
+      var paidAmt = done ? r[2] : r[3];
+      var due = r[2] - paidAmt;
+      var pay = due > 0 ? 'Unpaid' : 'Paid';
+      var status = done ? 'Completed' : r[1];
+      return { ref: r[0], customer: 'Online customer', status: status, stBg: STATUS[status][0], stFg: STATUS[status][1],
+        total: self.fmt(r[2]), due: due ? self.fmt(due) : '—', dueFg: due ? '#a3410f' : '#5e574e',
+        pay: pay, payBg: STATUS[pay][0], payFg: STATUS[pay][1] };
+    });
+    return {
+      nav: this.nav('dash'),
+      periods: periods,
+      periodWord: cur.word, prevWord: cur.prev, salesDelta: cur.delta, salesCount: cur.count,
+      salesText: this.fmt(sum(cur.s)), buyText: this.fmt(sum(cur.p)), profitText: this.fmt(cur.profit),
+      axisTop: this.short(top), axisMid: this.short(top / 2),
+      chartAria: 'Sales ' + this.fmt(sum(cur.s)) + ' and purchases ' + this.fmt(sum(cur.p)) + ' ' + cur.word,
+      bars: bars, restock: restock, web: web, recent: recent
+    };
+  }
+}
+</script>
+</body>
+</html>

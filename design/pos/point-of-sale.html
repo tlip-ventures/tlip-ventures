@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tlip Ventures point of sale</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gloock&amp;family=Instrument+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f1e9}
+a{color:#0f6b43}a:hover{color:#0c3b29}
+:focus-visible{outline:2px solid #0f6b43;outline-offset:3px}
+.tv-side :focus-visible{outline-color:#f2b705}
+.tv-nav:hover{background:rgba(246,241,233,0.08)}
+.tv-tile:hover{border-color:#0f6b43}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 100vh; background: #f6f1e9; color: #111111; font-family: 'Instrument Sans', 'Helvetica Neue', Arial, sans-serif">
+
+  <!-- Sidebar -->
+  <aside class="tv-side" style="flex: 1 1 248px; background: #0c3b29; color: #f6f1e9; display: flex; flex-direction: column">
+    <div aria-hidden="true" style="display: flex; height: 6px">
+      <div style="flex: 1; background: #0f6b43"></div><div style="flex: 1; background: #e8641e"></div><div style="flex: 1; background: #0f6b43"></div><div style="flex: 1; background: #e8641e"></div><div style="flex: 1; background: #0f6b43"></div><div style="flex: 1; background: #e8641e"></div>
+    </div>
+    <div style="padding: 22px 20px 18px; display: flex; flex-direction: column; gap: 4px">
+      <span style="font-family: 'Gloock', Georgia, serif; font-size: 26px; line-height: 1">Tlip Ventures</span>
+      <span style="font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #f2b705">Stock and sales</span>
+    </div>
+    <div style="padding: 0 16px 8px">
+      <a href="Pos.dc.html" style="display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; border-radius: 6px; background: #e8641e; color: #111111; text-decoration: none; font-size: 14px; font-weight: 700">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+        <span>New sale</span>
+      </a>
+    </div>
+    <nav aria-label="Main" style="display: flex; flex-direction: column; gap: 2px; padding: 8px 12px 16px; flex: 1">
+      <sc-for list="{{nav}}" as="g" hint-placeholder-count="5">
+        <div style="display: flex; flex-direction: column; gap: 2px; padding-top: 12px">
+          <span style="padding: 0 10px 4px; font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #8fa89a">{{g.label}}</span>
+          <sc-for list="{{g.items}}" as="it" hint-placeholder-count="2">
+            <a href="{{it.href}}" class="tv-nav" aria-current="{{it.current}}" style="display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 0 10px; border-radius: 6px; background: {{it.bg}}; color: {{it.color}}; text-decoration: none; font-size: 14px; font-weight: {{it.weight}}">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{it.d}}"></path></svg>
+              <span style="flex: 1">{{it.name}}</span>
+              <sc-if value="{{it.hasBadge}}" hint-placeholder-val="{{ false }}">
+                <span style="min-width: 22px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: #f2b705; color: #111111; font-size: 12px; line-height: 20px; font-weight: 700; text-align: center">{{it.badge}}</span>
+              </sc-if>
+            </a>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+    <div style="margin: 0 12px 16px; padding: 12px; border-radius: 6px; background: rgba(246, 241, 233, 0.06); display: flex; align-items: center; gap: 10px">
+      <span style="width: 36px; height: 36px; flex: none; border-radius: 999px; background: #f6f1e9; color: #0c3b29; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700">OW</span>
+      <span style="display: flex; flex-direction: column; min-width: 0">
+        <span style="font-size: 14px; font-weight: 600">Owner</span>
+        <span style="font-size: 12px; color: #b7c6bb">Accra shop</span>
+      </span>
+    </div>
+  </aside>
+
+  <!-- Register -->
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-wrap: wrap; align-items: stretch">
+
+    <!-- Products -->
+    <section aria-labelledby="pos-title" style="flex: 999 1 460px; min-width: 0; padding: 24px 28px 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 14px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <span style="font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #0f6b43">Point of sale</span>
+          <h1 id="pos-title" style="margin: 0; font-family: 'Gloock', Georgia, serif; font-size: 36px; line-height: 1.05; font-weight: 400">Ring up a sale.</h1>
+        </div>
+        <label for="pos-q" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search or scan a product</label>
+        <div style="display: flex; align-items: center; gap: 10px; flex: 0 1 380px; min-width: 220px; height: 48px; padding: 0 14px; box-sizing: border-box; border-radius: 6px; background: #ffffff; border: 1px solid #d9cfbf; color: #5e574e">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-3.5-3.5"></path></svg>
+          <input id="pos-q" type="search" value="{{q}}" onChange="{{onSearch}}" placeholder="Search name or scan barcode" style="flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 15px; color: #111111; outline: none">
+          <span style="font-size: 12px; color: #5e574e; white-space: nowrap">Scanner ready</span>
+        </div>
+      </div>
+
+      <div role="group" aria-label="Category" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px">
+        <sc-for list="{{cats}}" as="c" hint-placeholder-count="6">
+          <button type="button" onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="flex: none; min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">{{c.name}}</button>
+        </sc-for>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(min(168px, 100%), 1fr)); gap: 12px">
+        <sc-for list="{{products}}" as="p" hint-placeholder-count="12">
+          <button type="button" class="tv-tile" onClick="{{p.add}}" disabled="{{p.disabled}}" aria-label="{{p.aria}}" style="display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 8px; border: 1px solid #e4dccd; background: #ffffff; color: #111111; font: inherit; text-align: left; cursor: {{p.cursor}}; opacity: {{p.opacity}}">
+            <span style="position: relative; display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 4 / 3; border-radius: 6px; background: {{p.tile}}; color: #0c3b29; font-size: 12px; font-weight: 700; letter-spacing: 0.06em">
+              {{p.code}}
+              <sc-if value="{{p.inCart}}" hint-placeholder-val="{{ false }}">
+                <span style="position: absolute; top: 6px; right: 6px; min-width: 24px; height: 24px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: #0f6b43; color: #ffffff; font-size: 12px; line-height: 24px; text-align: center; letter-spacing: 0">{{p.qty}}</span>
+              </sc-if>
+            </span>
+            <span style="font-size: 14px; line-height: 19px; font-weight: 600; min-height: 38px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden">{{p.name}}</span>
+            <span style="display: flex; justify-content: space-between; align-items: center; gap: 6px; width: 100%">
+              <span style="font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums">{{p.priceText}}</span>
+              <span style="font-size: 12px; font-weight: 600; color: {{p.stockFg}}">{{p.stockText}}</span>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+      <sc-if value="{{empty}}" hint-placeholder-val="{{ false }}">
+        <p style="margin: 0; padding: 24px; border-radius: 8px; background: #ece4d6; font-size: 14px; color: #4f4a43">No products match “{{q}}”. Check the spelling or add it under Products and stock.</p>
+      </sc-if>
+    </section>
+
+    <!-- Basket -->
+    <aside aria-labelledby="pos-basket" style="flex: 1 1 340px; min-width: 0; max-width: 100%; background: #ffffff; border-left: 1px solid #e4dccd; display: flex; flex-direction: column">
+      <sc-if value="{{editing}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; flex: 1">
+          <div style="padding: 22px 22px 14px; display: flex; flex-direction: column; gap: 12px; border-bottom: 1px solid #ece4d6">
+            <div style="display: flex; justify-content: space-between; align-items: baseline">
+              <h2 id="pos-basket" style="margin: 0; font-size: 20px; line-height: 26px; font-weight: 700">Current sale</h2>
+              <span style="font-size: 13px; color: #5e574e">SL_1210</span>
+            </div>
+            <label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #4f4a43">
+              <span>Customer</span>
+              <select style="min-height: 44px; padding: 0 12px; border-radius: 6px; border: 1px solid #d9cfbf; background: #ffffff; font: inherit; font-size: 14px; color: #111111">
+                <option>Walk-in customer</option>
+                <option>Online customer</option>
+                <option>New customer…</option>
+              </select>
+            </label>
+          </div>
+
+          <div style="flex: 1; display: flex; flex-direction: column; padding: 6px 22px; min-height: 160px">
+            <sc-for list="{{lines}}" as="l" hint-placeholder-count="2">
+              <div style="display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #ece4d6">
+                <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: 14px; line-height: 19px; font-weight: 600">{{l.name}}</span>
+                  <span style="font-size: 12px; color: #5e574e; font-variant-numeric: tabular-nums">{{l.unit}} each</span>
+                </span>
+                <span style="display: flex; align-items: center; border: 1px solid #d9cfbf; border-radius: 6px">
+                  <button type="button" onClick="{{l.dec}}" aria-label="{{l.decAria}}" style="width: 36px; height: 36px; border: 0; background: none; font: inherit; font-size: 18px; cursor: pointer; color: #111111">−</button>
+                  <span style="min-width: 24px; text-align: center; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums">{{l.qty}}</span>
+                  <button type="button" onClick="{{l.inc}}" aria-label="{{l.incAria}}" disabled="{{l.atMax}}" style="width: 36px; height: 36px; border: 0; background: none; font: inherit; font-size: 18px; cursor: pointer; color: #111111">+</button>
+                </span>
+                <span style="width: 92px; text-align: right; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums">{{l.total}}</span>
+              </div>
+            </sc-for>
+            <sc-if value="{{noLines}}" hint-placeholder-val="{{ false }}">
+              <p style="margin: 24px 0; font-size: 14px; line-height: 22px; color: #5e574e; text-align: center">Tap a product or scan its barcode to add it.</p>
+            </sc-if>
+          </div>
+
+          <div style="padding: 16px 22px 22px; display: flex; flex-direction: column; gap: 14px; background: #faf7f2; border-top: 1px solid #ece4d6">
+            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: #4f4a43; font-variant-numeric: tabular-nums">
+              <div style="display: flex; justify-content: space-between"><span>{{itemCount}}</span><span>{{subText}}</span></div>
+              <div style="display: flex; justify-content: space-between"><span>Discount</span><span>{{discText}}</span></div>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px; border-top: 1px solid #e4dccd; color: #111111">
+                <span style="font-size: 15px; font-weight: 700">Total</span>
+                <span style="font-family: 'Gloock', Georgia, serif; font-size: 32px; line-height: 1">{{totalText}}</span>
+              </div>
+            </div>
+            <div role="group" aria-label="How the customer pays" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+              <sc-for list="{{methods}}" as="m" hint-placeholder-count="4">
+                <button type="button" onClick="{{m.pick}}" aria-pressed="{{m.pressed}}" style="min-height: 44px; border-radius: 6px; border: 1px solid {{m.border}}; background: {{m.bg}}; color: {{m.fg}}; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer">{{m.name}}</button>
+              </sc-for>
+            </div>
+            <sc-if value="{{isCash}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <span style="font-size: 13px; font-weight: 600; color: #4f4a43">Cash received</span>
+                <div style="display: flex; gap: 8px">
+                  <sc-for list="{{cashOpts}}" as="c" hint-placeholder-count="3">
+                    <button type="button" onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="flex: 1; min-height: 40px; border-radius: 6px; border: 1px solid {{c.border}}; background: {{c.bg}}; font: inherit; font-size: 13px; font-weight: 700; color: #111111; cursor: pointer; font-variant-numeric: tabular-nums">{{c.label}}</button>
+                  </sc-for>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 14px"><span style="color: #4f4a43">Change to give</span><span style="font-weight: 700; color: #0b5c39; font-variant-numeric: tabular-nums">{{changeText}}</span></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{isCredit}}" hint-placeholder-val="{{ false }}">
+              <p style="margin: 0; padding: 10px 12px; border-radius: 6px; background: #fde9dc; color: #a3410f; font-size: 13px; line-height: 19px; font-weight: 600">This sale is saved as unpaid. It shows under “Customers owe you” until it is settled.</p>
+            </sc-if>
+            <button type="button" onClick="{{complete}}" disabled="{{noLines}}" style="min-height: 52px; border: 0; border-radius: 6px; background: #0f6b43; color: #ffffff; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer">Complete sale · {{totalText}}</button>
+            <button type="button" onClick="{{clear}}" style="min-height: 40px; border: 0; background: none; color: #5e574e; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Clear basket</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 1; padding: 32px 24px; display: flex; flex-direction: column; gap: 18px">
+          <span style="width: 52px; height: 52px; border-radius: 999px; background: #e3eee7; color: #0f6b43; display: flex; align-items: center; justify-content: center">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg>
+          </span>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <h2 style="margin: 0; font-family: 'Gloock', Georgia, serif; font-size: 30px; line-height: 1.1; font-weight: 400">Sale saved.</h2>
+            <p style="margin: 0; font-size: 14px; line-height: 22px; color: #4f4a43">SL_1210 · {{totalText}} · {{methodName}}. Stock for {{itemCount}} has been taken off the shelf count.</p>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <a href="#" style="display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border-radius: 6px; background: #b84a14; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg>
+              <span>Send receipt on WhatsApp</span>
+            </a>
+            <a href="#" style="display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 6px; border: 1px solid #d9cfbf; color: #111111; text-decoration: none; font-size: 14px; font-weight: 700">Print receipt</a>
+            <button type="button" onClick="{{restart}}" style="min-height: 48px; border: 0; border-radius: 6px; background: #e8641e; color: #111111; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer">Start next sale</button>
+          </div>
+        </div>
+      </sc-if>
+    </aside>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":920}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { q: '', cat: 'All', cart: { kettle: 1, frypan: 2 }, method: 'cash', cash: 'exact', done: false };
+  }
+  fmt(n) {
+    var p = Math.round(n * 100) % 100 !== 0;
+    return 'GH₵ ' + n.toLocaleString('en-US', { minimumFractionDigits: p ? 2 : 0, maximumFractionDigits: 2 });
+  }
+  nav(active) {
+    var I = {
+      dash: 'M4 13h6V4H4z M14 20h6v-9h-6z M14 4h6v4h-6z M4 20h6v-3H4z',
+      pos: 'M3 8h18v12H3z M7 8V4h10v4 M7 12h2 M11 12h2 M15 12h2 M7 16h10',
+      sales: 'M6 3h12v18l-3-2-3 2-3-2-3 2z M9 8h6 M9 12h6',
+      returns: 'M9 14 4 9l5-5 M4 9h11a5 5 0 0 1 0 10h-3',
+      products: 'M3 7l9-4 9 4v10l-9 4-9-4z M3 7l9 4 9-4 M12 11v10',
+      count: 'M9 3h6v3H9z M7 4.5H5V21h14V4.5h-2 M9 13l2 2 4-4',
+      purchases: 'M3 6h11v10H3z M14 10h4l3 3v3h-7 M7 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M17 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z',
+      suppliers: 'M4 21V6l8-3v18 M12 9h8v12 M3 21h18 M8 9v.01 M8 13v.01 M8 17v.01 M16 13v.01 M16 17v.01',
+      customers: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M3 21a6 6 0 0 1 12 0 M16 3.5a4 4 0 0 1 0 7 M21 21a6 6 0 0 0-4-5.6',
+      reports: 'M4 20V10 M10 20V4 M16 20v-7 M21 20H3'
+    };
+    var groups = [
+      ['Overview', [['dash', 'Dashboard', 'Main.dc.html', '']]],
+      ['Sell', [['pos', 'Point of sale', 'Pos.dc.html', ''], ['sales', 'Sales', 'Sales.dc.html', ''], ['returns', 'Returns', 'Sales.dc.html', '']]],
+      ['Stock', [['products', 'Products and stock', 'Stock.dc.html', '5'], ['count', 'Stock count', '#', '']]],
+      ['Buy', [['purchases', 'Purchases', 'Sales.dc.html', ''], ['suppliers', 'Suppliers', '#', '']]],
+      ['People', [['customers', 'Customers', '#', ''], ['reports', 'Reports', '#', '']]]
+    ];
+    return groups.map(function (g) {
+      return { label: g[0], items: g[1].map(function (it) {
+        var on = it[0] === active;
+        return { name: it[1], href: it[2], d: I[it[0]], badge: it[3], hasBadge: !!it[3],
+          bg: on ? '#0f6b43' : 'transparent', color: on ? '#f6f1e9' : '#b7c6bb', weight: on ? '700' : '500', current: on ? 'page' : 'false' };
+      }) };
+    });
+  }
+  renderVals() {
+    var self = this;
+    var st = this.state;
+    // Sample prices and stock for the design; the live system reads the shop's catalogue.
+    var C = [
+      ['blender', 'BLD15', 'Blender with grinder, 1.5 L', 'Appliances', 450, 8],
+      ['kettle', 'KTL18', 'Electric kettle, 1.8 L, stainless', 'Appliances', 280, 14],
+      ['rice', 'RCK18', 'Rice cooker, 1.8 L', 'Appliances', 395, 6],
+      ['mixer', 'HMX5', 'Hand mixer, 5 speeds', 'Appliances', 230, 3],
+      ['potset', 'NSP5', 'Non-stick pot set, 5 pieces', 'Cooking', 1250.5, 4],
+      ['frypan', 'NSF28', 'Non-stick frying pan, 28 cm', 'Cooking', 160, 11],
+      ['cakepans', 'RCP3', 'Round cake pans, set of 3', 'Baking', 185, 9],
+      ['rdcm', 'RDCM', 'Metal rolling donut cutter', 'Baking', 45, 0],
+      ['nbp10', 'NBP10', 'Non-stick baking paper, 10 m', 'Baking', 35, 0],
+      ['spb', 'SPB', 'Silicone piping bag, reusable', 'Baking', 40, 0],
+      ['containers', 'AFC6', 'Airtight food containers, set of 6', 'Storage', 165, 12],
+      ['laundry', 'LBL60', 'Laundry basket with lid, 60 L', 'Home', 195, 5]
+    ];
+    var byId = {};
+    C.forEach(function (c) { byId[c[0]] = c; });
+    var tiles = { Appliances: '#d8dfd2', Cooking: '#e9d5c3', Baking: '#ece4d6', Storage: '#e9d5c3', Home: '#d8dfd2' };
+    var setCart = function (id, n) {
+      var c = Object.assign({}, self.state.cart);
+      if (n <= 0) { delete c[id]; } else { c[id] = n; }
+      self.setState({ cart: c });
+    };
+    var q = (st.q || '').toLowerCase();
+    var products = C.filter(function (c) {
+      return (st.cat === 'All' || c[3] === st.cat) && (!q || c[2].toLowerCase().indexOf(q) > -1 || c[1].toLowerCase().indexOf(q) > -1);
+    }).map(function (c) {
+      var inC = st.cart[c[0]] || 0;
+      var left = c[5] - inC;
+      var out = c[5] <= 0;
+      return { code: c[1], name: c[2], priceText: self.fmt(c[4]), tile: tiles[c[3]],
+        inCart: inC > 0, qty: inC,
+        stockText: out ? 'Out of stock' : (left <= 3 ? 'Only ' + left + ' left' : left + ' in stock'),
+        stockFg: out ? '#5e574e' : (left <= 3 ? '#a3410f' : '#0b5c39'),
+        disabled: out || left <= 0, cursor: out ? 'not-allowed' : 'pointer', opacity: out ? '0.6' : '1',
+        aria: out ? c[2] + ', out of stock' : 'Add ' + c[2] + ', ' + self.fmt(c[4]),
+        add: function () { if (!out && left > 0) setCart(c[0], inC + 1); } };
+    });
+    var cats = ['All', 'Appliances', 'Cooking', 'Baking', 'Storage', 'Home'].map(function (n) {
+      var on = st.cat === n;
+      return { name: n, pressed: on ? 'true' : 'false', bg: on ? '#0c3b29' : '#ffffff', fg: on ? '#f6f1e9' : '#111111', border: on ? '#0c3b29' : '#d9cfbf',
+        pick: function () { self.setState({ cat: n }); } };
+    });
+    var ids = Object.keys(st.cart);
+    var sub = 0, count = 0;
+    var lines = ids.map(function (id) {
+      var c = byId[id]; var n = st.cart[id];
+      sub += c[4] * n; count += n;
+      return { name: c[2], unit: self.fmt(c[4]), qty: n, total: self.fmt(c[4] * n), atMax: n >= c[5],
+        decAria: 'Remove one ' + c[2], incAria: 'Add one ' + c[2],
+        dec: function () { setCart(id, n - 1); }, inc: function () { if (n < c[5]) setCart(id, n + 1); } };
+    });
+    var total = sub;
+    var methods = [['cash', 'Cash'], ['momo', 'Mobile Money'], ['bank', 'Bank transfer'], ['credit', 'Pay later']].map(function (m) {
+      var on = st.method === m[0];
+      return { name: m[1], pressed: on ? 'true' : 'false', bg: on ? '#e3eee7' : '#ffffff', fg: on ? '#0b5c39' : '#111111', border: on ? '#0f6b43' : '#d9cfbf',
+        pick: function () { self.setState({ method: m[0] }); } };
+    });
+    var methodName = { cash: 'Cash', momo: 'Mobile Money', bank: 'Bank transfer', credit: 'Unpaid' }[st.method];
+    var roundUp = function (step) { return Math.ceil(total / step) * step; };
+    var opts = [['exact', total], ['r50', roundUp(50)], ['r100', roundUp(100)]];
+    if (opts[1][1] === total) opts[1][1] = total + 50;
+    if (opts[2][1] <= opts[1][1]) opts[2][1] = opts[1][1] + 50;
+    var cashOpts = opts.map(function (o, i) {
+      var on = st.cash === o[0];
+      return { label: i === 0 ? 'Exact' : self.fmt(o[1]), pressed: on ? 'true' : 'false', bg: on ? '#e3eee7' : '#ffffff', border: on ? '#0f6b43' : '#d9cfbf',
+        pick: function () { self.setState({ cash: o[0] }); } };
+    });
+    var given = opts.filter(function (o) { return o[0] === st.cash; })[0];
+    var change = given ? given[1] - total : 0;
+    return {
+      nav: this.nav('pos'),
+      q: st.q,
+      onSearch: function (e) { self.setState({ q: e.target.value }); },
+      cats: cats, products: products, empty: products.length === 0,
+      editing: !st.done, done: st.done,
+      lines: lines, noLines: lines.length === 0,
+      itemCount: count + (count === 1 ? ' item' : ' items'),
+      subText: this.fmt(sub), discText: 'GH₵ 0', totalText: this.fmt(total),
+      methods: methods, methodName: methodName,
+      isCash: st.method === 'cash', isCredit: st.method === 'credit',
+      cashOpts: cashOpts, changeText: this.fmt(Math.max(0, change)),
+      complete: function () { if (Object.keys(self.state.cart).length) self.setState({ done: true }); },
+      clear: function () { self.setState({ cart: {} }); },
+      restart: function () { self.setState({ done: false, cart: {}, method: 'cash', cash: 'exact' }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

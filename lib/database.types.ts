@@ -16,14 +16,29 @@ export type Database = {
     Tables: {
       admins: {
         Row: {
+          can_adjust_stock: boolean
+          can_give_discounts: boolean
+          created_at: string
+          display_name: string | null
+          is_active: boolean
           role: string
           user_id: string
         }
         Insert: {
+          can_adjust_stock?: boolean
+          can_give_discounts?: boolean
+          created_at?: string
+          display_name?: string | null
+          is_active?: boolean
           role?: string
           user_id: string
         }
         Update: {
+          can_adjust_stock?: boolean
+          can_give_discounts?: boolean
+          created_at?: string
+          display_name?: string | null
+          is_active?: boolean
           role?: string
           user_id?: string
         }
@@ -98,6 +113,13 @@ export type Database = {
             referencedRelation: "categories"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["category_id"]
+          },
         ]
       }
       order_items: {
@@ -138,6 +160,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["variant_id"]
           },
           {
             foreignKeyName: "order_items_variant_id_fkey"
@@ -212,6 +241,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "product_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["category_id"]
+          },
+          {
+            foreignKeyName: "product_categories_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["product_id"]
+          },
+          {
             foreignKeyName: "product_categories_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -250,6 +293,13 @@ export type Database = {
             foreignKeyName: "product_images_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -257,36 +307,49 @@ export type Database = {
       }
       product_variants: {
         Row: {
+          barcode: string | null
           id: string
           in_stock: boolean
           option1_value: string | null
           option2_value: string | null
           price_override: number | null
           product_id: string
+          reorder_level: number
           sku: string | null
           stock_qty: number | null
         }
         Insert: {
+          barcode?: string | null
           id?: string
           in_stock?: boolean
           option1_value?: string | null
           option2_value?: string | null
           price_override?: number | null
           product_id: string
+          reorder_level?: number
           sku?: string | null
           stock_qty?: number | null
         }
         Update: {
+          barcode?: string | null
           id?: string
           in_stock?: boolean
           option1_value?: string | null
           option2_value?: string | null
           price_override?: number | null
           product_id?: string
+          reorder_level?: number
           sku?: string | null
           stock_qty?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["product_id"]
+          },
           {
             foreignKeyName: "product_variants_product_id_fkey"
             columns: ["product_id"]
@@ -395,25 +458,316 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_count_lines: {
+        Row: {
+          count_id: string
+          counted: number
+          counted_at: string
+          counted_by: string | null
+          expected: number
+          variant_id: string
+        }
+        Insert: {
+          count_id: string
+          counted: number
+          counted_at?: string
+          counted_by?: string | null
+          expected: number
+          variant_id: string
+        }
+        Update: {
+          count_id?: string
+          counted?: number
+          counted_at?: string
+          counted_by?: string | null
+          expected?: number
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_count_lines_count_id_fkey"
+            columns: ["count_id"]
+            isOneToOne: false
+            referencedRelation: "stock_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_lines_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "stock_count_lines_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_counts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          finished_at: string | null
+          finished_by: string | null
+          id: string
+          note: string | null
+          status: Database["public"]["Enums"]["stock_count_status"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          finished_at?: string | null
+          finished_by?: string | null
+          id?: string
+          note?: string | null
+          status?: Database["public"]["Enums"]["stock_count_status"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          finished_at?: string | null
+          finished_by?: string | null
+          id?: string
+          note?: string | null
+          status?: Database["public"]["Enums"]["stock_count_status"]
+        }
+        Relationships: []
+      }
+      stock_levels: {
+        Row: {
+          on_hand: number
+          updated_at: string
+          variant_id: string
+        }
+        Insert: {
+          on_hand?: number
+          updated_at?: string
+          variant_id: string
+        }
+        Update: {
+          on_hand?: number
+          updated_at?: string
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_levels_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: true
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "stock_levels_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: true
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          balance_after: number
+          count_id: string | null
+          created_at: string
+          created_by: string | null
+          id: number
+          kind: Database["public"]["Enums"]["stock_movement_kind"]
+          qty_change: number
+          reason: string | null
+          variant_id: string
+        }
+        Insert: {
+          balance_after: number
+          count_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          kind: Database["public"]["Enums"]["stock_movement_kind"]
+          qty_change: number
+          reason?: string | null
+          variant_id: string
+        }
+        Update: {
+          balance_after?: number
+          count_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          kind?: Database["public"]["Enums"]["stock_movement_kind"]
+          qty_change?: number
+          reason?: string | null
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_count_id_fkey"
+            columns: ["count_id"]
+            isOneToOne: false
+            referencedRelation: "stock_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "stock_movements_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      variant_costs: {
+        Row: {
+          cost_price: number
+          updated_at: string
+          updated_by: string | null
+          variant_id: string
+        }
+        Insert: {
+          cost_price: number
+          updated_at?: string
+          updated_by?: string | null
+          variant_id: string
+        }
+        Update: {
+          cost_price?: number
+          updated_at?: string
+          updated_by?: string | null
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variant_costs_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: true
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "variant_costs_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: true
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      pos_stock_rows: {
+        Row: {
+          barcode: string | null
+          category_id: string | null
+          category_name: string | null
+          image_url: string | null
+          on_hand: number | null
+          on_website: boolean | null
+          option_label: string | null
+          price: number | null
+          product_id: string | null
+          product_name: string | null
+          reorder_level: number | null
+          sku: string | null
+          state_rank: number | null
+          stock_state: string | null
+          top_category_id: string | null
+          top_category_name: string | null
+          updated_at: string | null
+          variant_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      create_order: {
-        Args: {
-          p_customer_name: string
-          p_items: Json
-          p_location: string
-          p_notes: string
-          p_phone: string
-        }
+      create_order:
+        | {
+            Args: {
+              p_customer_name: string
+              p_items: Json
+              p_location: string
+              p_notes: string
+              p_phone: string
+            }
+            Returns: {
+              order_code: string
+              public_token: string
+            }[]
+          }
+        | {
+            Args: {
+              p_customer_name: string
+              p_items: Json
+              p_notes: string
+              p_phone: string
+            }
+            Returns: {
+              order_code: string
+              public_token: string
+            }[]
+          }
+      expire_unsent_orders: { Args: never; Returns: number }
+      pos_adjust_stock: {
+        Args: { p_change: number; p_reason: string; p_variant_id: string }
+        Returns: number
+      }
+      pos_cancel_count: { Args: { p_count_id: string }; Returns: undefined }
+      pos_finish_count: { Args: { p_count_id: string }; Returns: number }
+      pos_list_users: {
+        Args: never
         Returns: {
-          order_code: string
-          public_token: string
+          can_adjust_stock: boolean
+          can_give_discounts: boolean
+          created_at: string
+          display_name: string
+          email: string
+          is_active: boolean
+          last_sign_in_at: string
+          role: string
+          user_id: string
         }[]
       }
-      expire_unsent_orders: { Args: never; Returns: number }
+      pos_people: {
+        Args: never
+        Returns: {
+          display_name: string
+          is_active: boolean
+          role: string
+          user_id: string
+        }[]
+      }
+      pos_recount: {
+        Args: { p_counted: number; p_reason?: string; p_variant_id: string }
+        Returns: number
+      }
+      pos_save_count_line: {
+        Args: { p_count_id: string; p_counted: number; p_variant_id: string }
+        Returns: undefined
+      }
+      pos_save_product: { Args: { p: Json }; Returns: string }
+      pos_start_count: { Args: { p_note?: string }; Returns: string }
+      pos_stock_summary: { Args: never; Returns: Json }
+      pos_update_user: {
+        Args: {
+          p_can_adjust_stock: boolean
+          p_can_give_discounts: boolean
+          p_display_name: string
+          p_is_active: boolean
+          p_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       order_status:
@@ -424,6 +778,16 @@ export type Database = {
         | "delivered"
         | "cancelled"
         | "not_sent"
+      stock_count_status: "open" | "finished" | "cancelled"
+      stock_movement_kind:
+        | "opening"
+        | "sale"
+        | "sale_void"
+        | "purchase"
+        | "purchase_void"
+        | "return"
+        | "adjustment"
+        | "count"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -559,6 +923,17 @@ export const Constants = {
         "delivered",
         "cancelled",
         "not_sent",
+      ],
+      stock_count_status: ["open", "finished", "cancelled"],
+      stock_movement_kind: [
+        "opening",
+        "sale",
+        "sale_void",
+        "purchase",
+        "purchase_void",
+        "return",
+        "adjustment",
+        "count",
       ],
     },
   },

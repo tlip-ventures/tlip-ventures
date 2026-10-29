@@ -32,8 +32,8 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
     return { error: "Wrong email or password.", email };
   }
 
-  const { data: admin } = await supabase.from("admins").select("role").eq("user_id", data.user.id).maybeSingle();
-  if (!admin) {
+  const { data: admin } = await supabase.from("admins").select("role, is_active").eq("user_id", data.user.id).maybeSingle();
+  if (!admin || admin.role !== "owner" || !admin.is_active) {
     await supabase.auth.signOut();
     return { error: "This account does not have admin access.", email };
   }

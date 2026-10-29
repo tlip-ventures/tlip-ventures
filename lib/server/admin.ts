@@ -14,10 +14,15 @@ export const requireAdmin = cache(async () => {
   const userId = data?.claims?.sub;
   if (!userId) redirect("/admin/login");
 
-  // RLS lets a signed-in user read only their own admins row.
-  const { data: admin, error } = await supabase.from("admins").select("role").eq("user_id", userId).maybeSingle();
+  // RLS lets a signed-in user read only their own admins row. The shop admin
+  // is the owner's alone; staff use the Stock & POS app at /pos.
+  const { data: admin, error } = await supabase
+    .from("admins")
+    .select("role, is_active")
+    .eq("user_id", userId)
+    .maybeSingle();
   if (error) throw new Error(`Could not check admin access: ${error.message}`);
-  if (!admin) redirect("/admin/login?error=not-admin");
+  if (!admin || admin.role !== "owner" || !admin.is_active) redirect("/admin/login?error=not-admin");
 
   return {
     supabase,

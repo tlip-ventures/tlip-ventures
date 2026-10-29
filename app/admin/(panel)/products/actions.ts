@@ -27,6 +27,9 @@ export async function deleteProduct(productId: string): Promise<{ ok: boolean; m
   if (!id.success) return { ok: false, message: "Unknown product." };
   // Past orders keep their copied names and prices (order_items.variant_id becomes null).
   const { data, error } = await supabase.from("products").delete().eq("id", id.data).select("id");
+  if (error?.code === "23503") {
+    return { ok: false, message: "This product has stock history in the Stock & POS app, so it can't be deleted. Hide it instead." };
+  }
   if (error) return { ok: false, message: `Could not delete: ${error.message}` };
   if (!data.length) return { ok: false, message: "This product no longer exists, or you are not allowed to delete it." };
   revalidatePath("/admin/products");
