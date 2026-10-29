@@ -3,8 +3,9 @@
 import { useId, useState } from "react";
 import type { NewCartLine } from "@/lib/cart";
 import { useCart } from "@/lib/cart-store";
-import { formatPesewas } from "@/lib/money";
+import { formatPesewas, lineTotal } from "@/lib/money";
 import { useAddedToast } from "./added-toast";
+import { QtyStepper } from "./qty-stepper";
 
 export type PickerVariant = {
   id: string;
@@ -21,12 +22,13 @@ type Props = {
   variants: PickerVariant[];
 };
 
-/** Option picker and "Add to cart" button. Out-of-stock options can't be chosen. */
+/** Option picker, quantity and "Add to cart" button. Out-of-stock options can't be chosen. */
 export function AddToCart({ product, optionHeading, variants }: Props) {
   const add = useCart((s) => s.add);
   const groupId = useId();
   const [selectedId, setSelectedId] = useState(() => variants.find((v) => v.inStock)?.id ?? null);
   const showAdded = useAddedToast((s) => s.show);
+  const [qty, setQty] = useState(1);
 
   const hasOptions = optionHeading !== null && variants.some((v) => v.label !== null);
   const selected = variants.find((v) => v.id === selectedId) ?? null;
@@ -35,9 +37,10 @@ export function AddToCart({ product, optionHeading, variants }: Props) {
 
   function handleAdd() {
     if (!selected || !selected.inStock) return;
-    add({ ...product, variantId: selected.id, optionValues: selected.label, unitPrice: selected.price });
+    add({ ...product, variantId: selected.id, optionValues: selected.label, unitPrice: selected.price }, qty);
     const name = selected.label ? `${product.productName} (${selected.label})` : product.productName;
-    showAdded(name);
+    showAdded(qty > 1 ? `${qty} × ${name}` : name);
+    setQty(1);
   }
 
   return (
@@ -70,15 +73,19 @@ export function AddToCart({ product, optionHeading, variants }: Props) {
         </fieldset>
       )}
 
+      <QtyStepper value={qty} onChange={setQty} disabled={!canAdd} />
+
       <button
         type="button"
         onClick={handleAdd}
         disabled={!canAdd}
         className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-brand-green px-6 text-lg font-bold text-white hover:bg-brand-green-dark disabled:cursor-not-allowed disabled:bg-neutral-300 disabled:text-neutral-700 sm:w-auto"
       >
-        {canAdd
-          ? `Add to cart${showPrices && selected ? ` · ${formatPesewas(selected.price)}` : ""}`
-          : "Out of stock"}
+        {!canAdd || !selected
+          ? "Out of stock"
+          : qty > 1
+            ? `Add to cart · ${formatPesewas(lineTotal(selected.price, qty))}`
+            : `Add to cart${showPrices ? ` · ${formatPesewas(selected.price)}` : ""}`}
       </button>
     </div>
   );
