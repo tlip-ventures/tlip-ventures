@@ -36,7 +36,7 @@ Prices quoted in the chat, for reference only (not imported):
 | Mixdor Mini Blender | 180 |
 | Mixdor Cordless Iron MX-7006 | 280 |
 | Zepline 7-in-1 Sandwich Maker ZP-811 | 480 |
-| Mixdor Electric Grinder | 250 |
+| Mixdor Coffee Grinder | 250 |
 | Mixdor Double-Sided Crepe Maker MX-5033 | 330 |
 | Mixdor Electric Oven 60L MX-27001-60 | 1,450 |
 
