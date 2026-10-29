@@ -21,6 +21,12 @@ import { breadcrumbJsonLd, productJsonLd } from "@/lib/structured-data";
 const MAIN_IMAGE_SIZES = "(min-width: 1152px) 560px, (min-width: 768px) 48vw, 100vw";
 const EXTRA_IMAGE_SIZES = "(min-width: 1152px) 270px, (min-width: 768px) 23vw, 50vw";
 
+// No pages are built ahead of time; each product page is built on its first
+// visit and then cached (ISR, see revalidate in app/(shop)/layout.tsx).
+export async function generateStaticParams() {
+  return [];
+}
+
 async function findProduct(params: PageProps<"/products/[slug]">["params"]) {
   const slug = slugSchema.safeParse((await params).slug);
   return slug.success ? getProductBySlug(slug.data) : null;

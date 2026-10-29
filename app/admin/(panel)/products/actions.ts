@@ -9,6 +9,11 @@ import { writeProduct, type WriteProductResult } from "@/lib/product-writer";
 
 export type SaveProductResult = WriteProductResult;
 
+/** Clears every cached page and the cached shop data, so changes show at once. */
+function revalidateShop() {
+  revalidatePath("/", "layout");
+}
+
 /** Saves the product editor. Runs as the signed-in admin, so RLS checks every write too. */
 export async function saveProduct(input: ProductFormInput): Promise<SaveProductResult> {
   const { supabase } = await requireAdmin();
@@ -17,7 +22,7 @@ export async function saveProduct(input: ProductFormInput): Promise<SaveProductR
     return { ok: false, message: "Please fix the highlighted fields.", errors: formErrors(parsed.error) };
   }
   const result = await writeProduct(supabase, parsed.data);
-  if (result.ok) revalidatePath("/admin/products");
+  if (result.ok) revalidateShop();
   return result;
 }
 
@@ -32,7 +37,7 @@ export async function deleteProduct(productId: string): Promise<{ ok: boolean; m
   }
   if (error) return { ok: false, message: `Could not delete: ${error.message}` };
   if (!data.length) return { ok: false, message: "This product no longer exists, or you are not allowed to delete it." };
-  revalidatePath("/admin/products");
+  revalidateShop();
   return { ok: true };
 }
 
@@ -49,7 +54,7 @@ export async function setVariantStock(formData: FormData) {
     .eq("id", parsed.data.variantId)
     .select("id");
   if (error || !data.length) throw new Error(`Could not update stock${error ? `: ${error.message}` : "."}`);
-  revalidatePath("/admin/products");
+  revalidateShop();
 }
 
 export type { UploadSignature } from "@/lib/server/cloudinary-upload";

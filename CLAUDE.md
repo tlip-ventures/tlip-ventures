@@ -34,6 +34,7 @@ Commands
 * Seed data: supabase/seed/categories.sql, settings.sql, demo_products.sql (all safe to re-run); demo_products_remove.sql deletes the demo products; make_admin.sql gives an existing Supabase Auth user access to /admin (create the user first in the dashboard)
 * is_admin() lives in the `private` schema (not exposed by the API); RLS policies call private.is_admin()
 * Environment: public values (Supabase URL + publishable key, site URL) are in the committed .env; never put secrets there. Use .env.local for local overrides and secrets. On Cloudflare, NEXT_PUBLIC_* are inlined at build time; secrets are Worker secrets. Cache Components are off (they hang on Workers).
+* Caching (ISR, open-next.config.ts): shop pages and storefront Supabase reads (lib/supabase/public.ts) are cached in Workers KV for 10 minutes; tag cache in KV, background refresh via a Durable Object queue. Admin saves call revalidatePath("/", "layout") to clear it at once (KV may take up to a minute in other regions). CSV imports and direct SQL edits show within 10 minutes. Search, cart lines and checkout always read live data. Anything time-dependent on a shop page (like reply hours) must be worked out in the browser.
 Folder layout
 
 * app/(shop)/ storefront routes; app/admin/ admin routes (protected); app/o/[token] order page
@@ -83,7 +84,7 @@ Data model
 * orders(id, order_code, public_token, customer_name, phone, location, notes, items_total, status, created_at, updated_at)
 * order_items(id, order_id, variant_id, product_name, option_values, unit_price, qty, line_total)
 * settings(id = 1, store_name, whatsapp_number, shop_address, opening_hours, announcement, social_links jsonb, tagline, contact_email, response_promise, reply_open, reply_close, reply_days smallint[] 1=Mon..7=Sun; reply times are Ghana time)
-* banners(id, image_url, public_id, alt, link_url, is_active, sort_order, created_at, updated_at): home page carousel, 1440 × 720 (2:1) Cloudinary artwork, managed at /admin/banners; the home page shows the first 5 active ones, or, when none, a green "Quality home and kitchen goods in Ghana" panel showing up to 3 products ticked "Featured on the home page" (1 on phones; the logo if none). link_url is a site path ("/deals") or https:// address. Public reads active banners only.
+* banners(id, image_url, public_id, alt, link_url, is_active, sort_order, created_at, updated_at): home page carousel, 1440 × 720 (2:1) Cloudinary artwork, managed at /admin/banners; the home page shows the first 5 active ones, or, when none, a green "Quality home and kitchen goods in Ghana" panel showing up to 3 products ticked "Featured on the home page" (1 on phones; the logo if none). A "Join our team" slide (WhatsApp "I'd like to join your team" message) always follows; slides play slowly with controls under the banner. link_url is a site path ("/deals") or https:// address. Public reads active banners only.
 * Wishlist and recently viewed (last 12) are product ids in the browser's localStorage only (tlip-wishlist, tlip-recent); no customer accounts. Cards for them come from /api/products?ids=.
 * admins(user_id, role) A product with no options has exactly one variant with null option values.
 

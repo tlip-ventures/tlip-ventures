@@ -2,7 +2,10 @@ import type { MetadataRoute } from "next";
 import { getCategories, listProductSlugs } from "@/lib/server/catalogue";
 import { absoluteUrl } from "@/lib/site";
 
-/** /sitemap.xml: home, listings, every category and every product in the shop. Built on request. */
+// Rebuilt at most every 10 minutes (CATALOGUE_REVALIDATE).
+export const revalidate = 600;
+
+/** /sitemap.xml: home, listings, every category and every product in the shop. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [products, categories] = await Promise.all([listProductSlugs(), getCategories()]);
   return [
