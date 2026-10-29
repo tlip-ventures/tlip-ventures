@@ -6,6 +6,7 @@ import { z } from "zod";
 import { friendlyDbError } from "@/lib/pos/errors";
 import { countLineSchema } from "@/lib/pos/schemas";
 import { requirePosUser } from "@/lib/server/pos/auth";
+import { refreshPosAndShop } from "@/lib/server/pos/refresh";
 import type { ActionResult } from "../products/actions";
 
 const NOT_ALLOWED = { ok: false, message: "You are not allowed to count stock. Ask the owner to switch it on for you." } as const;
@@ -48,7 +49,7 @@ export async function finishCount(_prev: ActionResult | null, formData: FormData
 
   const { data: changed, error } = await supabase.rpc("pos_finish_count", { p_count_id: id.data });
   if (error) return { ok: false, message: friendlyDbError(error) };
-  revalidatePath("/pos", "layout");
+  refreshPosAndShop();
   // The count is gone from the page once finished, so the result goes in the address.
   redirect(`/pos/count?finished=${changed}`);
 }

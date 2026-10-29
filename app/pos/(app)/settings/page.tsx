@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ExternalIcon } from "@/components/pos/icons";
 import { AddStaffForm, PersonForm } from "@/components/pos/people-forms";
+import { ReceiptFooterForm } from "@/components/pos/receipt-footer-form";
 import { ButtonLink, Card, PageHeader, PageShell, Pill } from "@/components/pos/ui";
 import { WebsiteStockSyncButton } from "@/components/pos/website-stock-sync";
 import { formatDay } from "@/lib/pos/format";
@@ -12,7 +13,7 @@ export default async function SettingsPage() {
   const { supabase, userId } = await requireOwner();
   const [{ data, error }, settings, all, empty] = await Promise.all([
     supabase.rpc("pos_list_users"),
-    supabase.from("settings").select("website_stock_sync").eq("id", 1).single(),
+    supabase.from("settings").select("website_stock_sync, receipt_footer").eq("id", 1).single(),
     supabase.from("stock_levels").select("variant_id", { count: "exact", head: true }),
     supabase.from("stock_levels").select("variant_id", { count: "exact", head: true }).lte("on_hand", 0),
   ]);
@@ -72,6 +73,16 @@ export default async function SettingsPage() {
             </span>
           </div>
           <WebsiteStockSyncButton on={syncOn} outOfStock={empty.count ?? 0} total={all.count ?? 0} />
+        </div>
+      </Card>
+
+      <Card label="Receipts">
+        <div className="flex flex-col gap-1 border-b border-pos-paper-deep px-5 py-4">
+          <h2 className="m-0 text-lg font-bold leading-6">Receipts</h2>
+          <span className="text-[13px] text-pos-muted">The shop name, address and WhatsApp number on receipts come from the website settings.</span>
+        </div>
+        <div className="max-w-[640px] p-5">
+          <ReceiptFooterForm footer={settings.data.receipt_footer} />
         </div>
       </Card>
 

@@ -1,9 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { friendlyDbError } from "@/lib/pos/errors";
 import { importBatchSchema, type ImportBatch } from "@/lib/pos/schemas";
 import { requirePosUser } from "@/lib/server/pos/auth";
+import { refreshPosAndShop } from "@/lib/server/pos/refresh";
 
 export type ImportRowResult = { row: number; action: "new" | "update" | "skip" | "error"; message: string };
 export type ImportBatchResult = { ok: true; results: ImportRowResult[] } | { ok: false; message: string };
@@ -26,6 +26,6 @@ export async function importBatch(input: ImportBatch): Promise<ImportBatchResult
         ? await supabase.rpc("pos_import_people", { p_kind: b.kind, p_rows: b.rows, p_apply: b.apply })
         : await supabase.rpc("pos_import_records", { p_kind: b.kind, p_rows: b.rows, p_apply: b.apply });
   if (error) return { ok: false, message: friendlyDbError(error, "The import stopped. Nothing in this batch was saved; try again.") };
-  if (b.apply) revalidatePath("/pos", "layout");
+  if (b.apply) refreshPosAndShop();
   return { ok: true, results: data as unknown as ImportRowResult[] };
 }

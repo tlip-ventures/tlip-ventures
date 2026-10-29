@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { normaliseGhanaPhone } from "@/lib/phone";
 import { friendlyDbError } from "@/lib/pos/errors";
@@ -8,6 +7,7 @@ import { buildReceiptMessage, receiptWhatsappUrl } from "@/lib/pos/receipt";
 import { completeSaleSchema, newCustomerSchema, type CompleteSaleInput } from "@/lib/pos/schemas";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import type { CustomerChoice } from "@/lib/pos/basket";
+import { refreshPosAndShop } from "@/lib/server/pos/refresh";
 import { findTileByCode, getSaleReceipt, searchCustomers, type SellTile } from "@/lib/server/pos/sell";
 
 export type CompletedSale = {
@@ -60,7 +60,7 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
       })
     : `Tlip Ventures receipt\nSale ${saved.code}`;
 
-  revalidatePath("/pos", "layout");
+  refreshPosAndShop();
   return {
     ok: true,
     sale: {

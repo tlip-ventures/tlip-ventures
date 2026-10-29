@@ -1,12 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { friendlyDbError } from "@/lib/pos/errors";
 import { returnSchema, type ReturnInput } from "@/lib/pos/schemas";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { findSaleIdByCode } from "@/lib/server/pos/records";
+import { refreshPosAndShop } from "@/lib/server/pos/refresh";
 import { findTileByCode, listSellTiles, type SellTile } from "@/lib/server/pos/sell";
 
 export type CreateReturnResult = { ok: true; id: string } | { ok: false; message: string };
@@ -33,7 +33,7 @@ export async function createReturn(input: ReturnInput): Promise<CreateReturnResu
     },
   });
   if (error || !data?.[0]) return { ok: false, message: friendlyDbError(error, "The return wasn't saved. Please try again.") };
-  revalidatePath("/pos", "layout");
+  refreshPosAndShop();
   return { ok: true, id: data[0].return_id };
 }
 

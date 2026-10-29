@@ -7,6 +7,7 @@ import { friendlyDbError } from "@/lib/pos/errors";
 import { fieldErrors, purchaseSchema, type PurchaseInput } from "@/lib/pos/schemas";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { searchPurchaseProducts, searchSuppliers, type PurchaseProduct } from "@/lib/server/pos/records";
+import { refreshPosAndShop } from "@/lib/server/pos/refresh";
 import type { ActionResult } from "../products/actions";
 
 const OWNER_ONLY = { ok: false, message: "Only the owner can record purchases." } as const;
@@ -62,7 +63,7 @@ export async function savePurchase(input: PurchaseInput): Promise<SavePurchaseRe
     },
   });
   if (error || !data?.[0]) return { ok: false, message: friendlyDbError(error, "The purchase wasn't saved. Please try again.") };
-  revalidatePath("/pos", "layout");
+  refreshPosAndShop();
   return { ok: true, id: data[0].purchase_id };
 }
 
@@ -74,7 +75,7 @@ export async function receivePurchase(_prev: ActionResult | null, formData: Form
   if (!id.success) return { ok: false, message: "Unknown purchase." };
   const { error } = await supabase.rpc("pos_receive_purchase", { p_purchase_id: id.data });
   if (error) return { ok: false, message: friendlyDbError(error) };
-  revalidatePath("/pos", "layout");
+  refreshPosAndShop();
   return { ok: true, message: "Received. The items are on the shelf count." };
 }
 
@@ -85,7 +86,7 @@ export async function cancelPurchase(_prev: ActionResult | null, formData: FormD
   if (!id.success) return { ok: false, message: "Unknown purchase." };
   const { error } = await supabase.rpc("pos_cancel_purchase", { p_purchase_id: id.data });
   if (error) return { ok: false, message: friendlyDbError(error) };
-  revalidatePath("/pos", "layout");
+  refreshPosAndShop();
   return { ok: true, message: "Purchase cancelled." };
 }
 

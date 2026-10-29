@@ -5,6 +5,7 @@ import { z } from "zod";
 import { friendlyDbError } from "@/lib/pos/errors";
 import { newStaffSchema, staffPermissionsSchema } from "@/lib/pos/schemas";
 import { requirePosUser } from "@/lib/server/pos/auth";
+import { refreshPosAndShop } from "@/lib/server/pos/refresh";
 import { createAdminClient } from "@/lib/server/supabase-admin";
 import type { ActionResult } from "../products/actions";
 
@@ -102,9 +103,21 @@ export async function setWebsiteStockSync(_prev: ActionResult | null, formData: 
   if (!on.success) return { ok: false, message: "Choose on or off." };
   const { error } = await supabase.from("settings").update({ website_stock_sync: on.data === "true" }).eq("id", 1);
   if (error) return { ok: false, message: friendlyDbError(error) };
-  revalidatePath("/", "layout");
+  refreshPosAndShop();
   return {
     ok: true,
     message: on.data === "true" ? "The website now shows stock from this app." : "Stock on the website is set by hand again.",
   };
+}
+
+/** Owner: the line at the bottom of every receipt (printed and WhatsApp). */
+export async function saveReceiptFooter(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const { supabase, isOwner } = await requirePosUser();
+  if (!isOwner) return { ok: false, message: "Only the owner can change this." };
+  const footer = z.string().trim().max(300, "At most 300 characters.").safeParse(formData.get("footer") ?? "");
+  if (!footer.success) return { ok: false, message: footer.error.issues[0].message };
+  const { error } = await supabase.from("settings").update({ receipt_footer: footer.data || null }).eq("id", 1);
+  if (error) return { ok: false, message: friendlyDbError(error) };
+  revalidatePath("/pos", "layout");
+  return { ok: true, message: "Saved." };
 }

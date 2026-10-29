@@ -1,11 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { formatPesewas } from "@/lib/money";
 import { friendlyDbError } from "@/lib/pos/errors";
 import { z } from "zod";
 import { markOrderPaidSchema, paymentSchema, voidSaleSchema } from "@/lib/pos/schemas";
 import { requirePosUser } from "@/lib/server/pos/auth";
+import { refreshPosAndShop } from "@/lib/server/pos/refresh";
 import type { ActionResult } from "../products/actions";
 
 /**
@@ -38,7 +38,7 @@ export async function recordPayment(_prev: ActionResult | null, formData: FormDa
     if (owed) return { ok: false, message: `That is more than the ${formatPesewas(Number(owed[1]))} still owed.` };
     return { ok: false, message: friendlyDbError(error) };
   }
-  revalidatePath("/pos", "layout");
+  refreshPosAndShop();
   return { ok: true, message: left === 0 ? "Paid in full." : `Saved. ${formatPesewas(left)} still owed.` };
 }
 
@@ -51,7 +51,7 @@ export async function voidSale(_prev: ActionResult | null, formData: FormData): 
 
   const { error } = await supabase.rpc("pos_void_sale", { p_sale_id: parsed.data.saleId, p_reason: parsed.data.reason });
   if (error) return { ok: false, message: friendlyDbError(error) };
-  revalidatePath("/pos", "layout");
+  refreshPosAndShop();
   return { ok: true, message: "Sale cancelled. Its items are back on the shelf count." };
 }
 
@@ -75,8 +75,7 @@ export async function markOrderPaid(_prev: ActionResult | null, formData: FormDa
     p_cash_received: p.method === "cash" && p.cashReceived !== null ? p.cashReceived : undefined,
   });
   if (error) return { ok: false, message: friendlyDbError(error) };
-  revalidatePath("/pos", "layout");
-  revalidatePath("/admin", "layout");
+  refreshPosAndShop();
   const change = data?.[0]?.change_given ?? 0;
   return { ok: true, message: change > 0 ? `Paid, stock updated. Give ${formatPesewas(change)} change.` : "Paid, stock updated." };
 }
@@ -88,7 +87,6 @@ export async function cancelWebsiteOrder(_prev: ActionResult | null, formData: F
   if (!id.success) return { ok: false, message: "Unknown order." };
   const { error } = await supabase.rpc("pos_cancel_website_order", { p_sale_id: id.data });
   if (error) return { ok: false, message: friendlyDbError(error) };
-  revalidatePath("/pos", "layout");
-  revalidatePath("/admin", "layout");
+  refreshPosAndShop();
   return { ok: true, message: "Order cancelled." };
 }

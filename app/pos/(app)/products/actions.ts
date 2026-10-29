@@ -1,21 +1,19 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { duplicateField, friendlyDbError } from "@/lib/pos/errors";
 import { signedQty } from "@/lib/pos/stock";
 import { adjustSchema, fieldErrors, posProductSchema, recountSchema, type PosProductInput } from "@/lib/pos/schemas";
 import { slugify } from "@/lib/slug";
 import { requirePosUser } from "@/lib/server/pos/auth";
+import { refreshPosAndShop } from "@/lib/server/pos/refresh";
 
 export type ActionResult = { ok: boolean; message: string };
 
 const NOT_ALLOWED = { ok: false, message: "You are not allowed to do this. Ask the owner." } as const;
 
-/** Every /pos page shows stock (the sidebar badge too), so refresh them all. */
-function refreshPos() {
-  revalidatePath("/pos", "layout");
-}
+/** Every /pos page shows stock (the sidebar badge too), and the shop shows prices and stock: refresh them all. */
+const refreshPos = refreshPosAndShop;
 
 /** The "On the website" switch. Owner only; RLS checks it too. */
 export async function setOnWebsite(productId: string, on: boolean): Promise<ActionResult> {
