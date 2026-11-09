@@ -30,6 +30,12 @@ export type RecordRow = {
   delivery?: number;
   /** Sales: who took the delivery, if anyone yet. */
   rider?: string | null;
+  /** Sales: a website order (no shop counter involved). */
+  fromWebsite?: boolean;
+  /** Sales: where it was delivered (null: taken from the shop). */
+  deliverTo?: string | null;
+  /** Sales: payment methods used, joined by commas (null: nothing paid yet). */
+  paidBy?: string | null;
   total: number;
   paid: number;
   owed: number;
@@ -56,7 +62,7 @@ export async function listRecords(
   if (kind === "sales") {
     let query = supabase
       .from("pos_sales_list")
-      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery, rider", { count: "exact" })
+      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery, rider, delivery_address, payment_methods", { count: "exact" })
       .order("created_at", { ascending: false })
       .order("code", { ascending: false });
     if (q) query = query.or(`code.ilike.*${q}*,customer_name.ilike.*${q}*`);
@@ -84,6 +90,9 @@ export async function listRecords(
       saleStatus: r.status!,
       delivery: r.delivery ?? 0,
       rider: r.rider,
+      fromWebsite: r.source === "website",
+      deliverTo: r.delivery_address,
+      paidBy: r.payment_methods,
       total: r.total!,
       paid: r.paid!,
       owed: r.owed!,
