@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas } from "@/lib/money";
-import { basketTotals } from "@/lib/pos/basket";
+import { basketTotals, draftDeliveryFee } from "@/lib/pos/basket";
 import { useBasket, useBasketHydrated } from "@/lib/pos/basket-store";
 import type { SellTile } from "@/lib/server/pos/sell";
 import { BasketPanel } from "./basket-panel";
@@ -30,7 +30,13 @@ export function Register({
   const hydrated = useBasketHydrated();
   const lines = useBasket((s) => s.lines);
   const discount = useBasket((s) => s.discount);
-  const totals = basketTotals(hydrated ? lines : [], canGiveDiscounts ? discount : 0);
+  const fulfilment = useBasket((s) => s.fulfilment);
+  const deliveryFeeText = useBasket((s) => s.delivery.fee);
+  const totals = basketTotals(
+    hydrated ? lines : [],
+    canGiveDiscounts ? discount : 0,
+    hydrated ? (draftDeliveryFee(fulfilment, deliveryFeeText) ?? 0) : 0,
+  );
 
   // Move focus to "Sale saved." so screen readers announce it.
   useEffect(() => {

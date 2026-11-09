@@ -149,6 +149,73 @@ export type Database = {
         }
         Relationships: []
       }
+      deliveries: {
+        Row: {
+          address: string
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          note: string | null
+          out_at: string | null
+          rider: string | null
+          sale_id: string
+          status: Database["public"]["Enums"]["delivery_status"]
+          updated_by: string | null
+        }
+        Insert: {
+          address: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          note?: string | null
+          out_at?: string | null
+          rider?: string | null
+          sale_id: string
+          status?: Database["public"]["Enums"]["delivery_status"]
+          updated_by?: string | null
+        }
+        Update: {
+          address?: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          note?: string | null
+          out_at?: string | null
+          rider?: string | null
+          sale_id?: string
+          status?: Database["public"]["Enums"]["delivery_status"]
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "pos_sale_balances"
+            referencedColumns: ["sale_id"]
+          },
+          {
+            foreignKeyName: "deliveries_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "pos_sales_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           id: string
@@ -860,6 +927,7 @@ export type Database = {
       sale_items: {
         Row: {
           id: string
+          kind: string
           line_total: number
           option_values: string | null
           product_name: string
@@ -870,6 +938,7 @@ export type Database = {
         }
         Insert: {
           id?: string
+          kind?: string
           line_total: number
           option_values?: string | null
           product_name: string
@@ -880,6 +949,7 @@ export type Database = {
         }
         Update: {
           id?: string
+          kind?: string
           line_total?: number
           option_values?: string | null
           product_name?: string
@@ -1345,6 +1415,52 @@ export type Database = {
       }
     }
     Views: {
+      pos_deliveries_list: {
+        Row: {
+          address: string | null
+          code: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          delivered_at: string | null
+          fee: number | null
+          note: string | null
+          out_at: string | null
+          owed: number | null
+          paid: number | null
+          rider: string | null
+          sale_id: string | null
+          sale_status: Database["public"]["Enums"]["sale_status"] | null
+          source: Database["public"]["Enums"]["sale_source"] | null
+          status: Database["public"]["Enums"]["delivery_status"] | null
+          total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "pos_sale_balances"
+            referencedColumns: ["sale_id"]
+          },
+          {
+            foreignKeyName: "deliveries_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "pos_sales_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pos_purchases_list: {
         Row: {
           code: string | null
@@ -1509,30 +1625,48 @@ export type Database = {
         Returns: number
       }
       pos_cancel_count: { Args: { p_count_id: string }; Returns: undefined }
-      pos_cancel_website_order: {
-        Args: { p_sale_id: string }
-        Returns: undefined
-      }
       pos_cancel_purchase: {
         Args: { p_purchase_id: string }
         Returns: undefined
       }
-      pos_complete_sale: {
-        Args: {
-          p_cash_received?: number
-          p_customer_id: string
-          p_discount: number
-          p_items: Json
-          p_method: string
-          p_note?: string
-        }
-        Returns: {
-          change_given: number
-          code: string
-          sale_id: string
-          total: number
-        }[]
+      pos_cancel_website_order: {
+        Args: { p_sale_id: string }
+        Returns: undefined
       }
+      pos_complete_sale:
+        | {
+            Args: {
+              p_cash_received?: number
+              p_customer_id: string
+              p_discount: number
+              p_items: Json
+              p_method: string
+              p_note?: string
+            }
+            Returns: {
+              change_given: number
+              code: string
+              sale_id: string
+              total: number
+            }[]
+          }
+        | {
+            Args: {
+              p_cash_received?: number
+              p_customer_id: string
+              p_delivery: Json
+              p_discount: number
+              p_items: Json
+              p_method: string
+              p_note?: string
+            }
+            Returns: {
+              change_given: number
+              code: string
+              sale_id: string
+              total: number
+            }[]
+          }
       pos_create_customer: {
         Args: { p_name: string; p_phone?: string }
         Returns: string
@@ -1554,7 +1688,12 @@ export type Database = {
         Returns: Json
       }
       pos_import_products: {
-        Args: { p_apply: boolean; p_rows: Json; p_set_stock: boolean; p_update_prices: boolean }
+        Args: {
+          p_apply: boolean
+          p_rows: Json
+          p_set_stock: boolean
+          p_update_prices: boolean
+        }
         Returns: Json
       }
       pos_import_records: {
@@ -1575,14 +1714,32 @@ export type Database = {
           user_id: string
         }[]
       }
-      pos_period_figures: {
-        Args: { p_bounds: string[]; p_prev_from: string; p_prev_to: string }
-        Returns: Json
-      }
-      pos_mark_order_paid: {
-        Args: { p_cash_received?: number; p_method: string; p_sale_id: string }
-        Returns: { change_given: number; code: string; total: number }[]
-      }
+      pos_mark_order_paid:
+        | {
+            Args: {
+              p_cash_received?: number
+              p_method: string
+              p_sale_id: string
+            }
+            Returns: {
+              change_given: number
+              code: string
+              total: number
+            }[]
+          }
+        | {
+            Args: {
+              p_cash_received?: number
+              p_delivery: Json
+              p_method: string
+              p_sale_id: string
+            }
+            Returns: {
+              change_given: number
+              code: string
+              total: number
+            }[]
+          }
       pos_people: {
         Args: never
         Returns: {
@@ -1591,6 +1748,10 @@ export type Database = {
           role: string
           user_id: string
         }[]
+      }
+      pos_period_figures: {
+        Args: { p_bounds: string[]; p_prev_from: string; p_prev_to: string }
+        Returns: Json
       }
       pos_receive_purchase: {
         Args: { p_purchase_id: string }
@@ -1639,6 +1800,16 @@ export type Database = {
           revenue: number
         }[]
       }
+      pos_update_delivery: {
+        Args: {
+          p_address?: string
+          p_note?: string
+          p_rider?: string
+          p_sale_id: string
+          p_status: string
+        }
+        Returns: undefined
+      }
       pos_update_user: {
         Args: {
           p_can_adjust_stock: boolean
@@ -1655,6 +1826,7 @@ export type Database = {
       }
     }
     Enums: {
+      delivery_status: "to_deliver" | "out" | "delivered"
       order_status:
         | "awaiting_whatsapp"
         | "confirmed"
@@ -1804,6 +1976,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      delivery_status: ["to_deliver", "out", "delivered"],
       order_status: [
         "awaiting_whatsapp",
         "confirmed",

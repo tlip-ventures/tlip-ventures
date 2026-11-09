@@ -138,8 +138,12 @@ export function MarkOrderPaidButton({
   className?: string;
 }) {
   const [cash, setCash] = useState("");
+  const [deliver, setDeliver] = useState(false);
+  const [fee, setFee] = useState("");
+  const feeAmount = deliver ? (parseCedis(fee) ?? 0) : 0;
+  const due = total + feeAmount;
   const received = parseCedis(cash);
-  const change = received === null ? null : received - total;
+  const change = received === null ? null : received - due;
   return (
     <ActionDialog
       label="Mark as paid"
@@ -152,8 +156,34 @@ export function MarkOrderPaidButton({
     >
       <input type="hidden" name="saleId" value={saleId} />
       <p className="m-0 text-sm leading-[22px] text-pos-soft">
-        The customer paid <strong className="text-pos-ink">{formatPesewas(total)}</strong>. Its items come off the shelf count now.
+        The customer paid <strong className="text-pos-ink">{formatPesewas(due)}</strong>
+        {feeAmount > 0 && <> (with {formatPesewas(feeAmount)} delivery)</>}. Its items come off the shelf count now.
       </p>
+      <label className="flex min-h-11 items-start gap-3 text-sm">
+        <input
+          type="checkbox"
+          name="deliver"
+          checked={deliver}
+          onChange={(e) => setDeliver(e.target.checked)}
+          className="mt-0.5 h-5 w-5 flex-none accent-pos-green"
+        />
+        <span className="flex flex-col">
+          <span className="font-semibold">We deliver it</span>
+          <span className="text-[13px] text-pos-muted">Adds the delivery fee agreed in WhatsApp and puts it on the Deliveries list.</span>
+        </span>
+      </label>
+      {deliver && (
+        <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-2.5">
+          <label className={dialogLabelClass}>
+            <span>Fee (GH₵)</span>
+            <input name="deliveryFee" value={fee} onChange={(e) => setFee(e.target.value)} inputMode="decimal" placeholder="0" className={dialogInputClass} />
+          </label>
+          <label className={dialogLabelClass}>
+            <span>Deliver to</span>
+            <input name="deliveryAddress" maxLength={300} placeholder="Order’s location" className={dialogInputClass} />
+          </label>
+        </div>
+      )}
       <MethodChoice />
       <label className={dialogLabelClass}>
         <span>Cash received (optional, for change)</span>
@@ -162,7 +192,7 @@ export function MarkOrderPaidButton({
           value={cash}
           onChange={(e) => setCash(e.target.value)}
           inputMode="decimal"
-          placeholder={pesewasToInput(total)}
+          placeholder={pesewasToInput(due)}
           className={dialogInputClass}
         />
       </label>

@@ -17,6 +17,7 @@ export type CompletedSale = {
   change: number | null;
   items: number;
   whatsappUrl: string;
+  delivery: boolean;
 };
 
 export type CompleteSaleResult = { ok: true; sale: CompletedSale } | { ok: false; message: string };
@@ -32,6 +33,16 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const s = parsed.data;
 
+  let delivery: { fee: number; address: string; phone: string | null; note: string } | null = null;
+  if (s.delivery) {
+    let phone: string | null = null;
+    if (s.delivery.phone) {
+      phone = normaliseGhanaPhone(s.delivery.phone);
+      if (!phone) return { ok: false, message: "Enter the rider's phone number like 024 123 4567, or leave it empty." };
+    }
+    delivery = { fee: s.delivery.fee, address: s.delivery.address, phone, note: s.delivery.note };
+  }
+
   const { data, error } = await supabase.rpc("pos_complete_sale", {
     p_items: s.items.map((i) => ({ variant_id: i.variantId, qty: i.qty })),
     // The function treats null as a walk-in customer; the generated type doesn't know it accepts null.
@@ -39,6 +50,8 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
     p_discount: s.discount,
     p_method: s.method,
     p_cash_received: s.method === "cash" && s.cashReceived !== null ? s.cashReceived : undefined,
+    // Always sent (null when the customer takes the goods): it picks the version of the function with deliveries.
+    p_delivery: delivery,
   });
   if (error || !data?.[0]) return { ok: false, message: friendlyDbError(error, "The sale wasn't saved. Please try again.") };
   const saved = data[0];
@@ -57,6 +70,7 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
         payments: receipt.payments,
         owed: receipt.owed,
         footer: receipt.shop.footer,
+        delivery: receipt.delivery,
       })
     : `Tlip Ventures receipt\nSale ${saved.code}`;
 
@@ -69,7 +83,8 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
       total: saved.total,
       change: saved.change_given,
       items: s.items.reduce((n, i) => n + i.qty, 0),
-      whatsappUrl: receiptWhatsappUrl(receipt?.customer?.phone ?? null, message),
+      whatsappUrl: receiptWhatsappUrl(receipt?.customer?.phone ?? receipt?.delivery?.phone ?? null, message),
+      delivery: delivery !== null,
     },
   };
 }

@@ -4,9 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { completeSale, type CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
-import { basketTotals, cashOptions, changeDue, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
+import { phoneText } from "@/lib/pos/format";
+import { basketTotals, cashOptions, changeDue, draftDeliveryFee, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
 import { useBasket, useBasketHydrated, type CashChoice } from "@/lib/pos/basket-store";
 import { CustomerPicker } from "./customer-picker";
+
+const inputClass = "min-h-11 w-full rounded-md border border-pos-line bg-white px-3 text-sm text-pos-ink placeholder:text-pos-muted";
 
 const choiceClass = (on: boolean) =>
   `min-h-11 rounded-md border text-sm font-bold ${
@@ -24,7 +27,9 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
   const [pending, startTransition] = useTransition();
 
   const lines = hydrated ? state.lines : [];
-  const totals = basketTotals(lines, canGiveDiscounts ? state.discount : 0);
+  const delivering = hydrated && state.fulfilment === "delivery";
+  const deliveryFee = draftDeliveryFee(delivering ? "delivery" : "collect", state.delivery.fee);
+  const totals = basketTotals(lines, canGiveDiscounts ? state.discount : 0, deliveryFee ?? 0);
   const options = cashOptions(totals.total);
   const otherCash = parseCedis(state.cashOther);
   const cashReceived: number | null =
@@ -36,6 +41,10 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
   const blocker =
     lines.length === 0
       ? null
+      : delivering && !state.delivery.address.trim()
+        ? "Enter where to deliver: the area and a landmark."
+        : delivering && deliveryFee === null
+          ? "Enter the delivery fee like 30, or leave it empty."
       : state.method === "later" && !state.customer
         ? "Choose the customer who will pay later."
         : state.method === "cash" && state.cash === "other" && (otherCash === null || change === null)
@@ -63,6 +72,15 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
         discount: totals.discount,
         method: state.method,
         cashReceived: state.method === "cash" ? cashReceived : null,
+        delivery: delivering
+          ? {
+              fee: totals.delivery,
+              address: state.delivery.address,
+              // The rider calls this number; the customer's own when none is typed.
+              phone: state.delivery.phone.trim() || state.customer?.phone || "",
+              note: state.delivery.note,
+            }
+          : null,
       });
       if (!result.ok) {
         setError(result.message);
@@ -93,6 +111,66 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
           <span className="text-[13px] text-pos-muted">New sale</span>
         </div>
         <CustomerPicker />
+        <div role="group" aria-label="How the customer gets the goods" className="grid grid-cols-2 gap-2">
+          {FULFILMENTS.map((f) => (
+            <button
+              key={f}
+              type="button"
+              aria-pressed={(hydrated ? state.fulfilment : "collect") === f}
+              onClick={() => state.setFulfilment(f)}
+              className={choiceClass((hydrated ? state.fulfilment : "collect") === f)}
+            >
+              {FULFILMENT_LABELS[f]}
+            </button>
+          ))}
+        </div>
+        {delivering && (
+          <div className="flex flex-col gap-2.5 rounded-md border border-pos-line bg-pos-row-hover p-3">
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-pos-soft">
+              <span>Deliver to (area and a landmark)</span>
+              <input
+                value={state.delivery.address}
+                onChange={(e) => state.setDelivery({ address: e.target.value })}
+                maxLength={300}
+                placeholder="Dansoman, near Sharp Curve"
+                className={inputClass}
+              />
+            </label>
+            <div className="grid grid-cols-[minmax(0,1fr)_110px] gap-2.5">
+              <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-pos-soft">
+                <span>Phone for the rider</span>
+                <input
+                  value={state.delivery.phone}
+                  onChange={(e) => state.setDelivery({ phone: e.target.value })}
+                  type="tel"
+                  inputMode="tel"
+                  placeholder={state.customer?.phone ? `Customer’s: ${phoneText(state.customer.phone)}` : "024 123 4567"}
+                  className={inputClass}
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-pos-soft">
+                <span>Fee (GH₵)</span>
+                <input
+                  value={state.delivery.fee}
+                  onChange={(e) => state.setDelivery({ fee: e.target.value })}
+                  inputMode="decimal"
+                  placeholder="0"
+                  className={`${inputClass} text-right font-bold tabular-nums`}
+                />
+              </label>
+            </div>
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-pos-soft">
+              <span>Note for the rider (optional)</span>
+              <input
+                value={state.delivery.note}
+                onChange={(e) => state.setDelivery({ note: e.target.value })}
+                maxLength={300}
+                placeholder="Call before coming, blue gate…"
+                className={inputClass}
+              />
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="flex min-h-40 flex-1 flex-col px-[22px] py-1.5">
@@ -180,6 +258,12 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
               <span>{totals.discount ? `−${formatPesewas(totals.discount)}` : "GH₵ 0"}</span>
             )}
           </div>
+          {delivering && (
+            <div className="flex justify-between">
+              <span>Delivery</span>
+              <span>{formatPesewas(totals.delivery)}</span>
+            </div>
+          )}
           <div className="flex items-baseline justify-between border-t border-pos-card-line pt-2 text-pos-ink">
             <span className="text-[15px] font-bold">Total</span>
             <span className="font-pos-display text-[32px] leading-none">{formatPesewas(totals.total)}</span>
@@ -234,7 +318,9 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
 
         {state.method === "later" && (
           <p className="m-0 rounded-md bg-pos-tint-orange px-3 py-2.5 text-[13px] font-semibold leading-[19px] text-pos-rust">
-            This sale is saved as unpaid. It shows under “Customers owe you” until it is settled.
+            {delivering
+              ? "Pay on delivery: saved as unpaid until the rider brings the money. Mark it paid then."
+              : "This sale is saved as unpaid. It shows under “Customers owe you” until it is settled."}
           </p>
         )}
 
@@ -259,7 +345,7 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
             setError(null);
             setEditingDiscount(false);
           }}
-          disabled={lines.length === 0 && !state.customer}
+          disabled={lines.length === 0 && !state.customer && state.fulfilment === "collect"}
           className="min-h-11 text-[13px] font-semibold text-pos-muted hover:text-pos-ink disabled:opacity-60 md:min-h-10"
         >
           Clear basket

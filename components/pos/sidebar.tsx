@@ -15,6 +15,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { icon: "pos", name: "Point of sale", href: "/pos/sell" },
       { icon: "sales", name: "Sales", href: "/pos/sales" },
+      { icon: "deliveries", name: "Deliveries", href: "/pos/deliveries" },
       { icon: "returns", name: "Returns", href: "/pos/returns" },
     ],
   },
@@ -55,12 +56,15 @@ export function Sidebar({
   name,
   isOwner,
   attention,
+  deliveries,
   signOut,
 }: {
   name: string;
   isOwner: boolean;
   /** Items to restock or recount: the badge on "Products and stock". */
   attention: number;
+  /** Deliveries not yet delivered: the badge on "Deliveries". */
+  deliveries: number;
   signOut: () => Promise<void>;
 }) {
   const pathname = usePathname();
@@ -113,7 +117,12 @@ export function Sidebar({
               </span>
               {g.items.map((it) => {
                 const current = isCurrent(pathname, it.href);
-                const badge = it.href === "/pos/products" && attention > 0 ? attention : null;
+                const badge =
+                  it.href === "/pos/products" && attention > 0
+                    ? attention
+                    : it.href === "/pos/deliveries" && deliveries > 0
+                      ? deliveries
+                      : null;
                 return (
                   <Link
                     key={it.href}
@@ -131,7 +140,7 @@ export function Sidebar({
                     {badge !== null && (
                       <span className="box-border h-5 min-w-[22px] rounded-full bg-pos-gold px-1.5 text-center text-xs font-bold leading-5 text-pos-ink">
                         {badge > 99 ? "99+" : badge}
-                        <span className="sr-only"> need attention</span>
+                        <span className="sr-only">{it.href === "/pos/deliveries" ? " not delivered yet" : " need attention"}</span>
                       </span>
                     )}
                   </Link>

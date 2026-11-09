@@ -113,6 +113,7 @@ export function MoneyCards({ figures, owed }: { figures: PeriodFigures; owed: Mo
             </>
           )}
           {plural(figures.count, "sale")}
+          {figures.delivery > 0 && <> · {formatPesewas(figures.delivery)} delivery fees</>}
         </span>
       </div>
       {figures.profit !== null && (

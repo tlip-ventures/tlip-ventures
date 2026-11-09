@@ -155,6 +155,15 @@ export const completeSaleSchema = z
     method: z.enum(["cash", "momo", "bank", "later"]),
     // Cash only, in pesewas; null means the exact amount.
     cashReceived: z.number().int().min(0).max(100_000_000).nullable(),
+    // null: the customer takes the goods. Fee in pesewas; phone as typed (checked by the action).
+    delivery: z
+      .object({
+        fee: z.number().int().min(0, "Enter the delivery fee, or 0.").max(10_000_000, "That delivery fee is too high."),
+        address: z.string().trim().min(1, "Enter where to deliver: the area and a landmark.").max(300, "At most 300 characters."),
+        phone: z.string().trim().max(30),
+        note: z.string().trim().max(300, "At most 300 characters."),
+      })
+      .nullable(),
   })
   .superRefine((s, ctx) => {
     if (s.method === "later" && !s.customerId) {
@@ -189,6 +198,10 @@ export const markOrderPaidSchema = z.object({
   saleId: z.uuid(),
   method: z.enum(["cash", "momo", "bank"], { message: "Choose how the customer paid." }),
   cashReceived: optionalCedis("Cash like 500 or 1250.50, or leave it empty."),
+  // Ticked: the shop delivers it, for the fee agreed in WhatsApp; no address: the order's location.
+  deliver: z.boolean(),
+  deliveryFee: optionalCedis("Delivery fee like 30, or leave it empty."),
+  deliveryAddress: z.string().trim().max(300, "At most 300 characters."),
 });
 
 /** What the purchase form sends. Costs are typed in cedis. */
