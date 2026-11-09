@@ -118,3 +118,31 @@ export const METHOD_LABELS: Record<Exclude<PaymentChoice, "later">, string> = {
   momo: "Mobile Money",
   bank: "Bank transfer",
 };
+
+/** The date filter on the Sales / Purchases / Returns lists. */
+export const RECORD_PERIODS = ["all", "today", "week", "month"] as const;
+export type RecordPeriod = (typeof RECORD_PERIODS)[number];
+
+export const RECORD_PERIOD_LABELS: Record<RecordPeriod, string> = {
+  all: "All time",
+  today: "Today",
+  week: "This week",
+  month: "This month",
+};
+
+/**
+ * The times a period covers, Ghana time (UTC): today from midnight, this week
+ * from Monday, this month from the 1st, each up to its end. null: all time.
+ */
+export function recordPeriodRange(period: RecordPeriod, now: Date): { from: Date; to: Date } | null {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const d = now.getUTCDate();
+  if (period === "today") return { from: new Date(Date.UTC(y, m, d)), to: new Date(Date.UTC(y, m, d + 1)) };
+  if (period === "week") {
+    const sinceMonday = (now.getUTCDay() + 6) % 7;
+    return { from: new Date(Date.UTC(y, m, d - sinceMonday)), to: new Date(Date.UTC(y, m, d - sinceMonday + 7)) };
+  }
+  if (period === "month") return { from: new Date(Date.UTC(y, m, 1)), to: new Date(Date.UTC(y, m + 1, 1)) };
+  return null;
+}

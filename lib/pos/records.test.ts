@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { paymentPill, purchaseStatusPill, returnStatusPill, saleStatusPill } from "./records";
+import { paymentPill, purchaseStatusPill, recordPeriodRange, returnStatusPill, saleStatusPill } from "./records";
 
 describe("record pills", () => {
   it("labels payment like the design", () => {
@@ -17,5 +17,20 @@ describe("record pills", () => {
     expect(returnStatusPill(2, 2).label).toBe("Back on shelf");
     expect(returnStatusPill(2, 0).label).toBe("Not restocked");
     expect(returnStatusPill(3, 1).label).toBe("Part restocked");
+  });
+});
+
+describe("recordPeriodRange", () => {
+  const now = new Date("2026-11-09T13:30:00Z"); // a Monday
+  it("today, this week from Monday, this month", () => {
+    expect(recordPeriodRange("all", now)).toBeNull();
+    expect(recordPeriodRange("today", now)).toEqual({ from: new Date("2026-11-09T00:00:00Z"), to: new Date("2026-11-10T00:00:00Z") });
+    expect(recordPeriodRange("week", now)).toEqual({ from: new Date("2026-11-09T00:00:00Z"), to: new Date("2026-11-16T00:00:00Z") });
+    expect(recordPeriodRange("week", new Date("2026-11-15T23:00:00Z"))).toEqual({
+      from: new Date("2026-11-09T00:00:00Z"),
+      to: new Date("2026-11-16T00:00:00Z"),
+    });
+    expect(recordPeriodRange("month", now)).toEqual({ from: new Date("2026-11-01T00:00:00Z"), to: new Date("2026-12-01T00:00:00Z") });
+    expect(recordPeriodRange("month", new Date("2026-12-31T10:00:00Z"))!.to).toEqual(new Date("2027-01-01T00:00:00Z"));
   });
 });

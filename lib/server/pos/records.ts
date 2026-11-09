@@ -1,6 +1,6 @@
 import "server-only";
 import { pageRange } from "@/lib/pagination";
-import type { RecordFilter, RecordKind } from "@/lib/pos/records";
+import { recordPeriodRange, type RecordFilter, type RecordKind, type RecordPeriod } from "@/lib/pos/records";
 import type { ReceiptPayment } from "@/lib/pos/receipt";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { getPeopleNames } from "@/lib/server/pos/stock";
@@ -39,10 +39,15 @@ function term(raw: string | undefined): string {
   return (raw ?? "").replace(/[%_,()\\*:"']/g, " ").replace(/\s+/g, " ").trim();
 }
 
-export async function listRecords(kind: RecordKind, options: { search?: string; filter?: RecordFilter; page?: number; pageSize?: number }) {
+export async function listRecords(
+  kind: RecordKind,
+  options: { search?: string; filter?: RecordFilter; period?: RecordPeriod; page?: number; pageSize?: number },
+) {
   const { supabase } = await requirePosUser();
   const { from, to } = pageRange(options.page ?? 1, options.pageSize ?? RECORDS_PAGE_SIZE);
   const q = term(options.search);
+  // Today / This week / This month, by the date the record was made.
+  const range = recordPeriodRange(options.period ?? "all", new Date());
   const people = await getPeopleNames();
   const by = (id: string | null) => (id && people.get(id)) || "Someone no longer here";
 
@@ -53,6 +58,7 @@ export async function listRecords(kind: RecordKind, options: { search?: string; 
       .order("created_at", { ascending: false })
       .order("code", { ascending: false });
     if (q) query = query.or(`code.ilike.*${q}*,customer_name.ilike.*${q}*`);
+    if (range) query = query.gte("created_at", range.from.toISOString()).lt("created_at", range.to.toISOString());
     if (options.filter === "unpaid") query = query.gt("owed", 0);
     if (options.filter === "paid") query = query.eq("owed", 0).not("status", "in", "(voided,cancelled)");
     const { data, count, error } = await query.range(from, to);
@@ -87,6 +93,7 @@ export async function listRecords(kind: RecordKind, options: { search?: string; 
       .order("created_at", { ascending: false })
       .order("code", { ascending: false });
     if (q) query = query.or(`code.ilike.*${q}*,supplier_name.ilike.*${q}*`);
+    if (range) query = query.gte("created_at", range.from.toISOString()).lt("created_at", range.to.toISOString());
     if (options.filter === "unpaid") query = query.gt("owed", 0);
     if (options.filter === "paid") query = query.eq("owed", 0).neq("status", "cancelled");
     const { data, count, error } = await query.range(from, to);
@@ -114,6 +121,7 @@ export async function listRecords(kind: RecordKind, options: { search?: string; 
     .order("created_at", { ascending: false })
     .order("code", { ascending: false });
   if (q) query = query.or(`code.ilike.*${q}*,customer_name.ilike.*${q}*,sale_code.ilike.*${q}*`);
+  if (range) query = query.gte("created_at", range.from.toISOString()).lt("created_at", range.to.toISOString());
   if (options.filter === "unpaid") query = query.gt("owed", 0);
   if (options.filter === "paid") query = query.eq("owed", 0);
   const { data, count, error } = await query.range(from, to);
@@ -145,9 +153,16 @@ export type RecordsSummary = {
   counts: Record<RecordKind, number>;
 };
 
-export async function getRecordsSummary(kind: RecordKind, search?: string): Promise<RecordsSummary> {
+export async function getRecordsSummary(kind: RecordKind, search?: string, period: RecordPeriod = "all"): Promise<RecordsSummary> {
   const { supabase } = await requirePosUser();
-  const { data, error } = await supabase.rpc("pos_records_summary", { p_kind: kind, p_search: term(search) || undefined });
+  const range = recordPeriodRange(period, new Date());
+  const { data, error } = await supabase.rpc("pos_records_totals", {
+    p_kind: kind,
+    p_search: term(search),
+    // The function treats null as all time; the generated types don't know it accepts null.
+    p_from: (range?.from.toISOString() ?? null) as string,
+    p_to: (range?.to.toISOString() ?? null) as string,
+  });
   if (error) throw new Error(`Could not load the totals: ${error.message}`);
   return data as unknown as RecordsSummary;
 }

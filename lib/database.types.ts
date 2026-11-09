@@ -1768,6 +1768,10 @@ export type Database = {
         }
         Returns: number
       }
+      pos_records_totals: {
+        Args: { p_from: string; p_kind: string; p_search: string; p_to: string }
+        Returns: Json
+      }
       pos_records_summary: {
         Args: { p_kind: string; p_search?: string }
         Returns: Json
