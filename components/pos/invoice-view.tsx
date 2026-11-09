@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { formatPesewas } from "@/lib/money";
 import { formatDay, phoneText } from "@/lib/pos/format";
 import { invoicePill, isExpired } from "@/lib/pos/invoices";
@@ -33,11 +34,15 @@ export function InvoiceView({ inv, today }: { inv: InvoiceDetail; today: string 
       )}
 
       <header className="flex flex-wrap items-start justify-between gap-6">
-        <div className="flex flex-col gap-0.5">
-          <span className="font-pos-display text-[28px] leading-tight">{inv.shop.name}</span>
-          {inv.shop.address && <span>{inv.shop.address}</span>}
-          {inv.shop.whatsapp && <span>WhatsApp {phoneText(inv.shop.whatsapp)}</span>}
-          {inv.shop.email && <span>{inv.shop.email}</span>}
+        <div className="flex items-start gap-4">
+          {/* The shop's round badge; the PNG keeps it sharp when printed. */}
+          <Image src="/brand/logo.png" alt="Tlip Ventures logo" width={512} height={512} unoptimized className="h-16 w-16 shrink-0 sm:h-[72px] sm:w-[72px]" />
+          <div className="flex flex-col gap-0.5">
+            <span className="font-pos-display text-[28px] leading-tight">{inv.shop.name}</span>
+            {inv.shop.address && <span>{inv.shop.address}</span>}
+            {inv.shop.whatsapp && <span>WhatsApp {phoneText(inv.shop.whatsapp)}</span>}
+            {inv.shop.email && <span>{inv.shop.email}</span>}
+          </div>
         </div>
         <div className="flex flex-col gap-0.5 sm:text-right">
           <span className="text-[26px] font-bold uppercase leading-tight tracking-[0.18em]">Invoice</span>
