@@ -9,8 +9,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/pos/pu
   const params = parseRecordsParams(await searchParams);
   const user = await requireOwner();
   const [{ rows, total }, summary] = await Promise.all([
-    listRecords("purchases", { search: params.q, filter: params.filter, page: params.page }),
-    getRecordsSummary("purchases", params.q),
+    listRecords("purchases", { search: params.q, filter: params.filter, period: params.period, page: params.page }),
+    getRecordsSummary("purchases", params.q, params.period),
   ]);
   return (
     <RecordsView

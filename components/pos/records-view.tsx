@@ -6,11 +6,14 @@ import {
   purchaseStatusPill,
   RECORD_FILTER_LABELS,
   RECORD_FILTERS,
+  RECORD_PERIOD_LABELS,
+  RECORD_PERIODS,
   returnStatusPill,
   saleStatusPill,
   TAB_META,
   type RecordFilter,
   type RecordKind,
+  type RecordPeriod,
 } from "@/lib/pos/records";
 import type { RecordRow, RecordsSummary } from "@/lib/server/pos/records";
 import { DownloadIcon, MoreIcon, PlusIcon, ReturnsIcon } from "./icons";
@@ -18,7 +21,7 @@ import { FilterChips, Pager, SearchForm } from "./list-controls";
 import { MarkOrderPaidButton, PaymentButton } from "./record-actions";
 import { buttonClass, ButtonLink, Card, PageHeader, PageShell, Pill, ScrollTable, StatGrid, TableHead, Th } from "./ui";
 
-export type RecordsParams = { q: string; filter: RecordFilter; page: number };
+export type RecordsParams = { q: string; filter: RecordFilter; period: RecordPeriod; page: number };
 
 const PATHS: Record<RecordKind, string> = { sales: "/pos/sales", purchases: "/pos/purchases", returns: "/pos/returns" };
 const SETTLE_KIND = { sales: "sale", purchases: "purchase", returns: "refund" } as const;
@@ -52,6 +55,7 @@ export function RecordsView({
   const query = (changes: Partial<RecordsParams>) => {
     const next = { ...params, ...changes };
     const q = new URLSearchParams();
+    if (next.period !== "all") q.set("period", next.period);
     if (next.filter !== "all") q.set("filter", next.filter);
     if (next.q) q.set("q", next.q);
     if (next.page > 1) q.set("page", String(next.page));
@@ -102,6 +106,14 @@ export function RecordsView({
         })}
       </nav>
 
+      {/* The cards below and the downloads follow the period chosen here. */}
+      <FilterChips<RecordPeriod>
+        label="Period"
+        options={RECORD_PERIODS.map((p) => ({ value: p, name: RECORD_PERIOD_LABELS[p] }))}
+        current={params.period}
+        href={(period) => href({ period, page: 1 })}
+      />
+
       <StatGrid min={200}>
         <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
           <span className="text-[13px] font-semibold text-pos-muted">Total value</span>
@@ -132,7 +144,10 @@ export function RecordsView({
             label="Search this list"
             placeholder={m.search}
             value={params.q}
-            hidden={params.filter !== "all" ? { filter: params.filter } : {}}
+            hidden={{
+              ...(params.filter !== "all" ? { filter: params.filter } : {}),
+              ...(params.period !== "all" ? { period: params.period } : {}),
+            }}
           />
           <FilterChips<RecordFilter>
             label="Payment filter"
@@ -227,10 +242,10 @@ export function RecordsView({
               <ReturnsIcon />
             </span>
             <span className="font-pos-display text-[26px] leading-[1.1]">
-              {params.q || params.filter !== "all" ? "Nothing here." : m.emptyTitle}
+              {params.q || params.filter !== "all" || params.period !== "all" ? "Nothing here." : m.emptyTitle}
             </span>
             <span className="max-w-[420px] text-sm leading-[22px] text-pos-soft">
-              {params.q || params.filter !== "all" ? "No records match this filter. Try All." : m.emptyBody}
+              {params.q || params.filter !== "all" || params.period !== "all" ? "No records match this filter. Try All or All time." : m.emptyBody}
             </span>
           </div>
         )}
@@ -239,14 +254,16 @@ export function RecordsView({
   );
 }
 
-/** Reads ?q=&filter=&page= for the three lists. */
+/** Reads ?q=&filter=&period=&page= for the three lists. */
 export function parseRecordsParams(raw: Record<string, string | string[] | undefined>): RecordsParams {
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const filter = one(raw.filter);
+  const period = one(raw.period);
   const page = Number(one(raw.page));
   return {
     q: one(raw.q).trim().slice(0, 100),
     filter: (RECORD_FILTERS as readonly string[]).includes(filter) ? (filter as RecordFilter) : "all",
+    period: (RECORD_PERIODS as readonly string[]).includes(period) ? (period as RecordPeriod) : "all",
     page: Number.isSafeInteger(page) && page >= 1 && page <= 10_000 ? page : 1,
   };
 }

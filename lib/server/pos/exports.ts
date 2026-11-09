@@ -5,10 +5,13 @@ import {
   purchaseStatusPill,
   RECORD_FILTER_LABELS,
   RECORD_FILTERS,
+  RECORD_PERIOD_LABELS,
+  RECORD_PERIODS,
   returnStatusPill,
   saleStatusPill,
   TAB_META,
   type RecordFilter,
+  type RecordPeriod,
 } from "@/lib/pos/records";
 import { STOCK_FILTER_LABELS, STOCK_FILTERS, STOCK_PILLS, variantName, type StockFilter } from "@/lib/pos/stock";
 import type { XlsxCell } from "@/lib/pos/xlsx";
@@ -41,10 +44,15 @@ export type ExportTable = {
   cut: boolean;
 };
 
-export type ExportParams = { q: string; filter: string };
+export type ExportParams = { q: string; filter: string; period: RecordPeriod };
 
 export function parseExportParams(get: (name: string) => string | null): ExportParams {
-  return { q: (get("q") ?? "").trim().slice(0, 100), filter: get("filter") ?? "all" };
+  const period = get("period") ?? "all";
+  return {
+    q: (get("q") ?? "").trim().slice(0, 100),
+    filter: get("filter") ?? "all",
+    period: (RECORD_PERIODS as readonly string[]).includes(period) ? (period as RecordPeriod) : "all",
+  };
 }
 
 async function everyPage<T>(load: (page: number) => Promise<{ rows: T[]; total: number }>) {
@@ -123,7 +131,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
   }
 
   const filter: RecordFilter = (RECORD_FILTERS as readonly string[]).includes(params.filter) ? (params.filter as RecordFilter) : "all";
-  const { rows, cut } = await everyPage<RecordRow>((page) => listRecords(kind, { search: params.q, filter, page, pageSize: BATCH }));
+  const { rows, cut } = await everyPage<RecordRow>((page) => listRecords(kind, { search: params.q, filter, period: params.period, page, pageSize: BATCH }));
   const meta = TAB_META[kind];
   const status = (r: RecordRow) =>
     kind === "sales"
@@ -136,7 +144,12 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
 
   return {
     title: meta.heading,
-    scope: scopeText(filter === "all" ? null : RECORD_FILTER_LABELS[filter], params.q),
+    scope: scopeText(
+      [params.period === "all" ? null : RECORD_PERIOD_LABELS[params.period], filter === "all" ? null : RECORD_FILTER_LABELS[filter]]
+        .filter(Boolean)
+        .join(" · ") || null,
+      params.q,
+    ),
     fileName: `${kind}-${stamp()}.xlsx`,
     columns: [
       { label: "Date", width: 18 },
