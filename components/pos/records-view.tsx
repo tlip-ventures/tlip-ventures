@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatPesewas } from "@/lib/money";
 import { formatDay } from "@/lib/pos/format";
 import {
+  paidByText,
   paymentPill,
   purchaseStatusPill,
   RECORD_FILTER_LABELS,
@@ -233,11 +234,12 @@ export function RecordsView({
 
         {rows.length > 0 ? (
           <>
-            <ScrollTable minWidth={kind === "sales" ? 1040 : 860}>
+            <ScrollTable minWidth={kind === "sales" ? 1340 : 860}>
               <TableHead>
                 <Th>Date</Th>
                 <Th>Reference</Th>
                 <Th>{m.party}</Th>
+                {kind === "sales" && <Th>Deliver to</Th>}
                 <Th>Status</Th>
                 {kind === "sales" && <Th align="right">Items</Th>}
                 {kind === "sales" && <Th align="right">Delivery</Th>}
@@ -262,12 +264,26 @@ export function RecordsView({
                           {r.code}
                         </Link>
                       </td>
-                      <td className="px-3 py-3.5">
+                      <td className="min-w-[170px] px-3 py-3.5">
                         <span className="flex flex-col">
                           <span>{r.party}</span>
                           <span className="text-xs text-pos-muted">{r.sub}</span>
                         </span>
                       </td>
+                      {kind === "sales" && (
+                        <td className="min-w-[180px] max-w-[240px] px-3 py-3.5">
+                          {r.deliverTo ? (
+                            <span className="flex flex-col">
+                              <span className="line-clamp-2 break-words" title={r.deliverTo}>
+                                {r.deliverTo}
+                              </span>
+                              {r.rider && <span className="text-xs text-pos-muted">Rider: {r.rider}</span>}
+                            </span>
+                          ) : (
+                            <span className="text-pos-muted">{r.fromWebsite ? "—" : "In the shop"}</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-3 py-3.5">
                         <Pill className={status.className}>{status.label}</Pill>
                       </td>
@@ -285,7 +301,13 @@ export function RecordsView({
                         {r.owed ? formatPesewas(r.owed) : "—"}
                       </td>
                       <td className="px-3 py-3.5">
-                        <Pill className={pay.className}>{pay.label}</Pill>
+                        <span className="flex flex-col items-start gap-1">
+                          <Pill className={pay.className}>{pay.label}</Pill>
+                          {/* Sales: how it was paid, under the pill. */}
+                          {kind === "sales" && (r.paidBy || (r.owed > 0 && !r.cancelled)) && (
+                            <span className="whitespace-nowrap text-xs text-pos-soft">{r.paidBy ? paidByText(r.paidBy) : "Pay later"}</span>
+                          )}
+                        </span>
                       </td>
                       <td className="whitespace-nowrap py-2 pl-3 pr-[18px] text-right">
                         <span className="inline-flex items-center gap-1.5">

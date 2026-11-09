@@ -1,6 +1,7 @@
 import "server-only";
 import { formatDayTime } from "@/lib/pos/format";
 import {
+  paidByText,
   paymentPill,
   purchaseStatusPill,
   RECORD_FILTER_LABELS,
@@ -161,6 +162,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
       { label: "Date", width: 18 },
       { label: "Reference", width: 12 },
       { label: meta.party, width: 28 },
+      ...(kind === "sales" ? ([{ label: "Deliver to", width: 30 }] as ExportColumn[]) : []),
       { label: "Status", width: 14 },
       // Sales: items and delivery apart, then the total the customer pays.
       ...(kind === "sales"
@@ -174,17 +176,20 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
       { label: kind === "returns" ? "Refunded" : "Paid", width: 14, align: "right" },
       { label: "Still owed", width: 14, align: "right" },
       { label: "Payment", width: 12 },
+      ...(kind === "sales" ? ([{ label: "Paid by", width: 16 }] as ExportColumn[]) : []),
     ],
     rows: rows.map((r) => [
       formatDayTime(r.createdAt),
       r.code,
       r.party,
+      ...(kind === "sales" ? [r.deliverTo ?? (r.fromWebsite ? "" : "In the shop")] : []),
       status(r),
       ...(kind === "sales" ? [money(r.total - (r.delivery ?? 0)), money(r.delivery ?? 0), r.rider ?? ""] : []),
       money(r.total),
       money(r.paid),
       money(r.owed),
       paymentPill(r.paid, r.owed, r.cancelled).label,
+      ...(kind === "sales" ? [r.paidBy ? paidByText(r.paidBy) : r.owed > 0 && !r.cancelled ? "Pay later" : ""] : []),
     ]),
     totals: [
       ["Total value", sum((r) => r.total)],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { paymentPill, purchaseStatusPill, recordPeriodRange, returnStatusPill, riderTerm, saleStatusPill } from "./records";
+import { paidByText, paymentPill, purchaseStatusPill, recordPeriodRange, returnStatusPill, riderTerm, saleStatusPill } from "./records";
 
 describe("record pills", () => {
   it("labels payment like the design", () => {
@@ -40,5 +40,13 @@ describe("riderTerm", () => {
     expect(riderTerm("  Victor   Atule ")).toBe("Victor Atule");
     expect(riderTerm("Ab%u_*")).toBe("Abu");
     expect(riderTerm(undefined)).toBe("");
+  });
+});
+
+describe("paidByText", () => {
+  it("names the payment methods, or a dash when nothing is paid", () => {
+    expect(paidByText("momo")).toBe("Mobile Money");
+    expect(paidByText("bank,cash")).toBe("Bank transfer + Cash");
+    expect(paidByText(null)).toBe("—");
   });
 });

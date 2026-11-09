@@ -151,3 +151,15 @@ export function recordPeriodRange(period: RecordPeriod, now: Date): { from: Date
 export function riderTerm(raw: string | undefined): string {
   return (raw ?? "").replace(/[%_*\\,()"]/g, "").replace(/\s+/g, " ").trim().slice(0, 60);
 }
+
+/**
+ * "How it was paid" from the methods on a sale ("cash", "momo", "bank", joined
+ * by commas): "Mobile Money", "Cash + Mobile Money"; "—" when nothing is paid yet.
+ */
+export function paidByText(methods: string | null | undefined): string {
+  const names = (methods ?? "")
+    .split(",")
+    .map((m) => METHOD_LABELS[m.trim() as keyof typeof METHOD_LABELS])
+    .filter(Boolean);
+  return names.length ? names.join(" + ") : "—";
+}

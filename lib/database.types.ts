@@ -1660,11 +1660,13 @@ export type Database = {
           customer_name: string | null
           customer_phone: string | null
           delivery: number | null
+          delivery_address: string | null
           discount: number | null
           id: string | null
           order_id: string | null
           owed: number | null
           paid: number | null
+          payment_methods: string | null
           rider: string | null
           source: Database["public"]["Enums"]["sale_source"] | null
           status: Database["public"]["Enums"]["sale_status"] | null
