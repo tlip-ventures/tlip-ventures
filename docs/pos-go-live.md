@@ -62,6 +62,8 @@ On the shop's phone and the owner's laptop:
       on **Deliveries**. Send it out with a rider's name, mark it Delivered, then Mark paid when the
       money comes back.
 - [ ] Mark the Pay later sale paid from the Sales list.
+- [ ] On **Sales**, choose Today and a rider under **Deliveries by rider**: the list and the Delivery
+      fees card show only that rider's deliveries.
 - [ ] Record a delivery from a supplier, part paid. "You owe suppliers" goes up.
 - [ ] Return an item from a receipt, back on the shelf.
 - [ ] Place an order on the website, then **Mark as paid** in Stock and sales:

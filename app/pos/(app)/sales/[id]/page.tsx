@@ -13,6 +13,7 @@ import { buildReceiptMessage, lineName, receiptWhatsappUrl } from "@/lib/pos/rec
 import { DELIVERY_PILLS, deliveryProgress } from "@/lib/pos/deliveries";
 import { paymentPill, saleStatusPill } from "@/lib/pos/records";
 import { requirePosUser } from "@/lib/server/pos/auth";
+import { listRiders } from "@/lib/server/pos/deliveries";
 import { getSaleDetail } from "@/lib/server/pos/records";
 import { getSaleReceipt } from "@/lib/server/pos/sell";
 
@@ -22,7 +23,7 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
   const user = await requirePosUser();
-  const [sale, receipt] = await Promise.all([getSaleDetail(id), getSaleReceipt(id)]);
+  const [sale, receipt, riders] = await Promise.all([getSaleDetail(id), getSaleReceipt(id), listRiders()]);
   if (!sale || !receipt) notFound();
 
   const status = saleStatusPill(sale.status);
@@ -174,7 +175,7 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
             </div>
             {sale.status === "completed" && (
               <span className="flex flex-wrap gap-1.5">
-                {sale.delivery.status === "to_deliver" && <SendOutButton saleId={sale.id} code={sale.code} rider={sale.delivery.rider} />}
+                {sale.delivery.status === "to_deliver" && <SendOutButton saleId={sale.id} code={sale.code} rider={sale.delivery.rider} riders={riders} />}
                 {sale.delivery.status === "out" && <DeliveredButton saleId={sale.id} code={sale.code} owed={sale.owed} />}
                 {sale.delivery.status !== "to_deliver" && <BackToListButton saleId={sale.id} code={sale.code} />}
               </span>

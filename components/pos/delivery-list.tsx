@@ -9,7 +9,7 @@ import { PaymentButton } from "./record-actions";
 import { Pill } from "./ui";
 
 /** One row per delivery: where, who to call, what to collect, and the next step. */
-export function DeliveryList({ rows }: { rows: DeliveryRow[] }) {
+export function DeliveryList({ rows, riders = [] }: { rows: DeliveryRow[]; riders?: string[] }) {
   return (
     <ul className="m-0 list-none p-0">
       {rows.map((d) => {
@@ -55,7 +55,7 @@ export function DeliveryList({ rows }: { rows: DeliveryRow[] }) {
                       Chat
                     </a>
                   )}
-                  {d.status === "to_deliver" && <SendOutButton saleId={d.saleId} code={d.code} rider={d.rider} />}
+                  {d.status === "to_deliver" && <SendOutButton saleId={d.saleId} code={d.code} rider={d.rider} riders={riders} />}
                   {d.status === "out" && <DeliveredButton saleId={d.saleId} code={d.code} owed={d.owed} />}
                   {d.owed > 0 && <PaymentButton kind="sale" id={d.saleId} owed={d.owed} code={d.code} />}
                   {d.status !== "to_deliver" && <BackToListButton saleId={d.saleId} code={d.code} />}

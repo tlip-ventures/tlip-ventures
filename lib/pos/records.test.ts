@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { paymentPill, purchaseStatusPill, recordPeriodRange, returnStatusPill, saleStatusPill } from "./records";
+import { paymentPill, purchaseStatusPill, recordPeriodRange, returnStatusPill, riderTerm, saleStatusPill } from "./records";
 
 describe("record pills", () => {
   it("labels payment like the design", () => {
@@ -32,5 +32,13 @@ describe("recordPeriodRange", () => {
     });
     expect(recordPeriodRange("month", now)).toEqual({ from: new Date("2026-11-01T00:00:00Z"), to: new Date("2026-12-01T00:00:00Z") });
     expect(recordPeriodRange("month", new Date("2026-12-31T10:00:00Z"))!.to).toEqual(new Date("2027-01-01T00:00:00Z"));
+  });
+});
+
+describe("riderTerm", () => {
+  it("keeps a typed name and drops characters that would act as wildcards", () => {
+    expect(riderTerm("  Victor   Atule ")).toBe("Victor Atule");
+    expect(riderTerm("Ab%u_*")).toBe("Abu");
+    expect(riderTerm(undefined)).toBe("");
   });
 });

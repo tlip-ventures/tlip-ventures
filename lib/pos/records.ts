@@ -146,3 +146,8 @@ export function recordPeriodRange(period: RecordPeriod, now: Date): { from: Date
   if (period === "month") return { from: new Date(Date.UTC(y, m, 1)), to: new Date(Date.UTC(y, m + 1, 1)) };
   return null;
 }
+
+/** A rider's name as typed in the address bar, safe to match exactly (no wildcards). */
+export function riderTerm(raw: string | undefined): string {
+  return (raw ?? "").replace(/[%_*\\,()"]/g, "").replace(/\s+/g, " ").trim().slice(0, 60);
+}
