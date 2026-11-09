@@ -6,7 +6,7 @@ import { ButtonLink, Card, PageHeader, PageShell, StatCard, StatGrid } from "@/c
 import { formatPesewas } from "@/lib/money";
 import { DELIVERY_FILTER_LABELS, DELIVERY_FILTERS } from "@/lib/pos/deliveries";
 import { requirePosUser } from "@/lib/server/pos/auth";
-import { DELIVERIES_PAGE_SIZE, getDeliverySummary, listDeliveries } from "@/lib/server/pos/deliveries";
+import { DELIVERIES_PAGE_SIZE, getDeliverySummary, listDeliveries, listRiders } from "@/lib/server/pos/deliveries";
 
 export const metadata: Metadata = { title: "Deliveries" };
 
@@ -21,9 +21,10 @@ const paramsSchema = z.object({
 export default async function DeliveriesPage({ searchParams }: PageProps<"/pos/deliveries">) {
   const params = paramsSchema.parse(await searchParams);
   await requirePosUser();
-  const [{ rows, total }, summary] = await Promise.all([
+  const [{ rows, total }, summary, riders] = await Promise.all([
     listDeliveries({ filter: params.filter, search: params.q, page: params.page }),
     getDeliverySummary(),
+    listRiders(),
   ]);
   const href = (changes: Partial<typeof params>) => {
     const next = { ...params, ...changes };
@@ -74,7 +75,7 @@ export default async function DeliveriesPage({ searchParams }: PageProps<"/pos/d
               : "Nothing waiting to go out. At the till, choose Delivery to add one."}
           </p>
         ) : (
-          <DeliveryList rows={rows} />
+          <DeliveryList rows={rows} riders={riders} />
         )}
         <Pager page={params.page} pageSize={DELIVERIES_PAGE_SIZE} total={total} href={(page) => href({ page })} />
       </Card>

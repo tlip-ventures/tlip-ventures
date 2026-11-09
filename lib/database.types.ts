@@ -1665,6 +1665,7 @@ export type Database = {
           order_id: string | null
           owed: number | null
           paid: number | null
+          rider: string | null
           source: Database["public"]["Enums"]["sale_source"] | null
           status: Database["public"]["Enums"]["sale_status"] | null
           total: number | null
@@ -1905,10 +1906,15 @@ export type Database = {
         }
         Returns: number
       }
-      pos_records_totals: {
-        Args: { p_from: string; p_kind: string; p_search: string; p_to: string }
-        Returns: Json
-      }
+      pos_records_totals:
+        | {
+            Args: { p_from: string; p_kind: string; p_search: string; p_to: string }
+            Returns: Json
+          }
+        | {
+            Args: { p_from: string; p_kind: string; p_rider: string; p_search: string; p_to: string }
+            Returns: Json
+          }
       pos_records_summary: {
         Args: { p_kind: string; p_search?: string }
         Returns: Json
@@ -1918,6 +1924,10 @@ export type Database = {
         Returns: number
       }
       pos_report_overview: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
+      pos_rider_summary: {
         Args: { p_from: string; p_to: string }
         Returns: Json
       }

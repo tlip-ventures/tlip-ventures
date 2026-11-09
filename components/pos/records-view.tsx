@@ -9,19 +9,22 @@ import {
   RECORD_PERIOD_LABELS,
   RECORD_PERIODS,
   returnStatusPill,
+  riderTerm,
   saleStatusPill,
   TAB_META,
   type RecordFilter,
   type RecordKind,
   type RecordPeriod,
 } from "@/lib/pos/records";
+import type { RiderTotals } from "@/lib/server/pos/deliveries";
 import type { RecordRow, RecordsSummary } from "@/lib/server/pos/records";
 import { DownloadIcon, MoreIcon, PlusIcon, ReturnsIcon } from "./icons";
 import { FilterChips, Pager, SearchForm } from "./list-controls";
 import { MarkOrderPaidButton, PaymentButton } from "./record-actions";
 import { buttonClass, ButtonLink, Card, PageHeader, PageShell, Pill, ScrollTable, StatGrid, TableHead, Th } from "./ui";
 
-export type RecordsParams = { q: string; filter: RecordFilter; period: RecordPeriod; page: number };
+/** rider: Sales only, one rider's deliveries ("" for every sale). */
+export type RecordsParams = { q: string; filter: RecordFilter; period: RecordPeriod; rider: string; page: number };
 
 const PATHS: Record<RecordKind, string> = { sales: "/pos/sales", purchases: "/pos/purchases", returns: "/pos/returns" };
 const SETTLE_KIND = { sales: "sale", purchases: "purchase", returns: "refund" } as const;
@@ -41,6 +44,7 @@ export function RecordsView({
   pageSize,
   summary,
   isOwner,
+  riders = [],
 }: {
   kind: RecordKind;
   params: RecordsParams;
@@ -49,6 +53,8 @@ export function RecordsView({
   pageSize: number;
   summary: RecordsSummary;
   isOwner: boolean;
+  /** Sales: each rider's deliveries in the period. */
+  riders?: RiderTotals[];
 }) {
   const m = TAB_META[kind];
   const base = PATHS[kind];
@@ -57,6 +63,7 @@ export function RecordsView({
     const q = new URLSearchParams();
     if (next.period !== "all") q.set("period", next.period);
     if (next.filter !== "all") q.set("filter", next.filter);
+    if (next.rider) q.set("rider", next.rider);
     if (next.q) q.set("q", next.q);
     if (next.page > 1) q.set("page", String(next.page));
     return q.toString();
@@ -136,6 +143,63 @@ export function RecordsView({
         )}
       </StatGrid>
 
+      {kind === "sales" && riders.length > 0 && (
+        <Card label="Deliveries by rider">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-4">
+            <div className="flex flex-col gap-0.5">
+              <h2 className="m-0 text-lg font-bold leading-6">Deliveries by rider</h2>
+              <p className="m-0 text-[13px] text-pos-muted">
+                {RECORD_PERIOD_LABELS[params.period]}. Choose a rider to see only their sales and add up their delivery fees.
+              </p>
+            </div>
+            {params.rider && (
+              <Link href={href({ rider: "", page: 1 })} className="inline-flex min-h-11 items-center text-[13px] font-bold md:min-h-8">
+                Show every sale
+              </Link>
+            )}
+          </div>
+          <ScrollTable minWidth={660}>
+            <TableHead>
+              <Th>Rider</Th>
+              <Th align="right">Deliveries</Th>
+              <Th align="right">Delivered</Th>
+              <Th align="right">Delivery fees</Th>
+              <Th align="right">Sales total</Th>
+              <Th align="right">Still to collect</Th>
+            </TableHead>
+            <tbody>
+              {riders.map((r) => {
+                const on = r.rider !== null && r.rider.toLowerCase() === params.rider.toLowerCase();
+                return (
+                  <tr key={r.rider ?? "-"} className={`pos-row border-t border-pos-paper-deep ${on ? "bg-pos-tint-green" : ""}`}>
+                    <td className="py-3 pl-[18px] pr-3 font-semibold">
+                      {r.rider ? (
+                        <Link
+                          href={href({ rider: r.rider, page: 1 })}
+                          aria-current={on ? "true" : undefined}
+                          className="text-pos-ink no-underline hover:underline"
+                        >
+                          {r.rider}
+                        </Link>
+                      ) : (
+                        <span className="font-normal text-pos-muted">Not sent out yet</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums">{r.deliveries.toLocaleString("en-US")}</td>
+                    <td className="px-3 py-3 text-right tabular-nums text-pos-soft">{r.delivered.toLocaleString("en-US")}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right font-bold tabular-nums">{formatPesewas(r.fees)}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{formatPesewas(r.total)}</td>
+                    <td className={`whitespace-nowrap py-3 pl-3 pr-[18px] text-right tabular-nums ${r.owed ? "font-bold text-pos-rust" : "text-pos-muted"}`}>
+                      {r.owed ? formatPesewas(r.owed) : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </ScrollTable>
+        </Card>
+      )}
+
       <Card label={m.heading}>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-pos-paper-deep px-[18px] py-3.5">
           <SearchForm
@@ -147,6 +211,7 @@ export function RecordsView({
             hidden={{
               ...(params.filter !== "all" ? { filter: params.filter } : {}),
               ...(params.period !== "all" ? { period: params.period } : {}),
+              ...(params.rider ? { rider: params.rider } : {}),
             }}
           />
           <FilterChips<RecordFilter>
@@ -156,6 +221,15 @@ export function RecordsView({
             href={(filter) => href({ filter, page: 1 })}
           />
         </div>
+        {params.rider && (
+          <div className="flex flex-wrap items-center gap-2 border-b border-pos-paper-deep px-[18px] py-2.5 text-[13px]">
+            <span className="rounded-full bg-pos-tint-green px-3 py-1 font-semibold text-pos-green-ink">Rider: {params.rider}</span>
+            <span className="text-pos-soft">Only this rider&rsquo;s deliveries; the cards above add up just these.</span>
+            <Link href={href({ rider: "", page: 1 })} className="inline-flex min-h-11 items-center font-bold md:min-h-8">
+              Show every sale
+            </Link>
+          </div>
+        )}
 
         {rows.length > 0 ? (
           <>
@@ -242,10 +316,10 @@ export function RecordsView({
               <ReturnsIcon />
             </span>
             <span className="font-pos-display text-[26px] leading-[1.1]">
-              {params.q || params.filter !== "all" || params.period !== "all" ? "Nothing here." : m.emptyTitle}
+              {params.q || params.filter !== "all" || params.period !== "all" || params.rider ? "Nothing here." : m.emptyTitle}
             </span>
             <span className="max-w-[420px] text-sm leading-[22px] text-pos-soft">
-              {params.q || params.filter !== "all" || params.period !== "all" ? "No records match this filter. Try All or All time." : m.emptyBody}
+              {params.q || params.filter !== "all" || params.period !== "all" || params.rider ? "No records match this filter. Try All or All time." : m.emptyBody}
             </span>
           </div>
         )}
@@ -254,7 +328,7 @@ export function RecordsView({
   );
 }
 
-/** Reads ?q=&filter=&period=&page= for the three lists. */
+/** Reads ?q=&filter=&period=&rider=&page= for the three lists. */
 export function parseRecordsParams(raw: Record<string, string | string[] | undefined>): RecordsParams {
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const filter = one(raw.filter);
@@ -264,6 +338,7 @@ export function parseRecordsParams(raw: Record<string, string | string[] | undef
     q: one(raw.q).trim().slice(0, 100),
     filter: (RECORD_FILTERS as readonly string[]).includes(filter) ? (filter as RecordFilter) : "all",
     period: (RECORD_PERIODS as readonly string[]).includes(period) ? (period as RecordPeriod) : "all",
+    rider: riderTerm(one(raw.rider)),
     page: Number.isSafeInteger(page) && page >= 1 && page <= 10_000 ? page : 1,
   };
 }

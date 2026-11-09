@@ -95,3 +95,34 @@ export async function getDeliverySummary(): Promise<DeliverySummary> {
     toCollect: data.reduce((n, d) => n + (d.owed ?? 0), 0),
   };
 }
+
+export type RiderTotals = {
+  /** null: deliveries not given to a rider yet. */
+  rider: string | null;
+  deliveries: number;
+  delivered: number;
+  /** Delivery fees, in pesewas. */
+  fees: number;
+  /** The sales' totals, delivery included. */
+  total: number;
+  /** Still to collect on those sales. */
+  owed: number;
+};
+
+/** Each rider's deliveries between two times (null: all time), cancelled sales left out. */
+export async function getRiderSummary(range: { from: Date; to: Date } | null): Promise<RiderTotals[]> {
+  const { supabase } = await requirePosUser();
+  const { data, error } = await supabase.rpc("pos_rider_summary", {
+    // The function treats null as all time; the generated types don't know it accepts null.
+    p_from: (range?.from.toISOString() ?? null) as string,
+    p_to: (range?.to.toISOString() ?? null) as string,
+  });
+  if (error) throw new Error(`Could not load the riders: ${error.message}`);
+  return data as unknown as RiderTotals[];
+}
+
+/** Riders who have delivered before, for the "Rider" box's suggestions. */
+export async function listRiders(): Promise<string[]> {
+  const rows = await getRiderSummary(null);
+  return rows.map((r) => r.rider).filter((r): r is string => r !== null).sort((a, b) => a.localeCompare(b));
+}

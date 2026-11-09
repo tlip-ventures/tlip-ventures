@@ -8,6 +8,7 @@ import {
   RECORD_PERIOD_LABELS,
   RECORD_PERIODS,
   returnStatusPill,
+  riderTerm,
   saleStatusPill,
   TAB_META,
   type RecordFilter,
@@ -44,7 +45,7 @@ export type ExportTable = {
   cut: boolean;
 };
 
-export type ExportParams = { q: string; filter: string; period: RecordPeriod };
+export type ExportParams = { q: string; filter: string; period: RecordPeriod; rider: string };
 
 export function parseExportParams(get: (name: string) => string | null): ExportParams {
   const period = get("period") ?? "all";
@@ -52,6 +53,7 @@ export function parseExportParams(get: (name: string) => string | null): ExportP
     q: (get("q") ?? "").trim().slice(0, 100),
     filter: get("filter") ?? "all",
     period: (RECORD_PERIODS as readonly string[]).includes(period) ? (period as RecordPeriod) : "all",
+    rider: riderTerm(get("rider") ?? undefined),
   };
 }
 
@@ -131,7 +133,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
   }
 
   const filter: RecordFilter = (RECORD_FILTERS as readonly string[]).includes(params.filter) ? (params.filter as RecordFilter) : "all";
-  const { rows, cut } = await everyPage<RecordRow>((page) => listRecords(kind, { search: params.q, filter, period: params.period, page, pageSize: BATCH }));
+  const { rows, cut } = await everyPage<RecordRow>((page) => listRecords(kind, { search: params.q, filter, period: params.period, rider: kind === "sales" ? params.rider : "", page, pageSize: BATCH }));
   const meta = TAB_META[kind];
   const status = (r: RecordRow) =>
     kind === "sales"
@@ -145,7 +147,11 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
   return {
     title: meta.heading,
     scope: scopeText(
-      [params.period === "all" ? null : RECORD_PERIOD_LABELS[params.period], filter === "all" ? null : RECORD_FILTER_LABELS[filter]]
+      [
+        params.period === "all" ? null : RECORD_PERIOD_LABELS[params.period],
+        kind === "sales" && params.rider ? `Rider ${params.rider}` : null,
+        filter === "all" ? null : RECORD_FILTER_LABELS[filter],
+      ]
         .filter(Boolean)
         .join(" · ") || null,
       params.q,
@@ -161,6 +167,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
         ? ([
             { label: "Items", width: 14, align: "right" },
             { label: "Delivery", width: 12, align: "right" },
+            { label: "Rider", width: 16 },
           ] as ExportColumn[])
         : []),
       { label: "Total", width: 14, align: "right" },
@@ -173,7 +180,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
       r.code,
       r.party,
       status(r),
-      ...(kind === "sales" ? [money(r.total - (r.delivery ?? 0)), money(r.delivery ?? 0)] : []),
+      ...(kind === "sales" ? [money(r.total - (r.delivery ?? 0)), money(r.delivery ?? 0), r.rider ?? ""] : []),
       money(r.total),
       money(r.paid),
       money(r.owed),

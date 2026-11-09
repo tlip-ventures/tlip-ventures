@@ -21,7 +21,7 @@ export default async function PrintListPage({ params, searchParams }: PageProps<
   const table = await buildExport(list, parseExportParams(one));
   if (!table) notFound();
   const back = new URLSearchParams();
-  for (const k of ["q", "filter", "period"]) if (one(k)) back.set(k, one(k)!);
+  for (const k of ["q", "filter", "period", "rider"]) if (one(k)) back.set(k, one(k)!);
 
   return <PrintTable table={table} backHref={`${BACK[list]}${back.size ? `?${back}` : ""}`} />;
 }

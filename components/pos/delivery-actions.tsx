@@ -6,15 +6,44 @@ import { ActionDialog, dialogInputClass, dialogLabelClass } from "./action-dialo
 import type { ButtonKind } from "./ui";
 
 /** "Send out": who is taking it. */
-export function SendOutButton({ saleId, code, rider, kind = "primary" }: { saleId: string; code: string; rider: string | null; kind?: ButtonKind }) {
+export function SendOutButton({
+  saleId,
+  code,
+  rider,
+  riders = [],
+  kind = "primary",
+}: {
+  saleId: string;
+  code: string;
+  rider: string | null;
+  /** Riders used before: offered as the name is typed, so one rider isn't spelt two ways. */
+  riders?: string[];
+  kind?: ButtonKind;
+}) {
+  const listId = `riders-${saleId}`;
   return (
     <ActionDialog label="Send out" title={`Send out ${code}`} kind={kind} size="sm" action={updateDelivery} submitLabel="Send out">
       <input type="hidden" name="saleId" value={saleId} />
       <input type="hidden" name="status" value="out" />
       <label className={dialogLabelClass}>
         <span>Rider</span>
-        <input name="rider" defaultValue={rider ?? ""} maxLength={60} placeholder="Name of the rider or driver" autoComplete="off" className={dialogInputClass} />
+        <input
+          name="rider"
+          defaultValue={rider ?? ""}
+          maxLength={60}
+          placeholder="Name of the rider or driver"
+          autoComplete="off"
+          list={riders.length ? listId : undefined}
+          className={dialogInputClass}
+        />
       </label>
+      {riders.length > 0 && (
+        <datalist id={listId}>
+          {riders.map((r) => (
+            <option key={r} value={r} />
+          ))}
+        </datalist>
+      )}
     </ActionDialog>
   );
 }

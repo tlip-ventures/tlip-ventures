@@ -1,6 +1,6 @@
 import "server-only";
 import { pageRange } from "@/lib/pagination";
-import { recordPeriodRange, type RecordFilter, type RecordKind, type RecordPeriod } from "@/lib/pos/records";
+import { recordPeriodRange, riderTerm, type RecordFilter, type RecordKind, type RecordPeriod } from "@/lib/pos/records";
 import type { ReceiptPayment } from "@/lib/pos/receipt";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { getPeopleNames } from "@/lib/server/pos/stock";
@@ -28,6 +28,8 @@ export type RecordRow = {
   restocked?: number;
   /** Sales: the delivery fee, part of total. */
   delivery?: number;
+  /** Sales: who took the delivery, if anyone yet. */
+  rider?: string | null;
   total: number;
   paid: number;
   owed: number;
@@ -41,7 +43,7 @@ function term(raw: string | undefined): string {
 
 export async function listRecords(
   kind: RecordKind,
-  options: { search?: string; filter?: RecordFilter; period?: RecordPeriod; page?: number; pageSize?: number },
+  options: { search?: string; filter?: RecordFilter; period?: RecordPeriod; rider?: string; page?: number; pageSize?: number },
 ) {
   const { supabase } = await requirePosUser();
   const { from, to } = pageRange(options.page ?? 1, options.pageSize ?? RECORDS_PAGE_SIZE);
@@ -54,11 +56,14 @@ export async function listRecords(
   if (kind === "sales") {
     let query = supabase
       .from("pos_sales_list")
-      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery", { count: "exact" })
+      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery, rider", { count: "exact" })
       .order("created_at", { ascending: false })
       .order("code", { ascending: false });
     if (q) query = query.or(`code.ilike.*${q}*,customer_name.ilike.*${q}*`);
     if (range) query = query.gte("created_at", range.from.toISOString()).lt("created_at", range.to.toISOString());
+    // One rider's deliveries; names match whatever their capital letters.
+    const rider = riderTerm(options.rider);
+    if (rider) query = query.ilike("rider", rider);
     if (options.filter === "unpaid") query = query.gt("owed", 0);
     if (options.filter === "paid") query = query.eq("owed", 0).not("status", "in", "(voided,cancelled)");
     const { data, count, error } = await query.range(from, to);
@@ -78,6 +83,7 @@ export async function listRecords(
             : `Sold by ${by(r.created_by)} · Accra shop`,
       saleStatus: r.status!,
       delivery: r.delivery ?? 0,
+      rider: r.rider,
       total: r.total!,
       paid: r.paid!,
       owed: r.owed!,
@@ -153,7 +159,7 @@ export type RecordsSummary = {
   counts: Record<RecordKind, number>;
 };
 
-export async function getRecordsSummary(kind: RecordKind, search?: string, period: RecordPeriod = "all"): Promise<RecordsSummary> {
+export async function getRecordsSummary(kind: RecordKind, search?: string, period: RecordPeriod = "all", rider?: string): Promise<RecordsSummary> {
   const { supabase } = await requirePosUser();
   const range = recordPeriodRange(period, new Date());
   const { data, error } = await supabase.rpc("pos_records_totals", {
@@ -162,6 +168,8 @@ export async function getRecordsSummary(kind: RecordKind, search?: string, perio
     // The function treats null as all time; the generated types don't know it accepts null.
     p_from: (range?.from.toISOString() ?? null) as string,
     p_to: (range?.to.toISOString() ?? null) as string,
+    // Always sent (null for every sale): it picks the version of the function that knows riders.
+    p_rider: (kind === "sales" && riderTerm(rider) ? riderTerm(rider) : null) as string,
   });
   if (error) throw new Error(`Could not load the totals: ${error.message}`);
   return data as unknown as RecordsSummary;
