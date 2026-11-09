@@ -143,6 +143,13 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
       { label: "Reference", width: 12 },
       { label: meta.party, width: 28 },
       { label: "Status", width: 14 },
+      // Sales: items and delivery apart, then the total the customer pays.
+      ...(kind === "sales"
+        ? ([
+            { label: "Items", width: 14, align: "right" },
+            { label: "Delivery", width: 12, align: "right" },
+          ] as ExportColumn[])
+        : []),
       { label: "Total", width: 14, align: "right" },
       { label: kind === "returns" ? "Refunded" : "Paid", width: 14, align: "right" },
       { label: "Still owed", width: 14, align: "right" },
@@ -153,6 +160,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
       r.code,
       r.party,
       status(r),
+      ...(kind === "sales" ? [money(r.total - (r.delivery ?? 0)), money(r.delivery ?? 0)] : []),
       money(r.total),
       money(r.paid),
       money(r.owed),
@@ -162,6 +170,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
       ["Total value", sum((r) => r.total)],
       [meta.paidLabel, sum((r) => r.paid)],
       [meta.dueLabel, sum((r) => r.owed)],
+      ...(kind === "sales" ? ([["Delivery fees", sum((r) => r.delivery ?? 0)]] as [string, number][]) : []),
     ],
     cut,
   };
