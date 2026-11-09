@@ -25,8 +25,9 @@ type CartState = {
   /** The order just placed, for the "send on WhatsApp" page. Stays on this device only. */
   lastOrder: (PlacedOrder & { autoOpened: boolean }) | null;
   add: (line: NewCartLine, qty?: number) => void;
-  setQty: (variantId: string, qty: number) => void;
-  remove: (variantId: string) => void;
+  /** By line key (variant and colour, see lineKey). */
+  setQty: (key: string, qty: number) => void;
+  remove: (key: string) => void;
   refresh: (current: CurrentVariant[]) => void;
   markProblems: (problems: Record<string, LineProblem>) => void;
   orderPlaced: (order: PlacedOrder) => void;
@@ -40,8 +41,8 @@ export const useCart = create<CartState>()(
       lines: [],
       lastOrder: null,
       add: (line, qty) => set((s) => ({ lines: addLine(s.lines, line, qty) })),
-      setQty: (variantId, qty) => set((s) => ({ lines: setLineQty(s.lines, variantId, qty) })),
-      remove: (variantId) => set((s) => ({ lines: removeLine(s.lines, variantId) })),
+      setQty: (key, qty) => set((s) => ({ lines: setLineQty(s.lines, key, qty) })),
+      remove: (key) => set((s) => ({ lines: removeLine(s.lines, key) })),
       refresh: (current) => set((s) => ({ lines: refreshLines(s.lines, current) })),
       markProblems: (problems) => set((s) => ({ lines: markProblems(s.lines, problems) })),
       orderPlaced: (order) => set({ lines: [], lastOrder: { ...order, autoOpened: false } }),

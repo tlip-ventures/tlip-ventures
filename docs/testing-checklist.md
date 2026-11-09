@@ -22,21 +22,21 @@ Tick each box, and note the phone and what went wrong for anything that fails.
 - [ ] On phones the bottom bar (Home, Categories, Cart, WhatsApp) never covers the footer or the "Added to your cart" popup.
 - [ ] A category shows its products and subcategories; Next/Previous pages work; sort links work.
 - [ ] Search finds a product from part of its name (e.g. “blend” finds the blender).
-- [ ] A product page shows photos, price, “was” price and discount badge (e.g. −16%) where set, options, and a Qty box (− and +, or type a number up to 99) that adds that many to the cart; the button shows the total when more than 1.
-- [ ] Product cards: the green + (phones) or “Add to cart” (computers, on hover) adds a one-option product and shows “Added to your cart”; a product with options goes to its page; out-of-stock products say so and have no button; products without photos show “Photo coming soon”.
-- [ ] An out-of-stock option is crossed out and can’t be chosen; a sold-out product can’t be added.
+- [ ] A product page shows photos, price, “was” price and discount badge (e.g. −16%) where set, the colours to pick from (when it has them), and a Qty box (− and +, or type a number up to 99) that adds that many to the cart; the button shows the total when more than 1.
+- [ ] Product cards: the green + (phones) or “Add to cart” (computers, on hover) adds a product without colours and shows “Added to your cart”; a product with colours goes to its page to pick one; out-of-stock products say so and have no button; products without photos show “Photo coming soon”.
+- [ ] A product with colours asks for one before “Add to cart” works; the same product in two colours makes two cart lines. A sold-out product can’t be added (stock is one number for all its colours).
 - [ ] A wrong address (e.g. /products/xyz) shows “Page not found”.
 
 ## 2. Cart and order (each phone)
 
-- [ ] Add two different products, one with an option. Each time, an “Added to your cart” popup appears at the bottom of
+- [ ] Add two different products, one with a colour. Each time, an “Added to your cart” popup appears at the bottom of
       the screen without scrolling, and the cart badge counts them.
 - [ ] Close the browser completely, open the site again: the cart is still there.
 - [ ] Change a quantity and remove an item; the total updates.
 - [ ] Try to order with an empty name, an empty location and phone “12345”: clear messages, no order saved.
 - [ ] Order with phone in each form: `024 123 4567`, `+233 24 123 4567`, `233241234567`.
 - [ ] **WhatsApp opens by itself** with the order message ready, addressed to the shop’s number.
-- [ ] The message lists every item with option and price, the total, your name, phone, location, note and an order link.
+- [ ] The message lists every item with its colour and price, the total, your name, phone, location, note and an order link.
 - [ ] Send it. In the shop’s WhatsApp, tap the order link: it shows the items and total, **not** your name, phone or location.
 - [ ] Go back to the browser: the “Now send it on WhatsApp” page is still there; the cart is empty.
 - [ ] On the computer: WhatsApp does **not** open by itself; “Order on WhatsApp” opens WhatsApp Web;
@@ -49,7 +49,7 @@ Tick each box, and note the phone and what went wrong for anything that fails.
 - [ ] The test orders from section 2 show as “Awaiting WhatsApp”, with name, phone, note and items.
 - [ ] “WhatsApp customer” and “Call” open the right number.
 - [ ] Move an order through Confirmed → Paid → Dispatched → Delivered; set another to Cancelled.
-- [ ] On the products list, tap an option to mark it out of stock; the shop shows it out of stock.
+- [ ] On the products list, tap the stock pill to mark a product out of stock; the shop shows it out of stock. (While the website stock sync is on, stock comes from Stock and sales instead.)
       Tap again to put it back.
 - [ ] Edit a product’s price; the shop shows the new price. Hide a product; it disappears from the shop.
 - [ ] Add a product with two colours and **upload photos from the phone camera**; check them in the shop.

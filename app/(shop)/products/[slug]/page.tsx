@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Breadcrumbs, type Crumb } from "@/components/shop/listing-controls";
 import { DiscountBadge, Price } from "@/components/shop/price";
 import { ProductGrid } from "@/components/shop/product-grid";
@@ -10,10 +10,10 @@ import { RecordView } from "@/components/shop/record-view";
 import { WishlistButton } from "@/components/shop/wishlist-button";
 import { categoryPath } from "@/lib/categories";
 import { slugSchema } from "@/lib/listing";
-import { optionLabel, variantPrice } from "@/lib/product";
+import { variantPrice } from "@/lib/product";
 import { JsonLd } from "@/components/ui/json-ld";
 import { cloudinaryShareImage } from "@/lib/cloudinary-share";
-import { getCategories, getProductBySlug, listProducts } from "@/lib/server/catalogue";
+import { getCategories, getProductBySlug, getProductRedirect, listProducts } from "@/lib/server/catalogue";
 import { metaDescription, pageMetadata } from "@/lib/seo";
 import { absoluteUrl } from "@/lib/site";
 import { breadcrumbJsonLd, productJsonLd } from "@/lib/structured-data";
@@ -30,6 +30,13 @@ export async function generateStaticParams() {
 async function findProduct(params: PageProps<"/products/[slug]">["params"]) {
   const slug = slugSchema.safeParse((await params).slug);
   return slug.success ? getProductBySlug(slug.data) : null;
+}
+
+/** A product listed twice was merged: its old address leads to the one kept. */
+async function redirectIfMerged(params: PageProps<"/products/[slug]">["params"]) {
+  const slug = slugSchema.safeParse((await params).slug);
+  const target = slug.success ? await getProductRedirect(slug.data) : null;
+  if (target) permanentRedirect(`/products/${target}`);
 }
 
 export async function generateMetadata({ params }: PageProps<"/products/[slug]">): Promise<Metadata> {
@@ -50,7 +57,10 @@ const imageUrl = (url: string) => (url.startsWith("/") ? absoluteUrl(url) : url)
 
 export default async function ProductPage({ params }: PageProps<"/products/[slug]">) {
   const product = await findProduct(params);
-  if (!product) notFound();
+  if (!product) {
+    await redirectIfMerged(params);
+    notFound();
+  }
 
   const categories = await getCategories();
   const productCategories = categories.filter((c) => product.categoryIds.includes(c.id));
@@ -80,7 +90,9 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
             brand: product.brand,
             url: absoluteUrl(`/products/${product.slug}`),
             images: product.images.map((img) => imageUrl(img.url)),
-            variants: product.variants.map((v) => ({ sku: v.sku, price: variantPrice(product, v), inStock: v.in_stock })),
+            variants: product.variant
+              ? [{ sku: product.variant.sku, price: variantPrice(product, product.variant), inStock: product.variant.in_stock }]
+              : [],
           }),
           breadcrumbJsonLd(trail.map((c) => ({ name: c.name, url: absoluteUrl(c.href) }))),
         ]}
@@ -124,13 +136,13 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
                 productName: product.name,
                 image: mainImage ?? null,
               }}
-              optionHeading={[product.option1_name, product.option2_name].filter(Boolean).join(" / ") || null}
-              variants={product.variants.map((v) => ({
-                id: v.id,
-                label: optionLabel(v),
-                price: variantPrice(product, v),
-                inStock: v.in_stock,
-              }))}
+              choiceHeading={product.choiceName}
+              choices={product.choices}
+              variant={
+                product.variant
+                  ? { id: product.variant.id, price: variantPrice(product, product.variant), inStock: product.variant.in_stock }
+                  : null
+              }
             />
             <WishlistButton productId={product.id} productName={product.name} look="page" />
             <RecordView productId={product.id} />

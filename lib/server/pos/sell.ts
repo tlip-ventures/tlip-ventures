@@ -1,6 +1,5 @@
 import "server-only";
 import type { CustomerChoice } from "@/lib/pos/basket";
-import { variantName } from "@/lib/pos/stock";
 import type { ReceiptPayment } from "@/lib/pos/receipt";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { getPeopleNames, listStockRows } from "@/lib/server/pos/stock";
@@ -12,6 +11,9 @@ export const SELL_PAGE_SIZE = 48;
 export type SellTile = {
   variantId: string;
   name: string;
+  /** "Colour" when the cashier picks one; null otherwise. */
+  choiceName: string | null;
+  choices: string[];
   sku: string | null;
   price: number;
   onHand: number;
@@ -30,7 +32,9 @@ export async function listSellTiles(options: { search?: string; topCategoryId?: 
   });
   const tiles: SellTile[] = rows.map((r) => ({
     variantId: r.variantId,
-    name: variantName(r.productName, r.optionLabel),
+    name: r.productName,
+    choiceName: r.choiceName,
+    choices: r.choices,
     sku: r.sku,
     price: r.price,
     onHand: r.onHand,
@@ -47,7 +51,7 @@ export async function findTileByCode(code: string): Promise<SellTile | null> {
   const { supabase } = await requirePosUser();
   const { data, error } = await supabase
     .from("pos_stock_rows")
-    .select("variant_id, product_name, option_label, sku, price, on_hand, image_url, top_category_name")
+    .select("variant_id, product_name, choice_name, choices, sku, price, on_hand, image_url, top_category_name")
     .or(`barcode.eq.${term},sku.ilike.${term}`)
     .limit(2);
   if (error) throw new Error(`Could not look up the code: ${error.message}`);
@@ -56,7 +60,9 @@ export async function findTileByCode(code: string): Promise<SellTile | null> {
   const r = data[0];
   return {
     variantId: r.variant_id!,
-    name: variantName(r.product_name ?? "", r.option_label),
+    name: r.product_name ?? "",
+    choiceName: r.choice_name,
+    choices: r.choices ?? [],
     sku: r.sku,
     price: r.price ?? 0,
     onHand: r.on_hand ?? 0,

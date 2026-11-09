@@ -22,23 +22,21 @@ const rows = await readAll((from, to) =>
   supabase
     .from("products")
     .select(
-      "slug, name, brand, description, price, compare_at_price, is_active, is_featured, option1_name, option2_name, product_variants(option1_value, option2_value, price_override, sku, in_stock, stock_qty), product_images(url, sort_order), product_categories(categories(slug))",
+      "slug, name, brand, description, price, compare_at_price, is_active, is_featured, option1_name, choices, product_variants(retired, sku, in_stock, stock_qty), product_images(url, sort_order), product_categories(categories(slug))",
     )
     .order("name")
-    .order("option1_value", { referencedTable: "product_variants" })
-    .order("option2_value", { referencedTable: "product_variants" })
     .order("sort_order", { referencedTable: "product_images" })
     .range(from, to),
 );
 
 const products: ExportProduct[] = rows.map(({ product_variants, product_images, product_categories, ...p }) => ({
   ...p,
-  variants: product_variants,
+  stock: product_variants.find((v) => !v.retired) ?? null,
   imageUrls: product_images.map((img) => img.url),
   categorySlugs: product_categories.map((pc) => pc.categories?.slug).filter((s): s is string => Boolean(s)),
 }));
 
 const path = resolve(file);
 writeFileSync(path, toCsv(productsToRows(products)));
-const options = products.reduce((n, p) => n + p.variants.length, 0);
-console.log(`Exported ${products.length} products (${options} options) to ${path}`);
+const withChoices = products.filter((p) => p.choices.length > 0).length;
+console.log(`Exported ${products.length} products (${withChoices} with colours or designs) to ${path}`);

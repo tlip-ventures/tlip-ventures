@@ -6,7 +6,7 @@ import { createInvoice } from "@/app/pos/(app)/invoices/actions";
 import { completeSale, type CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
 import { phoneText } from "@/lib/pos/format";
-import { basketTotals, cashOptions, changeDue, draftDeliveryFee, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
+import { basketLineKey, basketLineName, basketQty, basketTotals, cashOptions, changeDue, draftDeliveryFee, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
 import { useBasket, useBasketHydrated, type CashChoice } from "@/lib/pos/basket-store";
 import { defaultValidUntil, ghanaToday } from "@/lib/pos/invoices";
 import { CustomerPicker } from "./customer-picker";
@@ -87,7 +87,7 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
     setError(null);
     startTransition(async () => {
       const result = await createInvoice({
-        items: lines.map((l) => ({ variantId: l.variantId, qty: l.qty })),
+        items: lines.map((l) => ({ variantId: l.variantId, qty: l.qty, choice: l.choice ?? null })),
         customerId: state.customer?.id ?? null,
         discount: totals.discount,
         delivery: deliveryInput(),
@@ -109,7 +109,7 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
     setError(null);
     startTransition(async () => {
       const result = await completeSale({
-        items: lines.map((l) => ({ variantId: l.variantId, qty: l.qty })),
+        items: lines.map((l) => ({ variantId: l.variantId, qty: l.qty, choice: l.choice ?? null })),
         customerId: state.customer?.id ?? null,
         discount: totals.discount,
         method: state.method,
@@ -237,17 +237,21 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
       </div>
 
       <div className="flex min-h-40 flex-1 flex-col px-[22px] py-1.5">
-        {lines.map((l) => (
-          <div key={l.variantId} className="flex items-center gap-2.5 border-b border-pos-paper-deep py-3">
+        {lines.map((l) => {
+          const key = basketLineKey(l);
+          const name = basketLineName(l);
+          const full = basketQty(lines, l.variantId) >= l.maxQty;
+          return (
+          <div key={key} className="flex items-center gap-2.5 border-b border-pos-paper-deep py-3">
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="text-sm font-semibold leading-[19px]">{l.name}</span>
+              <span className="text-sm font-semibold leading-[19px]">{name}</span>
               <span className="text-xs tabular-nums text-pos-muted">{formatPesewas(l.unitPrice)} each</span>
             </span>
             <span className="flex items-center rounded-md border border-pos-line">
               <button
                 type="button"
-                onClick={() => state.setQty(l.variantId, l.qty - 1)}
-                aria-label={`Remove one ${l.name}`}
+                onClick={() => state.setQty(key, l.qty - 1)}
+                aria-label={`Remove one ${name}`}
                 className="h-11 w-10 text-lg text-pos-ink md:h-9 md:w-9"
               >
                 −
@@ -257,10 +261,10 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
               </span>
               <button
                 type="button"
-                onClick={() => state.setQty(l.variantId, l.qty + 1)}
-                disabled={l.qty >= l.maxQty}
-                aria-label={`Add one ${l.name}`}
-                title={l.qty >= l.maxQty ? `Only ${l.maxQty} on the shelf` : undefined}
+                onClick={() => state.setQty(key, l.qty + 1)}
+                disabled={full}
+                aria-label={`Add one ${name}`}
+                title={full ? `Only ${l.maxQty} on the shelf` : undefined}
                 className="h-11 w-10 text-lg text-pos-ink disabled:cursor-not-allowed disabled:text-pos-faint md:h-9 md:w-9"
               >
                 +
@@ -268,7 +272,8 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
             </span>
             <span className="w-[92px] text-right text-sm font-bold tabular-nums">{formatPesewas(l.unitPrice * l.qty)}</span>
           </div>
-        ))}
+          );
+        })}
         {lines.length === 0 && (
           <p className="my-6 text-center text-sm leading-[22px] text-pos-muted">Tap a product or scan its barcode to add it.</p>
         )}

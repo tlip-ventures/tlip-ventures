@@ -38,7 +38,7 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
   if (delivery === "bad phone") return { ok: false, message: BAD_RIDER_PHONE };
 
   const { data, error } = await supabase.rpc("pos_complete_sale", {
-    p_items: s.items.map((i) => ({ variant_id: i.variantId, qty: i.qty })),
+    p_items: s.items.map((i) => ({ variant_id: i.variantId, qty: i.qty, choice: i.choice })),
     // The function treats null as a walk-in customer; the generated type doesn't know it accepts null.
     p_customer_id: s.customerId as string,
     p_discount: s.discount,

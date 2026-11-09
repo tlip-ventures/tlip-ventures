@@ -14,7 +14,6 @@ import {
   STOCK_FILTER_LABELS,
   STOCK_FILTERS,
   STOCK_PILLS,
-  variantName,
   type StockFilter,
 } from "@/lib/pos/stock";
 import { requirePosUser } from "@/lib/server/pos/auth";
@@ -133,7 +132,7 @@ export default async function ProductsAndStockPage({ searchParams }: PageProps<"
               </TableHead>
               <tbody>
                 {rows.map((r) => {
-                  const name = variantName(r.productName, r.optionLabel);
+                  const name = r.productName;
                   const pill = STOCK_PILLS[r.state];
                   const productHref = `/pos/products/${r.productId}`;
                   return (
@@ -146,6 +145,11 @@ export default async function ProductsAndStockPage({ searchParams }: PageProps<"
                               {name}
                             </Link>
                             <span className="text-xs text-pos-muted">{r.sku ?? "No code"}</span>
+                            {r.choices.length > 0 && (
+                              <span className="text-xs text-pos-soft">
+                                {r.choiceName}: {r.choices.join(", ")}
+                              </span>
+                            )}
                           </span>
                         </span>
                       </td>

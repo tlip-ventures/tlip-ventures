@@ -9,11 +9,18 @@ export const MAX_ORDERS_PER_PHONE_PER_HOUR = 5;
 export const cartItemSchema = z.object({
   variantId: z.uuid(),
   qty: z.number().int().min(1).max(MAX_LINE_QTY),
+  /** The colour (or other choice) picked; checked against the product at checkout. */
+  choice: z
+    .string()
+    .trim()
+    .max(60)
+    .nullish()
+    .transform((v) => v || null),
 });
 
 /**
- * What the browser sends at checkout. Only variant ids and quantities:
- * prices always come from the database (CLAUDE.md domain rule 2).
+ * What the browser sends at checkout. Only variant ids, quantities and the
+ * colour picked: prices always come from the database (CLAUDE.md domain rule 2).
  */
 export const checkoutSchema = z.object({
   customerName: z
@@ -55,13 +62,16 @@ export type CheckoutInput = z.input<typeof checkoutSchema>;
 export type Checkout = z.output<typeof checkoutSchema>;
 export type CheckoutField = "customerName" | "phone" | "location" | "notes";
 
-/** Combines repeated variants into one line, capping the quantity. */
+/** Combines repeated lines (same variant and colour, ignoring case) into one, capping the quantity. */
 function mergeItems(items: z.output<typeof cartItemSchema>[]) {
-  const merged = new Map<string, number>();
-  for (const { variantId, qty } of items) {
-    merged.set(variantId, Math.min(MAX_LINE_QTY, (merged.get(variantId) ?? 0) + qty));
+  const merged = new Map<string, { variantId: string; choice: string | null; qty: number }>();
+  for (const { variantId, choice, qty } of items) {
+    const key = `${variantId}|${choice?.toLowerCase() ?? ""}`;
+    const line = merged.get(key);
+    if (line) line.qty = Math.min(MAX_LINE_QTY, line.qty + qty);
+    else merged.set(key, { variantId, choice, qty });
   }
-  return [...merged].map(([variantId, qty]) => ({ variantId, qty }));
+  return [...merged.values()];
 }
 
 /** First error message per form field, for showing under each input. */

@@ -52,6 +52,7 @@ export async function setVariantStock(formData: FormData) {
     .from("product_variants")
     .update({ in_stock: parsed.data.inStock === "true" })
     .eq("id", parsed.data.variantId)
+    .eq("retired", false)
     .select("id");
   if (error || !data.length) throw new Error(`Could not update stock${error ? `: ${error.message}` : "."}`);
   revalidateShop();

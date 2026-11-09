@@ -5,12 +5,14 @@ import { lineTotal, parseCedis, sumPesewas, type Pesewas } from "@/lib/money";
 
 export type BasketLine = {
   variantId: string;
-  /** "Blender 1.5L (Black)" */
+  /** "Blender 1.5L" */
   name: string;
+  /** The colour (or design) picked, or null. Colours share the product's one stock number. */
+  choice: string | null;
   sku: string | null;
   unitPrice: Pesewas;
   qty: number;
-  /** What was on the shelf when it was added: the basket never goes above it. */
+  /** What was on the shelf when it was added: the basket's lines for this item never go above it together. */
   maxQty: number;
 };
 
@@ -21,29 +23,44 @@ export type CustomerChoice = { id: string; name: string; phone: string | null };
 
 export const MAX_LINE_QTY = 999;
 
-/** Adds one (or more) of an item, never above what is on the shelf. */
+/** What tells two basket lines apart: the item and the colour picked. */
+export function basketLineKey(line: { variantId: string; choice?: string | null }): string {
+  return `${line.variantId}|${line.choice ?? ""}`;
+}
+
+/** "Blender 1.5L (Black)" for the basket, receipts and messages. */
+export function basketLineName(line: { name: string; choice?: string | null }): string {
+  return line.choice ? `${line.name} (${line.choice})` : line.name;
+}
+
+/** How many of an item are in the basket, all colours together. */
+export function basketQty(lines: readonly BasketLine[], variantId: string): number {
+  return lines.filter((l) => l.variantId === variantId).reduce((n, l) => n + l.qty, 0);
+}
+
+/** How many more of this line's item fit: the shelf less the item's other lines. */
+function room(lines: readonly BasketLine[], line: { variantId: string; choice?: string | null }, maxQty: number): number {
+  const key = basketLineKey(line);
+  const others = lines.filter((l) => l.variantId === line.variantId && basketLineKey(l) !== key).reduce((n, l) => n + l.qty, 0);
+  return Math.min(maxQty - others, MAX_LINE_QTY);
+}
+
+/** Adds one (or more) of an item in a colour, never above what is on the shelf (all colours together). */
 export function addToBasket(lines: readonly BasketLine[], item: NewBasketLine, qty = 1): BasketLine[] {
-  const cap = Math.min(item.maxQty, MAX_LINE_QTY);
-  if (cap <= 0) return [...lines];
-  const existing = lines.find((l) => l.variantId === item.variantId);
+  const cap = room(lines, item, item.maxQty);
+  const key = basketLineKey(item);
+  const existing = lines.find((l) => basketLineKey(l) === key);
+  if (cap <= (existing?.qty ?? 0)) return [...lines];
   if (existing) {
-    return lines.map((l) =>
-      l.variantId === item.variantId
-        ? { ...l, ...item, maxQty: item.maxQty, qty: Math.min(l.qty + qty, cap) }
-        : l,
-    );
+    return lines.map((l) => (basketLineKey(l) === key ? { ...l, ...item, qty: Math.min(l.qty + qty, cap) } : l));
   }
   return [...lines, { ...item, qty: Math.min(qty, cap) }];
 }
 
-/** Sets a line's quantity; 0 or less removes it. Never above the shelf. */
-export function setBasketQty(lines: readonly BasketLine[], variantId: string, qty: number): BasketLine[] {
-  if (qty <= 0) return lines.filter((l) => l.variantId !== variantId);
-  return lines.map((l) => (l.variantId === variantId ? { ...l, qty: Math.min(qty, l.maxQty, MAX_LINE_QTY) } : l));
-}
-
-export function basketQty(lines: readonly BasketLine[], variantId: string): number {
-  return lines.find((l) => l.variantId === variantId)?.qty ?? 0;
+/** Sets a line's quantity (by line key); 0 or less removes it. Never above the shelf, all colours together. */
+export function setBasketQty(lines: readonly BasketLine[], key: string, qty: number): BasketLine[] {
+  if (qty <= 0) return lines.filter((l) => basketLineKey(l) !== key);
+  return lines.map((l) => (basketLineKey(l) === key ? { ...l, qty: Math.max(1, Math.min(qty, room(lines, l, l.maxQty))) } : l));
 }
 
 export type BasketTotals = { items: number; subtotal: Pesewas; discount: Pesewas; delivery: Pesewas; total: Pesewas };

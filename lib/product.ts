@@ -59,20 +59,36 @@ export function discountPercent(price: Pesewas, wasPrice: Pesewas | null): numbe
   return percent >= 1 ? percent : null;
 }
 
+/**
+ * The product's own spelling of a choice (a colour, a design), ignoring case
+ * and spaces. Null when there is nothing to pick; undefined when the value
+ * isn't one of the product's choices, or none was picked but one is needed.
+ */
+export function matchChoice(
+  choices: readonly string[],
+  value: string | null | undefined,
+  { required = true }: { required?: boolean } = {},
+): string | null | undefined {
+  const wanted = value?.trim().toLowerCase() ?? "";
+  if (wanted === "") return choices.length > 0 && required ? undefined : null;
+  return choices.find((c) => c.toLowerCase() === wanted);
+}
+
 /** What a product card's add button does. */
 export type CardAddAction =
-  /** One variant, in stock: add it straight from the card. */
-  | { kind: "add"; variantId: string; optionValues: string | null; unitPrice: Pesewas }
-  /** Several variants: the customer picks one on the product page. */
+  /** In stock with nothing to pick: add it straight from the card. */
+  | { kind: "add"; variantId: string; unitPrice: Pesewas }
+  /** The customer picks a colour (or design) on the product page. */
   | { kind: "choose" }
   | { kind: "out_of_stock" };
 
+/** The product's stock entry and choices decide what the card's button does. */
 export function cardAddAction(
   product: ProductPricing,
-  variants: readonly (VariantPricing & { id: string; option1_value: string | null; option2_value: string | null })[],
+  variant: (VariantPricing & { id: string }) | null,
+  choices: readonly string[],
 ): CardAddAction {
-  if (!variants.some((v) => v.in_stock)) return { kind: "out_of_stock" };
-  if (variants.length > 1) return { kind: "choose" };
-  const [only] = variants;
-  return { kind: "add", variantId: only.id, optionValues: optionLabel(only), unitPrice: variantPrice(product, only) };
+  if (!variant || !variant.in_stock) return { kind: "out_of_stock" };
+  if (choices.length > 0) return { kind: "choose" };
+  return { kind: "add", variantId: variant.id, unitPrice: variantPrice(product, variant) };
 }

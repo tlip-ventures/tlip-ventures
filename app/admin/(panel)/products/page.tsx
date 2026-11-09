@@ -152,6 +152,9 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
                     </li>
                   ))}
                 </ul>
+                {product.choices.length > 0 && (
+                  <p className="text-sm text-neutral-700">Customers pick: {product.choices.join(", ")}</p>
+                )}
               </div>
             </li>
           ))}

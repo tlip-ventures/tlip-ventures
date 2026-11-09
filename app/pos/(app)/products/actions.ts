@@ -24,13 +24,9 @@ export async function setOnWebsite(productId: string, on: boolean): Promise<Acti
 
   if (on) {
     // Never show a product for free (same rule as the shop's product editor).
-    const { data: p, error } = await supabase
-      .from("products")
-      .select("price, product_variants(price_override)")
-      .eq("id", productId)
-      .maybeSingle();
+    const { data: p, error } = await supabase.from("products").select("price").eq("id", productId).maybeSingle();
     if (error || !p) return { ok: false, message: friendlyDbError(error, "This product no longer exists.") };
-    if (p.product_variants.some((v) => (v.price_override ?? p.price) === 0)) {
+    if (p.price === 0) {
       return { ok: false, message: "Enter the price before showing this product on the website." };
     }
   }
@@ -120,28 +116,20 @@ export async function saveProduct(input: PosProductInput): Promise<SaveProductRe
       price: p.price,
       is_active: p.onWebsite,
       category_id: isNew ? p.categoryId : null,
-      variants: p.variants.map((v) => ({
-        id: v.id,
-        sku: v.sku,
-        barcode: v.barcode,
-        reorder_level: v.reorderLevel,
-        price_override: v.priceOverride,
-        cost_price: v.cost,
-      })),
+      choice_name: p.choiceName,
+      choices: p.choices,
+      variant: { sku: p.sku, barcode: p.barcode, reorder_level: p.reorderLevel, cost_price: p.cost },
     },
   });
   if (error) {
     const field = duplicateField(error);
-    if (field) {
-      // Point at the first stock entry using it; the database doesn't say which.
-      return { ok: false, message: friendlyDbError(error), errors: { [`variants.0.${field}`]: friendlyDbError(error) } };
-    }
+    if (field) return { ok: false, message: friendlyDbError(error), errors: { [field]: friendlyDbError(error) } };
     return { ok: false, message: friendlyDbError(error, "Could not save. Please try again.") };
   }
 
   let message = isNew ? "Product added." : "Saved.";
   if (isNew && p.startingStock > 0) {
-    const { data: variant } = await supabase.from("product_variants").select("id").eq("product_id", id).single();
+    const { data: variant } = await supabase.from("product_variants").select("id").eq("product_id", id).eq("retired", false).single();
     const { error: stockError } = variant
       ? await supabase.rpc("pos_recount", { p_variant_id: variant.id, p_counted: p.startingStock, p_reason: "Starting stock" })
       : { error: { message: "missing" } };

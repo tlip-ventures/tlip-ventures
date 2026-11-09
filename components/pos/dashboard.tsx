@@ -251,7 +251,7 @@ export function RestockCard({ rows, total, isOwner }: { rows: StockRow[]; total:
         <ul className="m-0 flex list-none flex-col p-0">
           {rows.map((r) => {
             const pill = restockPill(r);
-            const name = r.optionLabel ? `${r.productName} (${r.optionLabel})` : r.productName;
+            const name = r.productName;
             return (
               <li key={r.variantId} className="pos-row flex min-h-14 items-center gap-3 border-t border-pos-paper-deep px-5 py-2">
                 <ProductTile imageUrl={r.imageUrl} sku={r.sku} name={r.productName} category={r.topCategoryName} size={40} />

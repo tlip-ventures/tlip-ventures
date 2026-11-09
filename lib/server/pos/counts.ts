@@ -33,7 +33,7 @@ export async function getCountDifferences(lines: CountLine[]) {
   const { supabase } = await requirePosUser();
   const { data, error } = await supabase
     .from("pos_stock_rows")
-    .select("variant_id, product_name, option_label, sku")
+    .select("variant_id, product_name, sku")
     .in("variant_id", differing.map((l) => l.variantId));
   if (error) throw new Error(`Could not load the differences: ${error.message}`);
   const names = new Map(data.map((r) => [r.variant_id!, r]));
@@ -43,7 +43,6 @@ export async function getCountDifferences(lines: CountLine[]) {
     .map((l) => ({
       variantId: l.variantId,
       productName: l.row!.product_name ?? "",
-      optionLabel: l.row!.option_label,
       sku: l.row!.sku,
       expected: l.expected,
       counted: l.counted,

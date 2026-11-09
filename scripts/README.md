@@ -30,23 +30,22 @@ to replace with your own.
 
 ## Rows and columns
 
-One row per option (variant). A product's details are read from its first
-row; the next rows with the same `slug` add its other options and only need
-the option columns.
+One row per product. Stock is one number per product: colours (or designs)
+are only choices the customer picks, listed in one cell. (Older files with one
+row per colour still import: their colours are collected into `choices`.)
 
 | Column | Meaning |
 | --- | --- |
 | `slug` | Web address name, e.g. `blender-1-5l`. Matches existing products: same slug = update. Empty = made from the name. |
-| `name` | Product name (required on the first row). |
+| `name` | Product name (required). |
 | `brand`, `description` | Optional. Descriptions can have line breaks inside quotes. |
-| `price` | In cedis: `450` or `1250.50` (required on the first row). |
+| `price` | In cedis: `450` or `1250.50` (required). |
 | `compare_at_price` | Optional “was” price, higher than `price`; shows a discount badge (e.g. −16%) and lists the product under Deals. |
 | `categories` | Category slugs separated by `\|`, e.g. `blenders\|food-processors`. Empty = keep current. |
 | `active` | `yes` (shown in the shop, default) or `no` (hidden). |
 | `featured` | `yes` to show on the home page; default `no`. |
-| `option1_name`, `option2_name` | e.g. `Colour`, `Size`. Empty = product without options (one row only). |
-| `option1_value`, `option2_value` | e.g. `Black`, `Large`, on every row of a product with options. |
-| `variant_price` | Optional price for this option in cedis; empty = the product price. |
+| `choice_name` | What the customer picks, e.g. `Colour` or `Design`. Empty = nothing to pick. |
+| `choices` | The choices separated by `\|`, e.g. `Black\|Red\|Grey`. Needed when `choice_name` is filled in. |
 | `sku` | Optional stock code, unique across the shop. |
 | `in_stock` | `yes` (default) or `no`. Ignored while the website stock comes from Stock and sales (the shelf count decides). |
 | `stock_qty` | Optional count for your own reference. |
@@ -57,6 +56,5 @@ paths relative to the CSV file (both uploaded to Cloudinary into
 `tlip/products`). Uploads need `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`,
 `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET`.
 
-Options are matched by their values, so an existing option keeps its id (and
-past orders stay linked to it). Options left out of the file are removed from
-the product, just as when you delete them in the editor.
+A product that needs its own price (a bigger size, say) is a separate product
+with its own row.

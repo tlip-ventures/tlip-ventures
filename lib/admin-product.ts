@@ -31,21 +31,41 @@ const optionalCedis = (message: string) =>
     return pesewas;
   });
 
-const variantSchema = z.object({
-  id: z.uuid().nullable(),
-  option1Value: optionalText(60),
-  option2Value: optionalText(60),
-  sku: optionalText(60),
-  inStock: z.boolean(),
-  stockQty: z.string().transform((value, ctx) => {
-    if (value.trim() === "") return null;
-    if (!/^\d{1,6}$/.test(value.trim())) {
-      ctx.addIssue({ code: "custom", message: "Whole number, or leave empty." });
-      return z.NEVER;
-    }
-    return Number(value.trim());
-  }),
-  priceOverride: optionalCedis("Price like 450 or 1250.50, or leave empty to use the product price."),
+export const MAX_CHOICES = 30;
+export const MAX_CHOICE_LENGTH = 60;
+
+/**
+ * "Black, Red" (commas, "|" or one per line) → ["Black", "Red"]: trimmed,
+ * empty ones dropped, and a repeat (ignoring case) kept once.
+ */
+export function parseChoices(text: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of text.split(/[,|\n]/)) {
+    const choice = raw.trim().replace(/\s+/g, " ");
+    if (!choice || seen.has(choice.toLowerCase())) continue;
+    seen.add(choice.toLowerCase());
+    out.push(choice);
+  }
+  return out;
+}
+
+/** Choices typed as text, checked: at most 30, each at most 60 characters. */
+export const choicesSchema = z.string().max(5000, "Too long.").transform((text, ctx) => {
+  const choices = parseChoices(text);
+  if (choices.length > MAX_CHOICES) ctx.addIssue({ code: "custom", message: `At most ${MAX_CHOICES} choices.` });
+  const long = choices.find((c) => c.length > MAX_CHOICE_LENGTH);
+  if (long) ctx.addIssue({ code: "custom", message: `“${long.slice(0, 20)}…” is too long (${MAX_CHOICE_LENGTH} characters at most).` });
+  return choices;
+});
+
+const stockQty = z.string().transform((value, ctx) => {
+  if (value.trim() === "") return null;
+  if (!/^\d{1,6}$/.test(value.trim())) {
+    ctx.addIssue({ code: "custom", message: "Whole number, or leave empty." });
+    return z.NEVER;
+  }
+  return Number(value.trim());
 });
 
 // Images must come from Cloudinary (CLAUDE.md); local paths are allowed for demo data.
@@ -69,9 +89,13 @@ export const productFormSchema = z
     compareAtPrice: optionalCedis("Price like 450 or 1250.50, or leave empty."),
     isActive: z.boolean(),
     isFeatured: z.boolean(),
-    option1Name: optionalText(40),
-    option2Name: optionalText(40),
-    variants: z.array(variantSchema).min(1, "Add at least one option.").max(100, "At most 100 options."),
+    /** What the customer picks, e.g. "Colour"; empty when there is nothing to pick. */
+    choiceName: optionalText(40),
+    /** The colours (or designs) to pick from. Not stocked separately: the product has one stock number. */
+    choices: choicesSchema,
+    sku: optionalText(60),
+    inStock: z.boolean(),
+    stockQty,
     categoryIds: z.array(z.uuid()).max(20),
     images: z
       .array(z.object({ url: imageUrl, publicId: optionalText(300), alt: optionalText(200) }))
@@ -79,56 +103,23 @@ export const productFormSchema = z
   })
   .superRefine((p, ctx) => {
     // Products can be saved hidden at 0 while their price is being decided, but never shown for free.
-    if (p.isActive && p.variants.some((v) => (v.priceOverride ?? p.price) === 0)) {
+    if (p.isActive && p.price === 0) {
       ctx.addIssue({ code: "custom", path: ["price"], message: "Enter the price before showing this product in the shop." });
     }
     if (p.compareAtPrice !== null && p.compareAtPrice <= p.price) {
       ctx.addIssue({ code: "custom", path: ["compareAtPrice"], message: "The “was” price must be higher than the price." });
     }
-    if (p.option2Name && !p.option1Name) {
-      ctx.addIssue({ code: "custom", path: ["option1Name"], message: "Fill in the first option name before the second." });
-    }
-    if (!p.option1Name) {
-      // A product with no options has exactly one variant with no option values.
-      if (p.variants.length !== 1) {
-        ctx.addIssue({ code: "custom", path: ["variants"], message: "A product without options has a single stock entry." });
-      }
-      return;
-    }
-    const seen = new Set<string>();
-    p.variants.forEach((v, i) => {
-      if (!v.option1Value) {
-        ctx.addIssue({ code: "custom", path: ["variants", i, "option1Value"], message: `Enter the ${p.option1Name}.` });
-      }
-      if (p.option2Name && !v.option2Value) {
-        ctx.addIssue({ code: "custom", path: ["variants", i, "option2Value"], message: `Enter the ${p.option2Name}.` });
-      }
-      const key = `${v.option1Value?.toLowerCase()}|${p.option2Name ? v.option2Value?.toLowerCase() : ""}`;
-      if (seen.has(key)) {
-        ctx.addIssue({ code: "custom", path: ["variants", i, "option1Value"], message: "This option is listed twice." });
-      }
-      seen.add(key);
-    });
-    const skus = p.variants.map((v) => v.sku).filter(Boolean);
-    if (new Set(skus).size !== skus.length) {
-      ctx.addIssue({ code: "custom", path: ["variants"], message: "Each SKU can only be used once." });
+    if (p.choiceName && p.choices.length === 0) {
+      ctx.addIssue({ code: "custom", path: ["choices"], message: `List the ${p.choiceName.toLowerCase()}s, separated by commas.` });
     }
   })
-  .transform((p) => ({
-    ...p,
-    // Without options, the single variant has no option values (and no second option without a first).
-    option2Name: p.option1Name ? p.option2Name : null,
-    variants: p.variants.map((v) => ({
-      ...v,
-      option1Value: p.option1Name ? v.option1Value : null,
-      option2Value: p.option1Name && p.option2Name ? v.option2Value : null,
-    })),
-  }));
+  // No heading, nothing to pick.
+  .transform((p) => (p.choiceName ? p : { ...p, choices: [] }));
 
 export type ProductFormInput = z.input<typeof productFormSchema>;
 export type ProductForm = z.output<typeof productFormSchema>;
 
-/** Error messages keyed by field path, e.g. "price" or "variants.2.option1Value". */
+/** Error messages keyed by field path, e.g. "price" or "choices". */
 export function formErrors(error: z.ZodError): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const issue of error.issues) {

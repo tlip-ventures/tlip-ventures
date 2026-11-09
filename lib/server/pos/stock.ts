@@ -12,7 +12,10 @@ export type StockRow = {
   variantId: string;
   productId: string;
   productName: string;
-  optionLabel: string | null;
+  /** "Colour" or "Design" when the customer picks one; null otherwise. */
+  choiceName: string | null;
+  /** Colours (or designs) to pick from. Stock is one number for the product. */
+  choices: string[];
   sku: string | null;
   barcode: string | null;
   price: number;
@@ -36,7 +39,8 @@ type ViewRow = {
   variant_id: string | null;
   product_id: string | null;
   product_name: string | null;
-  option_label: string | null;
+  choice_name: string | null;
+  choices: string[] | null;
   sku: string | null;
   barcode: string | null;
   price: number | null;
@@ -54,7 +58,8 @@ function toStockRow(r: ViewRow, costs: Map<string, number>): StockRow {
     variantId: r.variant_id!,
     productId: r.product_id!,
     productName: r.product_name ?? "",
-    optionLabel: r.option_label,
+    choiceName: r.choice_name,
+    choices: r.choices ?? [],
     sku: r.sku,
     barcode: r.barcode,
     price: r.price ?? 0,
@@ -70,7 +75,7 @@ function toStockRow(r: ViewRow, costs: Map<string, number>): StockRow {
 }
 
 const ROW_COLUMNS =
-  "variant_id, product_id, product_name, option_label, sku, barcode, price, on_website, reorder_level, on_hand, stock_state, category_name, top_category_name, image_url";
+  "variant_id, product_id, product_name, choice_name, choices, sku, barcode, price, on_website, reorder_level, on_hand, stock_state, category_name, top_category_name, image_url";
 
 export async function listStockRows(options: {
   search?: string;
@@ -92,10 +97,8 @@ export async function listStockRows(options: {
   if (options.topCategoryId) query = query.eq("top_category_id", options.topCategoryId);
   const term = searchTerm(options.search);
   if (term) {
-    // Name or option contains it; code starts with it; barcode is exactly it (a scan).
-    query = query.or(
-      `product_name.ilike.*${term}*,option_label.ilike.*${term}*,sku.ilike.${term}*,barcode.eq.${term.replace(/ /g, "")}`,
-    );
+    // Name contains it; code starts with it; barcode is exactly it (a scan).
+    query = query.or(`product_name.ilike.*${term}*,sku.ilike.${term}*,barcode.eq.${term.replace(/ /g, "")}`);
   }
 
   const { data, count, error } = await query.range(from, to);
@@ -169,7 +172,6 @@ export async function listCategoryGroups() {
 
 export type ProductVariantDetail = {
   id: string;
-  label: string | null;
   sku: string | null;
   barcode: string | null;
   reorderLevel: number;
@@ -190,18 +192,19 @@ export type MovementRow = {
   by: string;
 };
 
-/** One product with its stock entries, costs (owner) and recent stock history. */
+/**
+ * One product with its stock entry, costs (owner) and recent stock history.
+ * The history also covers earlier entries (a former colour, a merged duplicate).
+ */
 export async function getStockProduct(productId: string) {
   const { supabase, isOwner } = await requirePosUser();
   const { data: p, error } = await supabase
     .from("products")
     .select(
-      "id, name, slug, price, is_active, option1_name, option2_name, product_images(url, sort_order), product_categories(categories(name)), product_variants(id, option1_value, option2_value, sku, barcode, reorder_level, price_override, stock_levels(on_hand))",
+      "id, name, slug, price, is_active, option1_name, choices, product_images(url, sort_order), product_categories(categories(name)), product_variants(id, retired, option1_value, option2_value, sku, barcode, reorder_level, price_override, stock_levels(on_hand))",
     )
     .eq("id", productId)
     .order("sort_order", { referencedTable: "product_images" })
-    .order("option1_value", { referencedTable: "product_variants" })
-    .order("option2_value", { referencedTable: "product_variants" })
     .maybeSingle();
   if (error) throw new Error(`Could not load the product: ${error.message}`);
   if (!p) return null;
@@ -229,12 +232,12 @@ export async function getStockProduct(productId: string) {
   ]);
   if (movesError) throw new Error(`Could not load stock history: ${movesError.message}`);
 
-  const variants: ProductVariantDetail[] = p.product_variants.map((v) => {
+  const inUse = p.product_variants.find((v) => !v.retired) ?? null;
+  const variant: ProductVariantDetail | null = inUse && (() => {
+    const v = inUse;
     const onHand = v.stock_levels?.on_hand ?? 0;
-    const label = [v.option1_value, v.option2_value].filter(Boolean).join(" / ") || null;
     return {
       id: v.id,
-      label,
       sku: v.sku,
       barcode: v.barcode,
       reorderLevel: v.reorder_level,
@@ -243,7 +246,13 @@ export async function getStockProduct(productId: string) {
       state: stockState(onHand, v.reorder_level),
       cost: costs.get(v.id) ?? null,
     };
-  });
+  })();
+  // History labels for earlier entries: "Pink", or "Foldable Travel Kettle 1.5L / Pink" for a merged duplicate.
+  const earlier = new Map(
+    p.product_variants
+      .filter((v) => v.retired)
+      .map((v) => [v.id, [v.option1_value, v.option2_value].filter(Boolean).join(" / ") || "Earlier entry"]),
+  );
 
   const movements: MovementRow[] = moves.map((m) => ({
     id: m.id,
@@ -262,10 +271,12 @@ export async function getStockProduct(productId: string) {
     slug: p.slug,
     price: p.price,
     onWebsite: p.is_active,
-    hasOptions: p.option1_name !== null,
+    choiceName: p.choices.length > 0 ? p.option1_name : null,
+    choices: p.choices,
     imageUrl: p.product_images[0]?.url ?? null,
     categories: p.product_categories.map((c) => c.categories?.name).filter((n): n is string => Boolean(n)),
-    variants,
+    variant,
+    earlier,
     movements,
   };
 }

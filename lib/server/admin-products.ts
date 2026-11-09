@@ -2,7 +2,6 @@ import "server-only";
 import type { ProductFormInput } from "@/lib/admin-product";
 import { pesewasToInput } from "@/lib/money";
 import { pageRange } from "@/lib/pagination";
-import { optionLabel } from "@/lib/product";
 import { requireAdmin } from "@/lib/server/admin";
 
 // Admin product reads, as the signed-in admin (RLS shows hidden products too).
@@ -19,6 +18,9 @@ export type AdminProductRow = {
   isActive: boolean;
   isFeatured: boolean;
   image: string | null;
+  /** Colours (or designs) customers pick from; stock is one number for the product. */
+  choices: string[];
+  /** The stock entry in use (one per product; earlier ones are history). */
   variants: { id: string; label: string | null; inStock: boolean; stockQty: number | null }[];
 };
 
@@ -27,24 +29,22 @@ export async function listAdminProducts(options: { search?: string; filter?: Pro
   const { from, to } = pageRange(options.page ?? 1, ADMIN_PRODUCTS_PAGE_SIZE);
   const outOfStock = options.filter === "out-of-stock";
 
-  // "Out of stock" lists products with at least one out-of-stock option; the
-  // inner join narrows products, and the second embed still shows every option.
+  // "Out of stock" lists products whose stock entry in use is out; the inner
+  // join narrows products. Retired entries (former colours, merged duplicates) are left out.
   let query = supabase
     .from("products")
     .select(
       outOfStock
-        ? "id, slug, name, price, is_active, is_featured, updated_at, product_images(url, sort_order), product_variants(id, option1_value, option2_value, in_stock, stock_qty), out:product_variants!inner(id)"
-        : "id, slug, name, price, is_active, is_featured, updated_at, product_images(url, sort_order), product_variants(id, option1_value, option2_value, in_stock, stock_qty)",
+        ? "id, slug, name, price, is_active, is_featured, updated_at, choices, product_images(url, sort_order), product_variants(id, retired, in_stock, stock_qty), out:product_variants!inner(id)"
+        : "id, slug, name, price, is_active, is_featured, updated_at, choices, product_images(url, sort_order), product_variants(id, retired, in_stock, stock_qty)",
       { count: "exact" },
     )
     .order("updated_at", { ascending: false })
     .order("id")
     .order("sort_order", { referencedTable: "product_images" })
-    .limit(1, { referencedTable: "product_images" })
-    .order("option1_value", { referencedTable: "product_variants" })
-    .order("option2_value", { referencedTable: "product_variants" });
+    .limit(1, { referencedTable: "product_images" });
 
-  if (outOfStock) query = query.eq("out.in_stock", false);
+  if (outOfStock) query = query.eq("out.in_stock", false).eq("out.retired", false);
   if (options.filter === "active") query = query.eq("is_active", true);
   if (options.filter === "hidden") query = query.eq("is_active", false);
   const term = options.search?.replace(/[%_,()\\]/g, " ").trim();
@@ -61,14 +61,9 @@ export async function listAdminProducts(options: { search?: string; filter?: Pro
     price: number;
     is_active: boolean;
     is_featured: boolean;
+    choices: string[];
     product_images: { url: string }[];
-    product_variants: {
-      id: string;
-      option1_value: string | null;
-      option2_value: string | null;
-      in_stock: boolean;
-      stock_qty: number | null;
-    }[];
+    product_variants: { id: string; retired: boolean; in_stock: boolean; stock_qty: number | null }[];
   };
   const products = (data as unknown as Row[]).map(
     (p): AdminProductRow => ({
@@ -79,12 +74,10 @@ export async function listAdminProducts(options: { search?: string; filter?: Pro
       isActive: p.is_active,
       isFeatured: p.is_featured,
       image: p.product_images[0]?.url ?? null,
-      variants: p.product_variants.map((v) => ({
-        id: v.id,
-        label: optionLabel(v),
-        inStock: v.in_stock,
-        stockQty: v.stock_qty,
-      })),
+      choices: p.choices,
+      variants: p.product_variants
+        .filter((v) => !v.retired)
+        .map((v) => ({ id: v.id, label: null, inStock: v.in_stock, stockQty: v.stock_qty })),
     }),
   );
   return { products, total: count ?? 0 };
@@ -95,12 +88,10 @@ export async function getAdminProduct(id: string) {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id, slug, name, brand, description, price, compare_at_price, option1_name, option2_name, is_active, is_featured, product_images(url, public_id, alt, sort_order), product_variants(id, option1_value, option2_value, sku, in_stock, stock_qty, price_override), product_categories(category_id)",
+      "id, slug, name, brand, description, price, compare_at_price, option1_name, choices, is_active, is_featured, product_images(url, public_id, alt, sort_order), product_variants(id, retired, sku, in_stock, stock_qty), product_categories(category_id)",
     )
     .eq("id", id)
     .order("sort_order", { referencedTable: "product_images" })
-    .order("option1_value", { referencedTable: "product_variants" })
-    .order("option2_value", { referencedTable: "product_variants" })
     .maybeSingle();
   if (error) throw new Error(`Could not load product: ${error.message}`);
   return data;
@@ -108,6 +99,7 @@ export async function getAdminProduct(id: string) {
 
 /** Database product → the editor's form values (prices as cedi text). */
 export function productToForm(p: NonNullable<Awaited<ReturnType<typeof getAdminProduct>>>): ProductFormInput {
+  const stock = p.product_variants.find((v) => !v.retired);
   return {
     id: p.id,
     name: p.name,
@@ -118,17 +110,11 @@ export function productToForm(p: NonNullable<Awaited<ReturnType<typeof getAdminP
     compareAtPrice: pesewasToInput(p.compare_at_price),
     isActive: p.is_active,
     isFeatured: p.is_featured,
-    option1Name: p.option1_name ?? "",
-    option2Name: p.option2_name ?? "",
-    variants: p.product_variants.map((v) => ({
-      id: v.id,
-      option1Value: v.option1_value ?? "",
-      option2Value: v.option2_value ?? "",
-      sku: v.sku ?? "",
-      inStock: v.in_stock,
-      stockQty: v.stock_qty === null ? "" : String(v.stock_qty),
-      priceOverride: pesewasToInput(v.price_override),
-    })),
+    choiceName: p.option1_name ?? "",
+    choices: p.choices.join(", "),
+    sku: stock?.sku ?? "",
+    inStock: stock?.in_stock ?? true,
+    stockQty: stock?.stock_qty == null ? "" : String(stock.stock_qty),
     categoryIds: p.product_categories.map((c) => c.category_id),
     images: p.product_images.map((img) => ({ url: img.url, publicId: img.public_id ?? "", alt: img.alt })),
   };
@@ -144,9 +130,11 @@ export const EMPTY_PRODUCT: ProductFormInput = {
   compareAtPrice: "",
   isActive: true,
   isFeatured: false,
-  option1Name: "",
-  option2Name: "",
-  variants: [{ id: null, option1Value: "", option2Value: "", sku: "", inStock: true, stockQty: "", priceOverride: "" }],
+  choiceName: "",
+  choices: "",
+  sku: "",
+  inStock: true,
+  stockQty: "",
   categoryIds: [],
   images: [],
 };

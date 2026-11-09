@@ -5,7 +5,7 @@ import { FilterChips, Pager, SearchForm } from "@/components/pos/list-controls";
 import { ProductTile } from "@/components/pos/product-tile";
 import { Card, Notice, PageHeader, PageShell, Pill, ScrollTable, StatCard, StatGrid, TableHead, Th } from "@/components/pos/ui";
 import { formatDay, formatDayTime, plural } from "@/lib/pos/format";
-import { signedQty, variantName } from "@/lib/pos/stock";
+import { signedQty } from "@/lib/pos/stock";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { getCountDifferences, getOpenCount, listRecentCounts } from "@/lib/server/pos/counts";
 import { listStockRows, listTopCategories, STOCK_PAGE_SIZE } from "@/lib/server/pos/stock";
@@ -167,7 +167,7 @@ async function OpenCount({
               </TableHead>
               <tbody>
                 {rows.map((r) => {
-                  const name = variantName(r.productName, r.optionLabel);
+                  const name = r.productName;
                   const line = lines.get(r.variantId);
                   const diff = line ? line.counted - line.expected : null;
                   return (
@@ -230,7 +230,7 @@ async function OpenCount({
             <tbody>
               {differences.map((d) => (
                 <tr key={d.variantId} className="border-t border-pos-paper-deep">
-                  <td className="py-2.5 pl-[18px] pr-3 font-semibold">{variantName(d.productName, d.optionLabel)}</td>
+                  <td className="py-2.5 pl-[18px] pr-3 font-semibold">{d.productName}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{d.expected}</td>
                   <td className="px-3 py-2.5 text-right font-bold tabular-nums">{d.counted}</td>
                   <td className={`py-2.5 pl-3 pr-[18px] text-right font-bold tabular-nums ${d.counted < d.expected ? "text-pos-rust" : "text-pos-green-ink"}`}>

@@ -247,7 +247,36 @@ export type Database = {
           unit_price?: number
           variant_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "pos_invoices_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "invoice_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoices: {
         Row: {
@@ -310,7 +339,36 @@ export type Database = {
           updated_at?: string
           valid_until?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "pos_sale_balances"
+            referencedColumns: ["sale_id"]
+          },
+          {
+            foreignKeyName: "invoices_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "pos_sales_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_items: {
         Row: {
@@ -553,6 +611,39 @@ export type Database = {
           },
         ]
       }
+      product_redirects: {
+        Row: {
+          created_at: string
+          old_slug: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          old_slug: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          old_slug?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_redirects_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_redirects_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_variants: {
         Row: {
           barcode: string | null
@@ -563,6 +654,7 @@ export type Database = {
           price_override: number | null
           product_id: string
           reorder_level: number
+          retired: boolean
           sku: string | null
           stock_qty: number | null
         }
@@ -575,6 +667,7 @@ export type Database = {
           price_override?: number | null
           product_id: string
           reorder_level?: number
+          retired?: boolean
           sku?: string | null
           stock_qty?: number | null
         }
@@ -587,6 +680,7 @@ export type Database = {
           price_override?: number | null
           product_id?: string
           reorder_level?: number
+          retired?: boolean
           sku?: string | null
           stock_qty?: number | null
         }
@@ -610,6 +704,7 @@ export type Database = {
       products: {
         Row: {
           brand: string | null
+          choices: string[]
           compare_at_price: number | null
           created_at: string
           description: string | null
@@ -626,6 +721,7 @@ export type Database = {
         }
         Insert: {
           brand?: string | null
+          choices?: string[]
           compare_at_price?: number | null
           created_at?: string
           description?: string | null
@@ -642,6 +738,7 @@ export type Database = {
         }
         Update: {
           brand?: string | null
+          choices?: string[]
           compare_at_price?: number | null
           created_at?: string
           description?: string | null
@@ -1576,7 +1673,36 @@ export type Database = {
           total: number | null
           valid_until: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "pos_sale_balances"
+            referencedColumns: ["sale_id"]
+          },
+          {
+            foreignKeyName: "invoices_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "pos_sales_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pos_purchases_list: {
         Row: {
@@ -1694,6 +1820,8 @@ export type Database = {
           barcode: string | null
           category_id: string | null
           category_name: string | null
+          choice_name: string | null
+          choices: string[] | null
           image_url: string | null
           on_hand: number | null
           on_website: boolean | null
@@ -1908,19 +2036,30 @@ export type Database = {
         }
         Returns: number
       }
-      pos_records_totals:
-        | {
-            Args: { p_from: string; p_kind: string; p_search: string; p_to: string }
-            Returns: Json
-          }
-        | {
-            Args: { p_from: string; p_kind: string; p_rider: string; p_search: string; p_to: string }
-            Returns: Json
-          }
       pos_records_summary: {
         Args: { p_kind: string; p_search?: string }
         Returns: Json
       }
+      pos_records_totals:
+        | {
+            Args: {
+              p_from: string
+              p_kind: string
+              p_search: string
+              p_to: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_from: string
+              p_kind: string
+              p_rider: string
+              p_search: string
+              p_to: string
+            }
+            Returns: Json
+          }
       pos_recount: {
         Args: { p_counted: number; p_reason?: string; p_variant_id: string }
         Returns: number

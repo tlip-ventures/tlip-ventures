@@ -1,8 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { addToBasket, basketQty, basketTotals, cashOptions, changeDue, draftDeliveryFee, setBasketQty, tileStock, type NewBasketLine } from "./basket";
+import {
+  addToBasket,
+  basketLineKey,
+  basketLineName,
+  basketQty,
+  basketTotals,
+  cashOptions,
+  changeDue,
+  draftDeliveryFee,
+  setBasketQty,
+  tileStock,
+  type NewBasketLine,
+} from "./basket";
 
-const kettle: NewBasketLine = { variantId: "k", name: "Electric kettle", sku: "KTL18", unitPrice: 28000, maxQty: 3 };
-const pan: NewBasketLine = { variantId: "p", name: "Frying pan", sku: "NSF28", unitPrice: 16000, maxQty: 11 };
+const kettle: NewBasketLine = { variantId: "k", name: "Electric kettle", choice: null, sku: "KTL18", unitPrice: 28000, maxQty: 3 };
+const pan: NewBasketLine = { variantId: "p", name: "Frying pan", choice: null, sku: "NSF28", unitPrice: 16000, maxQty: 11 };
+const matBeige: NewBasketLine = { variantId: "m", name: "Room Door Mat", choice: "Beige", sku: null, unitPrice: 3500, maxQty: 4 };
+const matTaupe: NewBasketLine = { ...matBeige, choice: "Taupe" };
 
 describe("basket", () => {
   it("adds and stops at what is on the shelf", () => {
@@ -21,8 +35,24 @@ describe("basket", () => {
 
   it("sets quantities within the shelf and removes at 0", () => {
     const lines = addToBasket(addToBasket([], kettle), pan);
-    expect(basketQty(setBasketQty(lines, "k", 10), "k")).toBe(3);
-    expect(setBasketQty(lines, "k", 0).map((l) => l.variantId)).toEqual(["p"]);
+    expect(basketQty(setBasketQty(lines, basketLineKey(kettle), 10), "k")).toBe(3);
+    expect(setBasketQty(lines, basketLineKey(kettle), 0).map((l) => l.variantId)).toEqual(["p"]);
+  });
+
+  it("keeps colours as separate lines that share one shelf", () => {
+    let lines = addToBasket([], matBeige, 3);
+    lines = addToBasket(lines, matTaupe, 3);
+    expect(lines.map((l) => [basketLineName(l), l.qty])).toEqual([
+      ["Room Door Mat (Beige)", 3],
+      ["Room Door Mat (Taupe)", 1],
+    ]);
+    expect(basketQty(lines, "m")).toBe(4);
+    // Full: no more of any colour.
+    expect(addToBasket(lines, matTaupe)).toEqual(lines);
+    expect(setBasketQty(lines, basketLineKey(matTaupe), 5).map((l) => l.qty)).toEqual([3, 1]);
+    // Fewer Beige frees room for Taupe.
+    lines = setBasketQty(lines, basketLineKey(matBeige), 1);
+    expect(setBasketQty(lines, basketLineKey(matTaupe), 5).map((l) => l.qty)).toEqual([1, 3]);
   });
 
   it("totals in pesewas and caps the discount", () => {

@@ -24,7 +24,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
   if (delivery === "bad phone") return { ok: false, message: BAD_RIDER_PHONE };
 
   const { data, error } = await supabase.rpc("pos_create_invoice", {
-    p_items: s.items.map((i) => ({ variant_id: i.variantId, qty: i.qty })),
+    p_items: s.items.map((i) => ({ variant_id: i.variantId, qty: i.qty, choice: i.choice })),
     // The function treats null as no customer; the generated type doesn't know it accepts null.
     p_customer_id: s.customerId as string,
     p_discount: s.discount,
