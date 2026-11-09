@@ -26,6 +26,8 @@ export type RecordRow = {
   purchaseStatus?: PurchaseStatus;
   items?: number;
   restocked?: number;
+  /** Sales: the delivery fee, part of total. */
+  delivery?: number;
   total: number;
   paid: number;
   owed: number;
@@ -47,7 +49,7 @@ export async function listRecords(kind: RecordKind, options: { search?: string; 
   if (kind === "sales") {
     let query = supabase
       .from("pos_sales_list")
-      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name", { count: "exact" })
+      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery", { count: "exact" })
       .order("created_at", { ascending: false })
       .order("code", { ascending: false });
     if (q) query = query.or(`code.ilike.*${q}*,customer_name.ilike.*${q}*`);
@@ -69,6 +71,7 @@ export async function listRecords(kind: RecordKind, options: { search?: string; 
             ? "From the old system · Accra shop"
             : `Sold by ${by(r.created_by)} · Accra shop`,
       saleStatus: r.status!,
+      delivery: r.delivery ?? 0,
       total: r.total!,
       paid: r.paid!,
       owed: r.owed!,
@@ -137,6 +140,8 @@ export type RecordsSummary = {
   total: number;
   paid: number;
   owed: number;
+  /** Sales: delivery fees in the list (part of total). */
+  delivery: number;
   counts: Record<RecordKind, number>;
 };
 

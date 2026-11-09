@@ -1542,6 +1542,7 @@ export type Database = {
           customer_id: string | null
           customer_name: string | null
           customer_phone: string | null
+          delivery: number | null
           discount: number | null
           id: string | null
           order_id: string | null

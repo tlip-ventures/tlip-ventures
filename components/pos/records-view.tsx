@@ -115,6 +115,13 @@ export function RecordsView({
           <span className="text-[13px] font-semibold text-pos-muted">{m.dueLabel}</span>
           <span className="font-pos-display text-[28px] leading-none tabular-nums text-pos-rust">{formatPesewas(summary.owed)}</span>
         </div>
+        {kind === "sales" && (
+          // Delivery money on its own, for the end-of-day count (already part of Total value).
+          <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
+            <span className="text-[13px] font-semibold text-pos-muted">Delivery fees</span>
+            <span className="font-pos-display text-[28px] leading-none tabular-nums">{formatPesewas(summary.delivery)}</span>
+          </div>
+        )}
       </StatGrid>
 
       <Card label={m.heading}>
@@ -137,12 +144,14 @@ export function RecordsView({
 
         {rows.length > 0 ? (
           <>
-            <ScrollTable minWidth={860}>
+            <ScrollTable minWidth={kind === "sales" ? 1040 : 860}>
               <TableHead>
                 <Th>Date</Th>
                 <Th>Reference</Th>
                 <Th>{m.party}</Th>
                 <Th>Status</Th>
+                {kind === "sales" && <Th align="right">Items</Th>}
+                {kind === "sales" && <Th align="right">Delivery</Th>}
                 <Th align="right">Total</Th>
                 <Th align="right">Paid</Th>
                 <Th align="right">Still owed</Th>
@@ -173,6 +182,14 @@ export function RecordsView({
                       <td className="px-3 py-3.5">
                         <Pill className={status.className}>{status.label}</Pill>
                       </td>
+                      {kind === "sales" && (
+                        <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums">{formatPesewas(r.total - (r.delivery ?? 0))}</td>
+                      )}
+                      {kind === "sales" && (
+                        <td className={`whitespace-nowrap px-3 py-3.5 text-right tabular-nums ${r.delivery ? "" : "text-pos-muted"}`}>
+                          {r.delivery ? formatPesewas(r.delivery) : "—"}
+                        </td>
+                      )}
                       <td className="whitespace-nowrap px-3 py-3.5 text-right font-semibold tabular-nums">{formatPesewas(r.total)}</td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums">{formatPesewas(r.paid)}</td>
                       <td className={`whitespace-nowrap px-3 py-3.5 text-right tabular-nums ${r.owed ? "font-bold text-pos-rust" : "text-pos-muted"}`}>
