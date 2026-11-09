@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { createInvoice } from "@/app/pos/(app)/invoices/actions";
 import { completeSale, type CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
 import { phoneText } from "@/lib/pos/format";
 import { basketTotals, cashOptions, changeDue, draftDeliveryFee, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
 import { useBasket, useBasketHydrated, type CashChoice } from "@/lib/pos/basket-store";
+import { defaultValidUntil, ghanaToday } from "@/lib/pos/invoices";
 import { CustomerPicker } from "./customer-picker";
 
 const inputClass = "min-h-11 w-full rounded-md border border-pos-line bg-white px-3 text-sm text-pos-ink placeholder:text-pos-muted";
@@ -25,6 +27,9 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
   const [discountText, setDiscountText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // "Make invoice": open while the cashier picks the date the prices hold until.
+  const [invoicing, setInvoicing] = useState(false);
+  const [validUntil, setValidUntil] = useState(() => defaultValidUntil(new Date()));
 
   const lines = hydrated ? state.lines : [];
   const delivering = hydrated && state.fulfilment === "delivery";
@@ -38,13 +43,17 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
   const change =
     state.method !== "cash" ? 0 : state.cash === "other" && otherCash === null ? null : changeDue(totals.total, cashReceived);
 
+  const deliveryBlocker =
+    delivering && !state.delivery.address.trim()
+      ? "Enter where to deliver: the area and a landmark."
+      : delivering && deliveryFee === null
+        ? "Enter the delivery fee like 30, or leave it empty."
+        : null;
   const blocker =
     lines.length === 0
       ? null
-      : delivering && !state.delivery.address.trim()
-        ? "Enter where to deliver: the area and a landmark."
-        : delivering && deliveryFee === null
-          ? "Enter the delivery fee like 30, or leave it empty."
+      : deliveryBlocker
+        ? deliveryBlocker
       : state.method === "later" && !state.customer
         ? "Choose the customer who will pay later."
         : state.method === "cash" && state.cash === "other" && (otherCash === null || change === null)
@@ -62,6 +71,39 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
     setEditingDiscount(false);
   };
 
+  const deliveryInput = () =>
+    delivering
+      ? {
+          fee: totals.delivery,
+          address: state.delivery.address,
+          // The rider calls this number; the customer's own when none is typed.
+          phone: state.delivery.phone.trim() || state.customer?.phone || "",
+          note: state.delivery.note,
+        }
+      : null;
+
+  const saveInvoice = () => {
+    if (lines.length === 0 || deliveryBlocker) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await createInvoice({
+        items: lines.map((l) => ({ variantId: l.variantId, qty: l.qty })),
+        customerId: state.customer?.id ?? null,
+        discount: totals.discount,
+        delivery: deliveryInput(),
+        validUntil,
+      });
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      state.clear();
+      setDiscountText("");
+      setInvoicing(false);
+      router.push(`/pos/invoice/${result.id}`);
+    });
+  };
+
   const complete = () => {
     if (blocker || lines.length === 0) return;
     setError(null);
@@ -72,15 +114,8 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
         discount: totals.discount,
         method: state.method,
         cashReceived: state.method === "cash" ? cashReceived : null,
-        delivery: delivering
-          ? {
-              fee: totals.delivery,
-              address: state.delivery.address,
-              // The rider calls this number; the customer's own when none is typed.
-              phone: state.delivery.phone.trim() || state.customer?.phone || "",
-              note: state.delivery.note,
-            }
-          : null,
+        delivery: deliveryInput(),
+        invoiceId: state.invoice?.id ?? null,
       });
       if (!result.ok) {
         setError(result.message);
@@ -108,8 +143,36 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
           <h2 id="pos-basket" className="m-0 text-xl font-bold leading-[26px]">
             Current sale
           </h2>
-          <span className="text-[13px] text-pos-muted">New sale</span>
+          <span className="text-[13px] text-pos-muted">{hydrated && state.invoice ? `From ${state.invoice.code}` : "New sale"}</span>
         </div>
+        {hydrated && state.invoice && (
+          <div className="flex flex-col gap-1.5 rounded-md border border-pos-peach-line bg-pos-peach px-3 py-2.5 text-[13px] leading-[19px] text-pos-note-ink">
+            <span className="flex items-start justify-between gap-2">
+              <span className="font-bold">Selling invoice {state.invoice.code} at today&rsquo;s prices.</span>
+              <button
+                type="button"
+                onClick={state.dropInvoice}
+                className="-my-2 min-h-11 shrink-0 px-1 font-bold text-pos-rust hover:text-pos-ink md:min-h-8"
+              >
+                Not from the invoice
+              </button>
+            </span>
+            {state.invoice.warnings.length > 0 ? (
+              <ul className="m-0 flex list-disc flex-col gap-1 pl-4">
+                {state.invoice.warnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            ) : (
+              <span>Nothing has changed since the invoice.</span>
+            )}
+            {state.discount > 0 && !canGiveDiscounts && (
+              <span className="font-semibold">
+                The invoice had a discount of {formatPesewas(state.discount)}. Ask someone who can give discounts to finish this sale.
+              </span>
+            )}
+          </div>
+        )}
         <CustomerPicker />
         <div role="group" aria-label="How the customer gets the goods" className="grid grid-cols-2 gap-2">
           {FULFILMENTS.map((f) => (
@@ -338,12 +401,50 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
         >
           {pending ? "Saving…" : `Complete sale · ${formatPesewas(totals.total)}`}
         </button>
+        {hydrated && !state.invoice && lines.length > 0 && !invoicing && (
+          <button type="button" onClick={() => setInvoicing(true)} className="min-h-11 rounded-md border border-pos-line bg-white text-sm font-bold text-pos-ink hover:border-pos-muted">
+            Make invoice instead
+          </button>
+        )}
+        {invoicing && lines.length > 0 && (
+          <div className="flex flex-col gap-2.5 rounded-md border border-pos-line bg-white p-3">
+            <span className="text-[13px] leading-[19px] text-pos-soft">
+              An invoice shows the customer what they would pay. Nothing comes off the shelf until they buy.
+            </span>
+            <label className="flex items-center justify-between gap-3 text-sm font-semibold text-pos-soft">
+              <span>Prices held until</span>
+              <input
+                type="date"
+                value={validUntil}
+                min={ghanaToday(new Date())}
+                max={defaultValidUntil(new Date(), 365)}
+                onChange={(e) => setValidUntil(e.target.value)}
+                className="min-h-11 rounded-md border border-pos-line bg-white px-3 text-sm text-pos-ink md:min-h-10"
+              />
+            </label>
+            {deliveryBlocker && <span className="text-[13px] font-semibold text-pos-rust">{deliveryBlocker}</span>}
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+              <button type="button" onClick={() => setInvoicing(false)} className="min-h-11 px-3 text-[13px] font-semibold text-pos-muted hover:text-pos-ink">
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={saveInvoice}
+                disabled={pending || Boolean(deliveryBlocker) || !validUntil}
+                className="min-h-11 rounded-md bg-pos-forest px-3 text-sm font-bold text-white hover:bg-pos-ink disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pending ? "Saving…" : `Save invoice · ${formatPesewas(totals.total)}`}
+              </button>
+            </div>
+          </div>
+        )}
         <button
           type="button"
           onClick={() => {
             state.clear();
             setError(null);
             setEditingDiscount(false);
+            setInvoicing(false);
           }}
           disabled={lines.length === 0 && !state.customer && state.fulfilment === "collect"}
           className="min-h-11 text-[13px] font-semibold text-pos-muted hover:text-pos-ink disabled:opacity-60 md:min-h-10"

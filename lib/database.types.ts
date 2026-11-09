@@ -216,6 +216,102 @@ export type Database = {
           },
         ]
       }
+      invoice_items: {
+        Row: {
+          id: string
+          invoice_id: string
+          line_total: number
+          option_values: string | null
+          product_name: string
+          qty: number
+          unit_price: number
+          variant_id: string | null
+        }
+        Insert: {
+          id?: string
+          invoice_id: string
+          line_total: number
+          option_values?: string | null
+          product_name: string
+          qty: number
+          unit_price: number
+          variant_id?: string | null
+        }
+        Update: {
+          id?: string
+          invoice_id?: string
+          line_total?: number
+          option_values?: string | null
+          product_name?: string
+          qty?: number
+          unit_price?: number
+          variant_id?: string | null
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          delivery_address: string | null
+          delivery_fee: number
+          delivery_name: string | null
+          delivery_note: string | null
+          delivery_phone: string | null
+          discount: number
+          id: string
+          note: string | null
+          sale_id: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          subtotal: number
+          total: number
+          updated_at: string
+          valid_until: string
+        }
+        Insert: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          delivery_address?: string | null
+          delivery_fee?: number
+          delivery_name?: string | null
+          delivery_note?: string | null
+          delivery_phone?: string | null
+          discount?: number
+          id?: string
+          note?: string | null
+          sale_id?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          subtotal: number
+          total: number
+          updated_at?: string
+          valid_until: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          delivery_address?: string | null
+          delivery_fee?: number
+          delivery_name?: string | null
+          delivery_note?: string | null
+          delivery_phone?: string | null
+          discount?: number
+          id?: string
+          note?: string | null
+          sale_id?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          subtotal?: number
+          total?: number
+          updated_at?: string
+          valid_until?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           id: string
@@ -1461,6 +1557,27 @@ export type Database = {
           },
         ]
       }
+      pos_invoices_list: {
+        Row: {
+          code: string | null
+          created_at: string | null
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          delivery_fee: number | null
+          discount: number | null
+          id: string | null
+          items: number | null
+          sale_code: string | null
+          sale_id: string | null
+          status: Database["public"]["Enums"]["invoice_status"] | null
+          subtotal: number | null
+          total: number | null
+          valid_until: string | null
+        }
+        Relationships: []
+      }
       pos_purchases_list: {
         Row: {
           code: string | null
@@ -1626,6 +1743,7 @@ export type Database = {
         Returns: number
       }
       pos_cancel_count: { Args: { p_count_id: string }; Returns: undefined }
+      pos_cancel_invoice: { Args: { p_invoice_id: string }; Returns: undefined }
       pos_cancel_purchase: {
         Args: { p_purchase_id: string }
         Returns: undefined
@@ -1672,6 +1790,21 @@ export type Database = {
         Args: { p_name: string; p_phone?: string }
         Returns: string
       }
+      pos_create_invoice: {
+        Args: {
+          p_customer_id: string
+          p_delivery: Json
+          p_discount: number
+          p_items: Json
+          p_note?: string
+          p_valid_until: string
+        }
+        Returns: {
+          code: string
+          invoice_id: string
+          total: number
+        }[]
+      }
       pos_create_return: {
         Args: { p: Json }
         Returns: {
@@ -1700,6 +1833,10 @@ export type Database = {
       pos_import_records: {
         Args: { p_apply: boolean; p_kind: string; p_rows: Json }
         Returns: Json
+      }
+      pos_invoice_sold: {
+        Args: { p_invoice_id: string; p_sale_id: string }
+        Returns: undefined
       }
       pos_list_users: {
         Args: never
@@ -1780,6 +1917,10 @@ export type Database = {
         Args: { p_counted: number; p_reason?: string; p_variant_id: string }
         Returns: number
       }
+      pos_report_overview: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
       pos_save_count_line: {
         Args: { p_count_id: string; p_counted: number; p_variant_id: string }
         Returns: undefined
@@ -1832,6 +1973,7 @@ export type Database = {
     }
     Enums: {
       delivery_status: "to_deliver" | "out" | "delivered"
+      invoice_status: "open" | "sold" | "cancelled"
       order_status:
         | "awaiting_whatsapp"
         | "confirmed"
@@ -1982,6 +2124,7 @@ export const Constants = {
   public: {
     Enums: {
       delivery_status: ["to_deliver", "out", "delivered"],
+      invoice_status: ["open", "sold", "cancelled"],
       order_status: [
         "awaiting_whatsapp",
         "confirmed",

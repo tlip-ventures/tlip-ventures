@@ -66,7 +66,11 @@ On the shop's phone and the owner's laptop:
 - [ ] Return an item from a receipt, back on the shelf.
 - [ ] Place an order on the website, then **Mark as paid** in Stock and sales:
       the order shows Paid in the website admin and the shelf count goes down.
+- [ ] Make an invoice: fill the basket, **Make invoice instead**, then Print (or Save as PDF) and
+      WhatsApp it. Back on **Invoices**, open it and **Sell this invoice**: the till fills in and the
+      invoice shows Sold.
 - [ ] Download Sales as PDF and as Excel, and open both.
+- [ ] Open **Reports** (owner): pick Today, This month and your own dates; the figures match Sales.
 - [ ] Sign in as staff: no Profit, Purchases, Suppliers, Reports, Import or Settings.
 
 ## If something is wrong

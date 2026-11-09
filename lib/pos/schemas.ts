@@ -143,6 +143,14 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
   return errors;
 }
 
+/** A delivery typed at the till. Fee in pesewas; phone as typed (checked by the action). */
+const deliveryInputSchema = z.object({
+  fee: z.number().int().min(0, "Enter the delivery fee, or 0.").max(10_000_000, "That delivery fee is too high."),
+  address: z.string().trim().min(1, "Enter where to deliver: the area and a landmark.").max(300, "At most 300 characters."),
+  phone: z.string().trim().max(30),
+  note: z.string().trim().max(300, "At most 300 characters."),
+});
+
 /** What the till sends to save a sale. Prices are not sent: the database works them out. */
 export const completeSaleSchema = z
   .object({
@@ -156,14 +164,9 @@ export const completeSaleSchema = z
     // Cash only, in pesewas; null means the exact amount.
     cashReceived: z.number().int().min(0).max(100_000_000).nullable(),
     // null: the customer takes the goods. Fee in pesewas; phone as typed (checked by the action).
-    delivery: z
-      .object({
-        fee: z.number().int().min(0, "Enter the delivery fee, or 0.").max(10_000_000, "That delivery fee is too high."),
-        address: z.string().trim().min(1, "Enter where to deliver: the area and a landmark.").max(300, "At most 300 characters."),
-        phone: z.string().trim().max(30),
-        note: z.string().trim().max(300, "At most 300 characters."),
-      })
-      .nullable(),
+    delivery: deliveryInputSchema.nullable(),
+    // The invoice this sale sells, if any: marked sold once the sale is saved.
+    invoiceId: z.uuid().nullable().optional(),
   })
   .superRefine((s, ctx) => {
     if (s.method === "later" && !s.customerId) {
@@ -172,6 +175,20 @@ export const completeSaleSchema = z
   });
 
 export type CompleteSaleInput = z.input<typeof completeSaleSchema>;
+
+/** "Make invoice" at the till: the basket, priced by the database, nothing taken off the shelf. */
+export const createInvoiceSchema = z.object({
+  items: z
+    .array(z.object({ variantId: z.uuid(), qty: z.number().int().min(1).max(999) }))
+    .min(1, "The basket is empty.")
+    .max(200, "At most 200 lines in one invoice."),
+  customerId: z.uuid().nullable(),
+  discount: z.number().int().min(0).max(100_000_000),
+  delivery: deliveryInputSchema.nullable(),
+  validUntil: z.iso.date("Choose the date the prices hold until."),
+});
+
+export type CreateInvoiceInput = z.input<typeof createInvoiceSchema>;
 
 export const newCustomerSchema = z.object({
   name: z.string().trim().min(1, "Enter the customer's name.").max(100, "At most 100 characters."),

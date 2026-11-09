@@ -23,6 +23,8 @@ type BasketState = {
   fulfilment: Fulfilment;
   /** Delivery: where to, a phone for the rider and the fee in cedis as typed. */
   delivery: DeliveryDraft;
+  /** The invoice being sold, and what changed since it was written. */
+  invoice: TillInvoice | null;
   add: (item: NewBasketLine) => void;
   setQty: (variantId: string, qty: number) => void;
   setCustomer: (customer: CustomerChoice | null) => void;
@@ -31,14 +33,28 @@ type BasketState = {
   setDiscount: (discount: number) => void;
   setFulfilment: (fulfilment: Fulfilment) => void;
   setDelivery: (changes: Partial<DeliveryDraft>) => void;
+  /** Replaces the basket with an invoice to sell. */
+  loadInvoice: (data: LoadedInvoice) => void;
+  /** Keeps the basket but stops linking it to the invoice. */
+  dropInvoice: () => void;
   clear: () => void;
+};
+
+export type TillInvoice = { id: string; code: string; warnings: string[] };
+
+export type LoadedInvoice = {
+  invoice: TillInvoice;
+  lines: BasketLine[];
+  customer: CustomerChoice | null;
+  discount: number;
+  delivery: DeliveryDraft | null;
 };
 
 export type DeliveryDraft = { address: string; phone: string; fee: string; note: string };
 
 const NO_DELIVERY: DeliveryDraft = { address: "", phone: "", fee: "", note: "" };
 
-const EMPTY = { lines: [], customer: null, method: "cash", cash: "exact", cashOther: "", discount: 0, fulfilment: "collect" } as const;
+const EMPTY = { lines: [], customer: null, method: "cash", cash: "exact", cashOther: "", discount: 0, fulfilment: "collect", invoice: null } as const;
 
 /**
  * The till's current sale, kept on this device so a refresh or a dropped
@@ -58,6 +74,17 @@ export const useBasket = create<BasketState>()(
       setDiscount: (discount) => set({ discount }),
       setFulfilment: (fulfilment) => set({ fulfilment }),
       setDelivery: (changes) => set((s) => ({ delivery: { ...s.delivery, ...changes } })),
+      loadInvoice: (data) =>
+        set({
+          ...EMPTY,
+          lines: data.lines,
+          customer: data.customer,
+          discount: data.discount,
+          fulfilment: data.delivery ? "delivery" : "collect",
+          delivery: data.delivery ?? NO_DELIVERY,
+          invoice: data.invoice,
+        }),
+      dropInvoice: () => set({ invoice: null }),
       clear: () => set({ ...EMPTY, lines: [], delivery: NO_DELIVERY }),
     }),
     {
@@ -73,6 +100,7 @@ export const useBasket = create<BasketState>()(
         discount: s.discount,
         fulfilment: s.fulfilment,
         delivery: s.delivery,
+        invoice: s.invoice,
       }),
     },
   ),

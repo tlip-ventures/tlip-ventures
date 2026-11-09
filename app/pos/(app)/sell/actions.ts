@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { normaliseGhanaPhone } from "@/lib/phone";
+import { BAD_RIDER_PHONE, deliveryForDb } from "@/lib/pos/deliveries";
 import { friendlyDbError } from "@/lib/pos/errors";
 import { buildReceiptMessage, receiptWhatsappUrl } from "@/lib/pos/receipt";
 import { completeSaleSchema, newCustomerSchema, type CompleteSaleInput } from "@/lib/pos/schemas";
@@ -33,15 +34,8 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const s = parsed.data;
 
-  let delivery: { fee: number; address: string; phone: string | null; note: string } | null = null;
-  if (s.delivery) {
-    let phone: string | null = null;
-    if (s.delivery.phone) {
-      phone = normaliseGhanaPhone(s.delivery.phone);
-      if (!phone) return { ok: false, message: "Enter the rider's phone number like 024 123 4567, or leave it empty." };
-    }
-    delivery = { fee: s.delivery.fee, address: s.delivery.address, phone, note: s.delivery.note };
-  }
+  const delivery = deliveryForDb(s.delivery);
+  if (delivery === "bad phone") return { ok: false, message: BAD_RIDER_PHONE };
 
   const { data, error } = await supabase.rpc("pos_complete_sale", {
     p_items: s.items.map((i) => ({ variant_id: i.variantId, qty: i.qty })),
@@ -55,6 +49,12 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
   });
   if (error || !data?.[0]) return { ok: false, message: friendlyDbError(error, "The sale wasn't saved. Please try again.") };
   const saved = data[0];
+
+  // Sold from an invoice: close it. The sale is saved either way.
+  if (s.invoiceId) {
+    const { error: invoiceError } = await supabase.rpc("pos_invoice_sold", { p_invoice_id: s.invoiceId, p_sale_id: saved.sale_id });
+    if (invoiceError) console.error(`Sale ${saved.code} saved, but its invoice was not marked sold: ${invoiceError.message}`);
+  }
 
   // The receipt is built from what was saved, not from the basket on screen.
   const receipt = await getSaleReceipt(saved.sale_id);
