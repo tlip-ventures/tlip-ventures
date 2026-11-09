@@ -553,6 +553,32 @@ export type Database = {
           },
         ]
       }
+      product_redirects: {
+        Row: {
+          created_at: string
+          old_slug: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          old_slug: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          old_slug?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_redirects_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_variants: {
         Row: {
           barcode: string | null
@@ -563,6 +589,7 @@ export type Database = {
           price_override: number | null
           product_id: string
           reorder_level: number
+          retired: boolean
           sku: string | null
           stock_qty: number | null
         }
@@ -575,6 +602,7 @@ export type Database = {
           price_override?: number | null
           product_id: string
           reorder_level?: number
+          retired?: boolean
           sku?: string | null
           stock_qty?: number | null
         }
@@ -587,6 +615,7 @@ export type Database = {
           price_override?: number | null
           product_id?: string
           reorder_level?: number
+          retired?: boolean
           sku?: string | null
           stock_qty?: number | null
         }
@@ -610,6 +639,7 @@ export type Database = {
       products: {
         Row: {
           brand: string | null
+          choices: string[]
           compare_at_price: number | null
           created_at: string
           description: string | null
@@ -626,6 +656,7 @@ export type Database = {
         }
         Insert: {
           brand?: string | null
+          choices?: string[]
           compare_at_price?: number | null
           created_at?: string
           description?: string | null
@@ -642,6 +673,7 @@ export type Database = {
         }
         Update: {
           brand?: string | null
+          choices?: string[]
           compare_at_price?: number | null
           created_at?: string
           description?: string | null
@@ -1694,6 +1726,8 @@ export type Database = {
           barcode: string | null
           category_id: string | null
           category_name: string | null
+          choice_name: string | null
+          choices: string[] | null
           image_url: string | null
           on_hand: number | null
           on_website: boolean | null

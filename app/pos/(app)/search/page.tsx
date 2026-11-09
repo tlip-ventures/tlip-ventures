@@ -6,7 +6,7 @@ import { ProductTile } from "@/components/pos/product-tile";
 import { Card, PageHeader, PageShell, Pill } from "@/components/pos/ui";
 import { formatPesewas } from "@/lib/money";
 import { formatDay, phoneText } from "@/lib/pos/format";
-import { STOCK_PILLS, variantName } from "@/lib/pos/stock";
+import { STOCK_PILLS } from "@/lib/pos/stock";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { listCustomers, listRecords } from "@/lib/server/pos/records";
 import { listStockRows } from "@/lib/server/pos/stock";
@@ -66,7 +66,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/pos/searc
                   <ProductTile imageUrl={p.imageUrl} sku={p.sku} name={p.productName} category={p.topCategoryName} size={40} />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <Link href={`/pos/products/${p.productId}`} className="truncate font-semibold text-pos-ink no-underline hover:underline">
-                      {variantName(p.productName, p.optionLabel)}
+                      {p.productName}
                     </Link>
                     <span className="text-xs text-pos-muted">
                       {formatPesewas(p.price)} · {p.onHand} on shelf

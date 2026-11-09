@@ -9,63 +9,61 @@ import { QtyStepper } from "./qty-stepper";
 
 export type PickerVariant = {
   id: string;
-  /** "Black", "Black / Large", or null for a product without options. */
-  label: string | null;
   price: number;
   inStock: boolean;
 };
 
 type Props = {
   product: Omit<NewCartLine, "variantId" | "optionValues" | "unitPrice">;
-  /** "Colour" or "Colour / Size"; null when the product has no options. */
-  optionHeading: string | null;
-  variants: PickerVariant[];
+  /** "Colour" or "Design"; null when there is nothing to pick. */
+  choiceHeading: string | null;
+  /** What the customer picks from. Stock is shared: every choice is in or out of stock together. */
+  choices: string[];
+  variant: PickerVariant | null;
 };
 
-/** Option picker, quantity and "Add to cart" button. Out-of-stock options can't be chosen. */
-export function AddToCart({ product, optionHeading, variants }: Props) {
+/** Colour (or design) picker, quantity and "Add to cart" button. */
+export function AddToCart({ product, choiceHeading, choices, variant }: Props) {
   const add = useCart((s) => s.add);
   const groupId = useId();
-  const [selectedId, setSelectedId] = useState(() => variants.find((v) => v.inStock)?.id ?? null);
+  const [choice, setChoice] = useState<string | null>(null);
   const showAdded = useAddedToast((s) => s.show);
   const [qty, setQty] = useState(1);
 
-  const hasOptions = optionHeading !== null && variants.some((v) => v.label !== null);
-  const selected = variants.find((v) => v.id === selectedId) ?? null;
-  const canAdd = selected?.inStock === true;
-  const showPrices = new Set(variants.map((v) => v.price)).size > 1;
+  const hasChoices = choiceHeading !== null && choices.length > 0;
+  const inStock = variant?.inStock === true;
+  const needsChoice = hasChoices && choice === null;
+  const canAdd = inStock && !needsChoice;
 
   function handleAdd() {
-    if (!selected || !selected.inStock) return;
-    add({ ...product, variantId: selected.id, optionValues: selected.label, unitPrice: selected.price }, qty);
-    const name = selected.label ? `${product.productName} (${selected.label})` : product.productName;
+    if (!variant || !canAdd) return;
+    add({ ...product, variantId: variant.id, optionValues: hasChoices ? choice : null, unitPrice: variant.price }, qty);
+    const name = hasChoices && choice ? `${product.productName} (${choice})` : product.productName;
     showAdded(qty > 1 ? `${qty} × ${name}` : name);
     setQty(1);
   }
 
   return (
     <div className="space-y-4">
-      {hasOptions && (
-        <fieldset className="space-y-2">
-          <legend className="font-heading text-lg font-bold text-brand-green">{optionHeading}</legend>
+      {hasChoices && (
+        <fieldset className="space-y-2" disabled={!inStock}>
+          <legend className="font-heading text-lg font-bold text-brand-green">
+            {choiceHeading}
+            {choice && <span className="font-normal text-ink">: {choice}</span>}
+          </legend>
           <div className="flex flex-wrap gap-2">
-            {variants.map((variant) => (
-              <label key={variant.id} className={variant.inStock ? "cursor-pointer" : "cursor-not-allowed"}>
+            {choices.map((c) => (
+              <label key={c} className={inStock ? "cursor-pointer" : "cursor-not-allowed"}>
                 <input
                   type="radio"
                   name={groupId}
-                  value={variant.id}
-                  checked={selectedId === variant.id}
-                  disabled={!variant.inStock}
-                  onChange={() => setSelectedId(variant.id)}
+                  value={c}
+                  checked={choice === c}
+                  onChange={() => setChoice(c)}
                   className="peer sr-only"
                 />
-                <span className="flex min-h-11 flex-col justify-center rounded-lg border-2 border-neutral-300 px-3 py-1 text-sm text-ink peer-checked:border-brand-green peer-checked:bg-brand-green/10 peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-gold peer-disabled:border-dashed peer-disabled:text-neutral-600">
-                  <span className="font-semibold">{variant.inStock ? variant.label : <s>{variant.label}</s>}</span>
-                  <span className="text-xs">
-                    {showPrices && `${formatPesewas(variant.price)} · `}
-                    {variant.inStock ? "In stock" : "Out of stock"}
-                  </span>
+                <span className="flex min-h-11 items-center rounded-lg border-2 border-neutral-300 px-3 py-1 text-sm font-semibold text-ink peer-checked:border-brand-green peer-checked:bg-brand-green/10 peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-gold peer-disabled:border-dashed peer-disabled:text-neutral-600">
+                  {c}
                 </span>
               </label>
             ))}
@@ -81,11 +79,13 @@ export function AddToCart({ product, optionHeading, variants }: Props) {
         disabled={!canAdd}
         className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-brand-green px-6 text-lg font-bold text-white hover:bg-brand-green-dark disabled:cursor-not-allowed disabled:bg-neutral-300 disabled:text-neutral-700 sm:w-auto"
       >
-        {!canAdd || !selected
+        {!inStock || !variant
           ? "Out of stock"
-          : qty > 1
-            ? `Add to cart · ${formatPesewas(lineTotal(selected.price, qty))}`
-            : `Add to cart${showPrices ? ` · ${formatPesewas(selected.price)}` : ""}`}
+          : needsChoice
+            ? `Choose a ${choiceHeading!.toLowerCase()} first`
+            : qty > 1
+              ? `Add to cart · ${formatPesewas(lineTotal(variant.price, qty))}`
+              : "Add to cart"}
       </button>
     </div>
   );

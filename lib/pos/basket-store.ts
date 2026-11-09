@@ -26,7 +26,8 @@ type BasketState = {
   /** The invoice being sold, and what changed since it was written. */
   invoice: TillInvoice | null;
   add: (item: NewBasketLine) => void;
-  setQty: (variantId: string, qty: number) => void;
+  /** By line key (item and colour, see basketLineKey). */
+  setQty: (key: string, qty: number) => void;
   setCustomer: (customer: CustomerChoice | null) => void;
   setMethod: (method: PaymentChoice) => void;
   setCash: (cash: CashChoice, other?: string) => void;
@@ -67,7 +68,7 @@ export const useBasket = create<BasketState>()(
       lines: [],
       delivery: NO_DELIVERY,
       add: (item) => set((s) => ({ lines: addToBasket(s.lines, item) })),
-      setQty: (variantId, qty) => set((s) => ({ lines: setBasketQty(s.lines, variantId, qty) })),
+      setQty: (key, qty) => set((s) => ({ lines: setBasketQty(s.lines, key, qty) })),
       setCustomer: (customer) => set({ customer }),
       setMethod: (method) => set({ method }),
       setCash: (cash, other) => set((s) => ({ cash, cashOther: other ?? s.cashOther })),
@@ -89,7 +90,10 @@ export const useBasket = create<BasketState>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 1,
+      // 2: one stock entry per product, colours picked per line. A basket saved
+      // before then may name per-colour entries that can no longer be sold: start afresh.
+      version: 2,
+      migrate: () => ({ ...EMPTY, lines: [], delivery: NO_DELIVERY }),
       storage: createJSONStorage(() => safeStorage),
       partialize: (s) => ({
         lines: s.lines,

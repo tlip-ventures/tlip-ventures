@@ -27,7 +27,6 @@ export default async function NewProductPage() {
           </p>
           <ProductForm
             categories={categories}
-            hasOptions={false}
             initial={{
               id: null,
               name: "",
@@ -35,7 +34,12 @@ export default async function NewProductPage() {
               onWebsite: false,
               categoryId: null,
               startingStock: "",
-              variants: [{ id: null, label: null, sku: "", barcode: "", reorderLevel: "2", priceOverride: "", cost: "" }],
+              choiceName: "",
+              choices: "",
+              sku: "",
+              barcode: "",
+              reorderLevel: "2",
+              cost: "",
             }}
           />
         </div>

@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import type { LineProblem } from "@/lib/cart";
+import { lineKey, type LineProblem } from "@/lib/cart";
 import {
   checkoutSchema,
   fieldErrors,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/checkout";
 import { publicEnv } from "@/lib/env";
 import { lineTotal, sumPesewas } from "@/lib/money";
+import { matchChoice } from "@/lib/product";
 import { getCartVariants, getSettings } from "@/lib/server/catalogue";
 import { checkoutAllowedForIp } from "@/lib/server/rate-limit";
 import { createAdminClient } from "@/lib/server/supabase-admin";
@@ -31,7 +32,7 @@ export type PlaceOrderResult =
       ok: false;
       message: string;
       fieldErrors?: Partial<Record<CheckoutField | "items", string>>;
-      /** Cart lines that can't be ordered, by variant id. */
+      /** Cart lines that can't be ordered, by line key (variant and colour, see lineKey). */
       problems?: Record<string, LineProblem>;
     };
 
@@ -48,7 +49,7 @@ async function siteUrl(): Promise<string> {
 /**
  * Checkout. Saves the order first (status awaiting_whatsapp), then returns the
  * pre-filled WhatsApp message. Every price is read from the database here;
- * the browser only says which variants and how many (domain rule 2).
+ * the browser only says which variants, how many and which colour (domain rule 2).
  */
 export async function placeOrder(input: CheckoutInput): Promise<PlaceOrderResult> {
   const parsed = checkoutSchema.safeParse(input);
@@ -85,12 +86,16 @@ export async function placeOrder(input: CheckoutInput): Promise<PlaceOrderResult
       (await getCartVariants(checkout.items.map((i) => i.variantId))).map((v) => [v.variantId, v]),
     );
 
+    // The colour must be one the product has (and one must be picked when it has colours).
     const problems: Record<string, LineProblem> = {};
-    for (const { variantId } of checkout.items) {
-      const variant = variants.get(variantId);
-      if (!variant) problems[variantId] = "unavailable";
-      else if (!variant.inStock) problems[variantId] = "out_of_stock";
-    }
+    const picked = checkout.items.map((item) => {
+      const variant = variants.get(item.variantId);
+      const choice = variant ? matchChoice(variant.choices, item.choice) : undefined;
+      const key = lineKey({ variantId: item.variantId, optionValues: item.choice });
+      if (!variant || choice === undefined) problems[key] = "unavailable";
+      else if (!variant.inStock) problems[key] = "out_of_stock";
+      return { ...item, choice: choice ?? null };
+    });
     if (Object.keys(problems).length > 0) {
       return {
         ok: false,
@@ -99,13 +104,13 @@ export async function placeOrder(input: CheckoutInput): Promise<PlaceOrderResult
       };
     }
 
-    const lines = checkout.items.map(({ variantId, qty }) => {
+    const lines = picked.map(({ variantId, qty, choice }) => {
       const variant = variants.get(variantId)!;
       return {
         variantId,
         qty,
         productName: variant.productName,
-        optionValues: variant.optionValues,
+        optionValues: choice,
         unitPrice: variant.unitPrice,
         lineTotal: lineTotal(variant.unitPrice, qty),
       };

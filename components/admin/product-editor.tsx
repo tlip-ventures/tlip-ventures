@@ -9,18 +9,7 @@ import type { ProductFormInput } from "@/lib/admin-product";
 import type { CategoryNode } from "@/lib/categories";
 import { slugify } from "@/lib/slug";
 
-type Variant = ProductFormInput["variants"][number];
 type Photo = ProductFormInput["images"][number];
-
-const emptyVariant = (): Variant => ({
-  id: null,
-  option1Value: "",
-  option2Value: "",
-  sku: "",
-  inStock: true,
-  stockQty: "",
-  priceOverride: "",
-});
 
 const input = "min-h-11 w-full rounded-lg border border-neutral-400 bg-white px-3 text-base aria-invalid:border-red-700";
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -36,7 +25,7 @@ type Props = {
 export function ProductEditor({ initial, categories, uploadsEnabled, stockFromShop = false }: Props) {
   const router = useRouter();
   const [form, setForm] = useState<ProductFormInput>(initial);
-  const [hasOptions, setHasOptions] = useState(Boolean(initial.option1Name));
+  const [hasChoices, setHasChoices] = useState(Boolean(initial.choiceName));
   const [slugTouched, setSlugTouched] = useState(initial.id !== null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null);
@@ -44,17 +33,9 @@ export function ProductEditor({ initial, categories, uploadsEnabled, stockFromSh
 
   const set = <K extends keyof ProductFormInput>(key: K, value: ProductFormInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
-  const setVariant = (i: number, changes: Partial<Variant>) =>
-    setForm((f) => ({ ...f, variants: f.variants.map((v, j) => (j === i ? { ...v, ...changes } : v)) }));
-
-  function toggleOptions(on: boolean) {
-    setHasOptions(on);
-    setForm((f) =>
-      on
-        ? { ...f, option1Name: f.option1Name || "Colour" }
-        : // Back to a single stock entry: keep the first variant's id and stock.
-          { ...f, option1Name: "", option2Name: "", variants: [{ ...f.variants[0], option1Value: "", option2Value: "" }] },
-    );
+  function toggleChoices(on: boolean) {
+    setHasChoices(on);
+    setForm((f) => (on ? { ...f, choiceName: f.choiceName || "Colour" } : { ...f, choiceName: "", choices: "" }));
   }
 
   function handleSubmit(event: FormEvent) {
@@ -200,131 +181,82 @@ export function ProductEditor({ initial, categories, uploadsEnabled, stockFromSh
         </div>
       </Section>
 
-      <Section title="Options and stock">
+      <Section title="Colours and stock">
         <Checkbox
-          checked={hasOptions}
-          onChange={toggleOptions}
-          label="This product comes in options (e.g. colours or sizes)"
+          checked={hasChoices}
+          onChange={toggleChoices}
+          label="Customers pick a colour (or design)"
         />
-        {hasOptions && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Option name" hint="e.g. Colour" error={err("option1Name")}>
+        {hasChoices && (
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <Field label="What they pick" hint="e.g. Colour or Design" error={err("choiceName")}>
               {(id, describedBy) => (
-                <input id={id} className={input} value={form.option1Name} maxLength={40} aria-describedby={describedBy} onChange={(e) => set("option1Name", e.target.value)} />
+                <input
+                  id={id}
+                  className={input}
+                  value={form.choiceName}
+                  maxLength={40}
+                  aria-invalid={err("choiceName") ? true : undefined}
+                  aria-describedby={describedBy}
+                  onChange={(e) => set("choiceName", e.target.value)}
+                />
               )}
             </Field>
-            <Field label="Second option name (optional)" hint="e.g. Size" error={err("option2Name")}>
+            <Field label="Choices" hint="Separate with commas, e.g. Black, Red, Grey" error={err("choices")}>
               {(id, describedBy) => (
-                <input id={id} className={input} value={form.option2Name} maxLength={40} aria-describedby={describedBy} onChange={(e) => set("option2Name", e.target.value)} />
+                <input
+                  id={id}
+                  className={input}
+                  value={form.choices}
+                  aria-invalid={err("choices") ? true : undefined}
+                  aria-describedby={describedBy}
+                  onChange={(e) => set("choices", e.target.value)}
+                />
               )}
             </Field>
+            <p className="text-sm text-neutral-700 sm:col-span-2">
+              Stock is one number for the whole product: colours are not counted separately. The colour picked shows on
+              the order and the WhatsApp message.
+            </p>
           </div>
         )}
-        {err("variants") && (
-          <p role="alert" className="text-sm font-semibold text-red-700">
-            {err("variants")}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="SKU (optional)" error={err("sku")}>
+            {(id, describedBy) => (
+              <input
+                id={id}
+                className={input}
+                value={form.sku}
+                maxLength={60}
+                aria-invalid={err("sku") ? true : undefined}
+                aria-describedby={describedBy}
+                onChange={(e) => set("sku", e.target.value)}
+              />
+            )}
+          </Field>
+          {!stockFromShop && (
+            <Field label="Quantity on hand (optional)" hint="For your reference only" error={err("stockQty")}>
+              {(id, describedBy) => (
+                <input
+                  id={id}
+                  className={input}
+                  inputMode="numeric"
+                  value={form.stockQty}
+                  aria-invalid={err("stockQty") ? true : undefined}
+                  aria-describedby={describedBy}
+                  onChange={(e) => set("stockQty", e.target.value)}
+                />
+              )}
+            </Field>
+          )}
+        </div>
+        {stockFromShop ? (
+          <p className="text-sm text-neutral-700">
+            {form.inStock ? `In stock: ${form.stockQty || 0} on the shelf.` : "Sold out."} Stock comes from{" "}
+            <Link href="/pos/products">Stock and sales</Link>.
           </p>
-        )}
-        <ul className="space-y-3">
-          {form.variants.map((v, i) => (
-            <li key={v.id ?? `new-${i}`} className="space-y-3 rounded-lg border border-neutral-200 p-3">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {hasOptions && (
-                  <Field label={form.option1Name || "Option"} error={err(`variants.${i}.option1Value`)}>
-                    {(id, describedBy) => (
-                      <input
-                        id={id}
-                        className={input}
-                        value={v.option1Value}
-                        maxLength={60}
-                        aria-invalid={err(`variants.${i}.option1Value`) ? true : undefined}
-                        aria-describedby={describedBy}
-                        onChange={(e) => setVariant(i, { option1Value: e.target.value })}
-                      />
-                    )}
-                  </Field>
-                )}
-                {hasOptions && form.option2Name && (
-                  <Field label={form.option2Name} error={err(`variants.${i}.option2Value`)}>
-                    {(id, describedBy) => (
-                      <input
-                        id={id}
-                        className={input}
-                        value={v.option2Value}
-                        maxLength={60}
-                        aria-invalid={err(`variants.${i}.option2Value`) ? true : undefined}
-                        aria-describedby={describedBy}
-                        onChange={(e) => setVariant(i, { option2Value: e.target.value })}
-                      />
-                    )}
-                  </Field>
-                )}
-                {hasOptions && (
-                  <Field label="Own price (GH₵, optional)" hint="Empty = product price" error={err(`variants.${i}.priceOverride`)}>
-                    {(id, describedBy) => (
-                      <input
-                        id={id}
-                        className={input}
-                        inputMode="decimal"
-                        value={v.priceOverride}
-                        aria-invalid={err(`variants.${i}.priceOverride`) ? true : undefined}
-                        aria-describedby={describedBy}
-                        onChange={(e) => setVariant(i, { priceOverride: e.target.value })}
-                      />
-                    )}
-                  </Field>
-                )}
-                <Field label="SKU (optional)" error={err(`variants.${i}.sku`)}>
-                  {(id, describedBy) => (
-                    <input id={id} className={input} value={v.sku} maxLength={60} aria-describedby={describedBy} onChange={(e) => setVariant(i, { sku: e.target.value })} />
-                  )}
-                </Field>
-                {!stockFromShop && (
-                  <Field label="Quantity on hand (optional)" hint="For your reference only" error={err(`variants.${i}.stockQty`)}>
-                    {(id, describedBy) => (
-                      <input
-                        id={id}
-                        className={input}
-                        inputMode="numeric"
-                        value={v.stockQty}
-                        aria-invalid={err(`variants.${i}.stockQty`) ? true : undefined}
-                        aria-describedby={describedBy}
-                        onChange={(e) => setVariant(i, { stockQty: e.target.value })}
-                      />
-                    )}
-                  </Field>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                {stockFromShop ? (
-                  <p className="text-sm text-neutral-700">
-                    {v.inStock ? `In stock: ${v.stockQty || 0} on the shelf.` : "Sold out."} Stock comes from{" "}
-                    <Link href="/pos/products">Stock and sales</Link>.
-                  </p>
-                ) : (
-                  <Checkbox checked={v.inStock} onChange={(on) => setVariant(i, { inStock: on })} label="In stock (customers can order it)" />
-                )}
-                {hasOptions && form.variants.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => set("variants", form.variants.filter((_, j) => j !== i))}
-                    className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-red-700 underline"
-                  >
-                    Remove option
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-        {hasOptions && (
-          <button
-            type="button"
-            onClick={() => set("variants", [...form.variants, emptyVariant()])}
-            className="inline-flex min-h-11 items-center rounded-lg border-2 border-brand-green px-4 font-semibold text-brand-green"
-          >
-            Add option
-          </button>
+        ) : (
+          <Checkbox checked={form.inStock} onChange={(on) => set("inStock", on)} label="In stock (customers can order it)" />
         )}
       </Section>
 

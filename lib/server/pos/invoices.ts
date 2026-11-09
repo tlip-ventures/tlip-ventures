@@ -1,11 +1,11 @@
 import "server-only";
 import { pageRange } from "@/lib/pagination";
 import { pesewasToInput } from "@/lib/money";
-import type { BasketLine, CustomerChoice } from "@/lib/pos/basket";
+import { addToBasket, type BasketLine, type CustomerChoice } from "@/lib/pos/basket";
 import { phoneText } from "@/lib/pos/format";
 import { lineName } from "@/lib/pos/receipt";
 import { tillWarnings, type InvoiceFilter, type InvoiceLine, type InvoiceStatus } from "@/lib/pos/invoices";
-import { variantName } from "@/lib/pos/stock";
+import { matchChoice } from "@/lib/product";
 import { requirePosUser } from "./auth";
 import { getPeopleNames } from "./stock";
 
@@ -154,24 +154,23 @@ export async function getInvoiceForTill(id: string): Promise<InvoiceForTill | { 
 
   const ids = items.map((i) => i.variant_id).filter((v): v is string => v !== null);
   const { data: rows, error } = ids.length
-    ? await supabase.from("pos_stock_rows").select("variant_id, product_name, option_label, sku, price, on_hand").in("variant_id", ids)
+    ? await supabase.from("pos_stock_rows").select("variant_id, product_name, choices, sku, price, on_hand").in("variant_id", ids)
     : { data: [], error: null };
   if (error) throw new Error(`Could not load the shelf: ${error.message}`);
   const now = new Map(rows.map((r) => [r.variant_id!, r]));
 
-  const lines: BasketLine[] = [];
+  let lines: BasketLine[] = [];
   const checks = items.map((i) => {
     const row = i.variant_id ? now.get(i.variant_id) : undefined;
     const onHand = Math.max(0, row?.on_hand ?? 0);
     if (row && onHand > 0) {
-      lines.push({
-        variantId: row.variant_id!,
-        name: variantName(row.product_name ?? i.product_name, row.option_label),
-        sku: row.sku,
-        unitPrice: row.price ?? 0,
-        qty: Math.min(i.qty, onHand),
-        maxQty: onHand,
-      });
+      // The colour written on the invoice, if the product still has it. Colours share the shelf.
+      const choice = matchChoice(row.choices ?? [], i.option_values, { required: false }) ?? null;
+      lines = addToBasket(
+        lines,
+        { variantId: row.variant_id!, name: row.product_name ?? i.product_name, choice, sku: row.sku, unitPrice: row.price ?? 0, maxQty: onHand },
+        i.qty,
+      );
     }
     return { name: lineName(i.product_name, i.option_values), invoicePrice: i.unit_price, price: row ? (row.price ?? 0) : null, qty: i.qty, onHand };
   });

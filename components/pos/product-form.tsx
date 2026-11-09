@@ -22,19 +22,17 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 }
 
 /**
- * Add a product (one stock entry, no options) or edit a product's name, price,
- * codes, costs and alert levels. Photos, description and options are edited in
- * the shop's website editor.
+ * Add a product or edit its name, price, colours, code, cost and alert level.
+ * A product has one stock number: colours are only what the customer picks.
+ * Photos and description are edited in the shop's website editor.
  */
 export function ProductForm({
   initial,
   categories,
-  hasOptions,
 }: {
   initial: PosProductInput;
   /** Only for a new product. */
   categories?: CategoryGroup[];
-  hasOptions: boolean;
 }) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
@@ -44,8 +42,6 @@ export function ProductForm({
   const isNew = initial.id === null;
 
   const set = <K extends keyof PosProductInput>(key: K, value: PosProductInput[K]) => setForm((f) => ({ ...f, [key]: value }));
-  const setVariant = (i: number, key: keyof PosProductInput["variants"][number], value: string) =>
-    setForm((f) => ({ ...f, variants: f.variants.map((v, j) => (j === i ? { ...v, [key]: value } : v)) }));
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,41 +150,58 @@ export function ProductForm({
         </label>
       </div>
 
-      <fieldset className="m-0 flex flex-col gap-3 border-0 p-0">
-        <legend className="mb-2 text-[15px] font-bold">{hasOptions ? "Options" : "Code, cost and alert"}</legend>
-        {form.variants.map((v, i) => (
-          <div key={v.id ?? i} className="grid gap-3 rounded-lg border border-pos-paper-deep p-3 sm:grid-cols-2 lg:grid-cols-5">
-            {hasOptions && <p className="m-0 text-sm font-bold sm:col-span-2 lg:col-span-5">{v.label}</p>}
-            <label className={labelClass}>
-              <span>Code</span>
-              <input value={v.sku} onChange={(e) => setVariant(i, "sku", e.target.value)} maxLength={60} placeholder="RDCM" className={inputClass} {...aria(`variants.${i}.sku`)} />
-              <FieldError id={`e-variants.${i}.sku`} message={err(`variants.${i}.sku`)} />
-            </label>
-            <label className={labelClass}>
-              <span>Barcode</span>
-              <input value={v.barcode} onChange={(e) => setVariant(i, "barcode", e.target.value)} maxLength={64} placeholder="Scan or type" className={inputClass} {...aria(`variants.${i}.barcode`)} />
-              <FieldError id={`e-variants.${i}.barcode`} message={err(`variants.${i}.barcode`)} />
-            </label>
-            {hasOptions && (
-              <label className={labelClass}>
-                <span>Price if different (GH₵)</span>
-                <input value={v.priceOverride} onChange={(e) => setVariant(i, "priceOverride", e.target.value)} inputMode="decimal" className={inputClass} {...aria(`variants.${i}.priceOverride`)} />
-                <FieldError id={`e-variants.${i}.priceOverride`} message={err(`variants.${i}.priceOverride`)} />
-              </label>
-            )}
-            <label className={labelClass}>
-              <span>Cost (GH₵)</span>
-              <input value={v.cost} onChange={(e) => setVariant(i, "cost", e.target.value)} inputMode="decimal" placeholder="What you pay" className={inputClass} {...aria(`variants.${i}.cost`)} />
-              <FieldError id={`e-variants.${i}.cost`} message={err(`variants.${i}.cost`)} />
-            </label>
-            <label className={labelClass}>
-              <span>Alert when down to</span>
-              <input value={String(v.reorderLevel)} onChange={(e) => setVariant(i, "reorderLevel", e.target.value)} inputMode="numeric" className={inputClass} {...aria(`variants.${i}.reorderLevel`)} />
-              <FieldError id={`e-variants.${i}.reorderLevel`} message={err(`variants.${i}.reorderLevel`)} />
-            </label>
-          </div>
-        ))}
-        <FieldError id="e-variants" message={err("variants")} />
+      <fieldset className="m-0 grid gap-3 border-0 p-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <legend className="mb-2 text-[15px] font-bold">Colours (optional)</legend>
+        <label className={labelClass}>
+          <span>Customers pick a</span>
+          <input
+            value={form.choiceName}
+            onChange={(e) => set("choiceName", e.target.value)}
+            maxLength={40}
+            placeholder="Colour"
+            className={inputClass}
+            {...aria("choiceName")}
+          />
+          <FieldError id="e-choiceName" message={err("choiceName")} />
+        </label>
+        <label className={labelClass}>
+          <span>Choices, separated by commas</span>
+          <input
+            value={form.choices}
+            onChange={(e) => set("choices", e.target.value)}
+            placeholder="Black, Red, Grey"
+            className={inputClass}
+            {...aria("choices")}
+          />
+          <FieldError id="e-choices" message={err("choices")} />
+        </label>
+        <p className="m-0 text-xs text-pos-muted sm:col-span-2">
+          Stock is one number for the product: colours are not counted separately. The till asks which colour was sold.
+        </p>
+      </fieldset>
+
+      <fieldset className="m-0 grid gap-3 border-0 p-0 sm:grid-cols-2 lg:grid-cols-4">
+        <legend className="mb-2 text-[15px] font-bold">Code, cost and alert</legend>
+        <label className={labelClass}>
+          <span>Code</span>
+          <input value={form.sku} onChange={(e) => set("sku", e.target.value)} maxLength={60} placeholder="RDCM" className={inputClass} {...aria("sku")} />
+          <FieldError id="e-sku" message={err("sku")} />
+        </label>
+        <label className={labelClass}>
+          <span>Barcode</span>
+          <input value={form.barcode} onChange={(e) => set("barcode", e.target.value)} maxLength={64} placeholder="Scan or type" className={inputClass} {...aria("barcode")} />
+          <FieldError id="e-barcode" message={err("barcode")} />
+        </label>
+        <label className={labelClass}>
+          <span>Cost (GH₵)</span>
+          <input value={form.cost} onChange={(e) => set("cost", e.target.value)} inputMode="decimal" placeholder="What you pay" className={inputClass} {...aria("cost")} />
+          <FieldError id="e-cost" message={err("cost")} />
+        </label>
+        <label className={labelClass}>
+          <span>Alert when down to</span>
+          <input value={String(form.reorderLevel)} onChange={(e) => set("reorderLevel", e.target.value)} inputMode="numeric" className={inputClass} {...aria("reorderLevel")} />
+          <FieldError id="e-reorderLevel" message={err("reorderLevel")} />
+        </label>
       </fieldset>
 
       {result && <Notice tone={result.ok ? "good" : "bad"}>{result.message}</Notice>}

@@ -16,22 +16,19 @@ function constraintError(error: PostgrestError): WriteProductResult {
     return { ok: false, message: "Please fix the highlighted fields.", errors: { slug: "Another product already uses this web address." } };
   }
   if (error.code === "23505" && error.message.includes("sku")) {
-    return { ok: false, message: "Please fix the highlighted fields.", errors: { variants: "A SKU here is already used by another product." } };
+    return { ok: false, message: "Please fix the highlighted fields.", errors: { sku: "Another product already uses this SKU." } };
   }
-  if (error.code === "23505" && error.message.includes("unique_options")) {
-    return { ok: false, message: "Please fix the highlighted fields.", errors: { variants: "Two options have the same values." } };
-  }
-  if (error.code === "23503") {
-    return { ok: false, message: "An option with stock history can't be removed. Keep it and leave it out of stock instead." };
+  if (error.code === "23514" && error.message.includes("choices")) {
+    return { ok: false, message: "Please fix the highlighted fields.", errors: { choices: "Check the list: each one once, 60 characters at most." } };
   }
   return { ok: false, message: `Could not save: ${error.message}` };
 }
 
 /**
- * Creates (p.id null) or updates a product with its options, stock, categories
+ * Creates (p.id null) or updates a product with its choices, stock, categories
  * and photos. Used by the admin editor (as the signed-in admin, so RLS checks
  * every write) and by the CSV import script (with the secret key).
- * Existing options keep their ids, so past orders stay linked to them.
+ * A product has one stock entry (variant); its colours are only choices.
  */
 export async function writeProduct(supabase: Supabase, p: ProductForm): Promise<WriteProductResult> {
   const row = {
@@ -41,8 +38,8 @@ export async function writeProduct(supabase: Supabase, p: ProductForm): Promise<
     description: p.description,
     price: p.price,
     compare_at_price: p.compareAtPrice,
-    option1_name: p.option1Name,
-    option2_name: p.option2Name,
+    option1_name: p.choices.length > 0 ? p.choiceName : null,
+    choices: p.choices,
     is_active: p.isActive,
     is_featured: p.isFeatured,
   };
@@ -70,38 +67,19 @@ export async function writeProduct(supabase: Supabase, p: ProductForm): Promise<
 }
 
 async function saveChildren(supabase: Supabase, productId: string, p: ProductForm): Promise<WriteProductResult> {
-  // Variants: delete removed ones first (frees their option values), then update, then add.
-  const { data: existing, error: readError } = await supabase
+  // The one stock entry in use (earlier, retired entries stay as history).
+  const { data: current, error: readError } = await supabase
     .from("product_variants")
     .select("id")
-    .eq("product_id", productId);
-  if (readError) return { ok: false, message: `Could not save options: ${readError.message}` };
-  const existingIds = new Set(existing.map((v) => v.id));
-  const kept = p.variants.filter((v) => v.id && existingIds.has(v.id));
-  const removed = [...existingIds].filter((id) => !kept.some((v) => v.id === id));
-  const added = p.variants.filter((v) => !v.id || !existingIds.has(v.id));
-  const variantRow = (v: ProductForm["variants"][number]) => ({
-    product_id: productId,
-    option1_value: v.option1Value,
-    option2_value: v.option2Value,
-    sku: v.sku,
-    in_stock: v.inStock,
-    stock_qty: v.stockQty,
-    price_override: v.priceOverride,
-  });
-
-  if (removed.length) {
-    const { error } = await supabase.from("product_variants").delete().in("id", removed);
-    if (error) return error.code === "23503" ? constraintError(error) : { ok: false, message: `Could not remove options: ${error.message}` };
-  }
-  for (const v of kept) {
-    const { error } = await supabase.from("product_variants").update(variantRow(v)).eq("id", v.id!);
-    if (error) return constraintError(error);
-  }
-  if (added.length) {
-    const { error } = await supabase.from("product_variants").insert(added.map(variantRow));
-    if (error) return constraintError(error);
-  }
+    .eq("product_id", productId)
+    .eq("retired", false)
+    .maybeSingle();
+  if (readError) return { ok: false, message: `Could not save stock: ${readError.message}` };
+  const variantRow = { sku: p.sku, in_stock: p.inStock, stock_qty: p.stockQty, price_override: null };
+  const { error: variantError } = current
+    ? await supabase.from("product_variants").update(variantRow).eq("id", current.id)
+    : await supabase.from("product_variants").insert({ ...variantRow, product_id: productId });
+  if (variantError) return constraintError(variantError);
 
   // Categories and photos: replace the lists.
   const links = await supabase.from("product_categories").delete().eq("product_id", productId);

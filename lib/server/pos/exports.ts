@@ -15,7 +15,7 @@ import {
   type RecordFilter,
   type RecordPeriod,
 } from "@/lib/pos/records";
-import { STOCK_FILTER_LABELS, STOCK_FILTERS, STOCK_PILLS, variantName, type StockFilter } from "@/lib/pos/stock";
+import { STOCK_FILTER_LABELS, STOCK_FILTERS, STOCK_PILLS, type StockFilter } from "@/lib/pos/stock";
 import type { XlsxCell } from "@/lib/pos/xlsx";
 import { requirePosUser } from "./auth";
 import { listRecords, type RecordRow } from "./records";
@@ -105,7 +105,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
     let value = 0;
     const cells = rows.map((r) => {
       const row: XlsxCell[] = [
-        variantName(r.productName, r.optionLabel),
+        r.productName,
         r.sku,
         r.barcode,
         r.categoryName ?? r.topCategoryName,

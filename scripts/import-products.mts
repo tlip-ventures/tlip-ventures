@@ -65,14 +65,13 @@ const slugs = products.map((p) => p.slug);
 for (let i = 0; i < slugs.length; i += 100) {
   const { data, error } = await supabase
     .from("products")
-    .select("id, slug, product_variants(id, option1_value, option2_value), product_categories(category_id), product_images(url, public_id, alt, sort_order)")
+    .select("id, slug, product_categories(category_id), product_images(url, public_id, alt, sort_order)")
     .in("slug", slugs.slice(i, i + 100))
     .order("sort_order", { referencedTable: "product_images" });
   if (error) throw new Error(`Could not read existing products: ${error.message}`);
   for (const p of data) {
     existing.set(p.slug, {
       id: p.id,
-      variants: p.product_variants,
       categoryIds: p.product_categories.map((c) => c.category_id),
       images: p.product_images.map((img) => ({ url: img.url, publicId: img.public_id ?? "", alt: img.alt })),
     });
@@ -120,8 +119,8 @@ for (const product of products) {
 if (errors.length) fail(errors);
 
 const created = checked.filter((c) => c.form.id === null).length;
-const options = checked.reduce((n, c) => n + c.form.variants.length, 0);
-console.log(`\n${basename(csvPath)}: ${checked.length} products (${created} new, ${checked.length - created} updated), ${options} options, ${uploads.length} photos to upload.`);
+const withChoices = checked.filter((c) => c.form.choices.length > 0).length;
+console.log(`\n${basename(csvPath)}: ${checked.length} products (${created} new, ${checked.length - created} updated), ${withChoices} with colours or designs, ${uploads.length} photos to upload.`);
 
 if (uploads.length) {
   const missing = ["NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"].filter((n) => !process.env[n]);

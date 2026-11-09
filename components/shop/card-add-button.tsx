@@ -29,8 +29,8 @@ const fullClass =
   "mt-2.5 hidden min-h-10 cursor-pointer items-center justify-center rounded-lg bg-brand-green px-3 text-[13px] font-bold text-white no-underline hover:bg-brand-green-dark hover:text-white md:flex md:[@media(hover:hover)]:opacity-0 md:group-hover/card:opacity-100 md:group-focus-within/card:opacity-100 motion-safe:transition-opacity";
 
 /**
- * Add to cart from a product card. A product with one variant is added straight
- * away; one with options sends the customer to its page to choose.
+ * Add to cart from a product card. A product with nothing to pick is added
+ * straight away; one with colours (or designs) sends the customer to its page to choose.
  * Out-of-stock products get no button (the card says "Out of stock").
  */
 export function CardAddButton({ action, product, look }: Props) {
@@ -65,8 +65,8 @@ export function CardAddButton({ action, product, look }: Props) {
 
   function handleAdd() {
     if (action.kind !== "add") return;
-    add({ ...product, variantId: action.variantId, optionValues: action.optionValues, unitPrice: action.unitPrice });
-    showAdded(action.optionValues ? `${product.productName} (${action.optionValues})` : product.productName);
+    add({ ...product, variantId: action.variantId, optionValues: null, unitPrice: action.unitPrice });
+    showAdded(product.productName);
   }
 
   if (look === "round") {

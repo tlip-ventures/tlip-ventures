@@ -11,6 +11,7 @@ import { useBasket, useBasketHydrated } from "@/lib/pos/basket-store";
 import { tileClass, tileCode } from "@/lib/pos/stock";
 import type { SellTile } from "@/lib/server/pos/sell";
 import { SearchIcon } from "../icons";
+import { buttonClass } from "../ui";
 
 const STOCK_TONE = { out: "text-pos-muted", low: "text-pos-rust", ok: "text-pos-green-ink" } as const;
 
@@ -41,6 +42,9 @@ export function ProductPanel({
   const [searching, startSearch] = useTransition();
   const input = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const picker = useRef<HTMLDialogElement>(null);
+  // A product with colours waiting for the cashier to say which one was sold.
+  const [picking, setPicking] = useState<SellTile | null>(null);
 
   const go = (q: string, cat: string | null) => {
     const params = new URLSearchParams();
@@ -54,8 +58,27 @@ export function ProductPanel({
     if (timer.current) clearTimeout(timer.current);
   }, []);
 
-  const addTile = (tile: SellTile) => {
-    add({ variantId: tile.variantId, name: tile.name, sku: tile.sku, unitPrice: tile.price, maxQty: tile.onHand });
+  const addLine = (tile: SellTile, choice: string | null) => {
+    add({ variantId: tile.variantId, name: tile.name, choice, sku: tile.sku, unitPrice: tile.price, maxQty: tile.onHand });
+  };
+
+  /** Adds it, or first asks which colour when the product has colours. True when added straight away. */
+  const addTile = (tile: SellTile): boolean => {
+    if (tile.choices.length === 0) {
+      addLine(tile, null);
+      return true;
+    }
+    setPicking(tile);
+    picker.current?.showModal();
+    return false;
+  };
+
+  const pick = (choice: string | null) => {
+    if (picking) {
+      addLine(picking, choice);
+      setStatus(`Added ${choice ? `${picking.name} (${choice})` : picking.name}.`);
+    }
+    picker.current?.close();
   };
 
   const onType = (value: string) => {
@@ -78,8 +101,7 @@ export function ProductPanel({
     const inBasket = basketQty(useBasket.getState().lines, tile.variantId);
     if (!tileStock(tile.onHand, inBasket).canAdd) {
       setStatus(tile.onHand <= 0 ? `${tile.name} is out of stock.` : `All ${tile.onHand} of ${tile.name} are in the basket.`);
-    } else {
-      addTile(tile);
+    } else if (addTile(tile)) {
       setStatus(`Added ${tile.name}.`);
     }
     setText("");
@@ -177,7 +199,11 @@ export function ProductPanel({
                 type="button"
                 onClick={() => addTile(tile)}
                 disabled={!stock.canAdd}
-                aria-label={out ? `${tile.name}, out of stock` : `Add ${tile.name}, ${formatPesewas(tile.price)}`}
+                aria-label={
+                  out
+                    ? `${tile.name}, out of stock`
+                    : `Add ${tile.name}, ${formatPesewas(tile.price)}${tile.choices.length ? `, choose the ${(tile.choiceName ?? "colour").toLowerCase()}` : ""}`
+                }
                 className={`flex flex-col gap-2 rounded-lg border border-pos-card-line bg-white p-2.5 text-left text-pos-ink transition-colors enabled:hover:border-pos-green ${
                   out ? "cursor-not-allowed opacity-60" : stock.canAdd ? "cursor-pointer" : "cursor-not-allowed"
                 }`}
@@ -207,6 +233,40 @@ export function ProductPanel({
           })}
         </div>
       )}
+      <dialog
+        ref={picker}
+        onClose={() => {
+          setPicking(null);
+          input.current?.focus();
+        }}
+        aria-labelledby="pick-title"
+        className="m-auto w-[min(420px,calc(100vw-32px))] rounded-[10px] border border-pos-card-line bg-white p-0 text-left text-pos-ink shadow-[0_24px_48px_rgba(17,17,17,0.12)] backdrop:bg-pos-ink/40"
+      >
+        {picking && (
+          <div className="flex flex-col gap-4 p-5">
+            <h2 id="pick-title" className="m-0 text-lg font-bold leading-6">
+              {picking.name}: which {(picking.choiceName ?? "colour").toLowerCase()}?
+            </h2>
+            <p className="m-0 text-[13px] text-pos-muted">It goes on the receipt. Stock is counted for the product as a whole.</p>
+            <div className="flex flex-wrap gap-2">
+              {picking.choices.map((c) => (
+                <button key={c} type="button" onClick={() => pick(c)} className={buttonClass("green")}>
+                  {c}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" onClick={() => pick(null)} className={buttonClass("quiet")}>
+                Add without a {(picking.choiceName ?? "colour").toLowerCase()}
+              </button>
+              <button type="button" onClick={() => picker.current?.close()} className={buttonClass("quiet")}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </dialog>
+
       {total > tiles.length && (
         <p className="m-0 text-[13px] text-pos-muted">
           Showing {tiles.length} of {total.toLocaleString("en-US")}. Search or pick a category to find the rest.

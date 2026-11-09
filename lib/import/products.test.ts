@@ -3,13 +3,17 @@ import { parseCsv, toCsv } from "./csv";
 import { groupProducts, productsToRows, readImportRows, validateImportProduct, type ExportProduct } from "./products";
 
 const CAT = "0b6f8f1e-6a7f-4f7e-9a51-6f3e2a1c9d01";
-const V1 = "5c2d7a90-1b3e-4c8f-a2d6-9e0f1a2b3c4d";
 const P1 = "9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d";
 
-const csv = `Name,Slug,Price,Compare at price,Categories,Option1 name,Option1 value,Variant price,In stock,Stock qty,Images
-Blender 1.5L,blender-1-5l,450,,Blenders,Colour,Black,,yes,4,https://res.cloudinary.com/t/image/upload/a.jpg | https://res.cloudinary.com/t/image/upload/b.jpg
-,blender-1-5l,,,,,White,470,no,,
-Mop & Bucket Set,,140,160,cleaning-items-tools,,,,,,
+const csv = `Name,Slug,Price,Compare at price,Categories,Choice name,Choices,In stock,Stock qty,Images
+Blender 1.5L,blender-1-5l,450,,Blenders,Colour,Black|White,yes,4,https://res.cloudinary.com/t/image/upload/a.jpg | https://res.cloudinary.com/t/image/upload/b.jpg
+Mop & Bucket Set,,140,160,cleaning-items-tools,,,,,
+`;
+
+// The older format: one row per colour.
+const legacyCsv = `name,slug,price,option1_name,option1_value,in_stock,stock_qty
+Room Door Mat,room-door-mat,35,Colour,Beige,no,2
+,room-door-mat,,,Taupe,yes,13
 `;
 
 const load = (text: string) => {
@@ -19,25 +23,44 @@ const load = (text: string) => {
 };
 
 describe("readImportRows and groupProducts", () => {
-  it("groups option rows under their product", () => {
+  it("reads one row per product, with colours as choices", () => {
     const { products, errors } = load(csv);
     expect(errors).toEqual([]);
     expect(products.map((p) => [p.slug, p.lines])).toEqual([
-      ["blender-1-5l", [2, 3]],
-      ["mop-and-bucket-set", [4]],
+      ["blender-1-5l", [2]],
+      ["mop-and-bucket-set", [3]],
     ]);
     const [blender, mop] = products;
-    expect(blender.form).toMatchObject({ name: "Blender 1.5L", price: "450", option1Name: "Colour", isActive: true, isFeatured: false });
-    expect(blender.form.variants.map((v) => [v.option1Value, v.priceOverride, v.inStock, v.stockQty])).toEqual([
-      ["Black", "", true, "4"],
-      ["White", "470", false, ""],
-    ]);
+    expect(blender.form).toMatchObject({
+      name: "Blender 1.5L",
+      price: "450",
+      choiceName: "Colour",
+      choices: "Black|White",
+      inStock: true,
+      stockQty: "4",
+      isActive: true,
+      isFeatured: false,
+    });
     expect(blender.categorySlugs).toEqual(["blenders"]);
     expect(blender.imageSources).toEqual([
       "https://res.cloudinary.com/t/image/upload/a.jpg",
       "https://res.cloudinary.com/t/image/upload/b.jpg",
     ]);
     expect(mop.imageSources).toBeNull();
+  });
+
+  it("still reads the older one-row-per-colour format: colours become choices, stock adds up", () => {
+    const { products, errors } = load(legacyCsv);
+    expect(errors).toEqual([]);
+    expect(products).toHaveLength(1);
+    expect(products[0].lines).toEqual([2, 3]);
+    expect(products[0].form).toMatchObject({ choiceName: "Colour", choices: "Beige|Taupe", inStock: true, stockQty: "15" });
+  });
+
+  it("refuses a colour with its own price", () => {
+    expect(load("name,price,option1_name,option1_value,variant_price\nStool,120,Colour,Grey,130\n").errors).toEqual([
+      { line: 2, message: "variant_price: colours can't have their own price. Use a separate product." },
+    ]);
   });
 
   it("reports header problems and bad values with line numbers", () => {
@@ -50,7 +73,9 @@ describe("readImportRows and groupProducts", () => {
     expect(load("name,price,in_stock\nKettle,180,maybe\n").errors).toEqual([
       { line: 2, message: "in_stock must be yes or no, not “maybe”." },
     ]);
-    expect(load("name,price\nKettle,180\nKettle,190\n").errors[0]).toMatchObject({ line: 3 });
+    expect(load("name,price\nKettle,180\nKettle,190\n").errors).toEqual([
+      { line: 3, message: "“Kettle” is listed twice. Use one row per product." },
+    ]);
     expect(load("name,price\n,180\n").errors[0]).toEqual({ line: 2, message: "Each row needs a slug or a name." });
   });
 });
@@ -64,37 +89,34 @@ describe("validateImportProduct", () => {
       existing: null,
     });
     expect(errors).toEqual([]);
-    expect(form).toMatchObject({ id: null, price: 45000, categoryIds: [CAT], variants: [{ priceOverride: null, stockQty: 4 }, { priceOverride: 47000 }] });
+    expect(form).toMatchObject({ id: null, price: 45000, categoryIds: [CAT], choices: ["Black", "White"], stockQty: 4 });
   });
 
-  it("keeps ids, categories and photos of an existing product", () => {
+  it("keeps the id, categories and photos of an existing product", () => {
     const [blender] = load(csv).products;
     const existing = {
       id: P1,
-      variants: [{ id: V1, option1_value: "black", option2_value: null }],
       categoryIds: [CAT],
       images: [{ url: "https://res.cloudinary.com/t/image/upload/old.jpg", publicId: "old", alt: "Old" }],
     };
     const { form } = validateImportProduct(blender, { categoryIds: null, images: null, existing });
     expect(form?.id).toBe(P1);
-    expect(form?.variants.map((v) => v.id)).toEqual([V1, null]);
     expect(form?.categoryIds).toEqual([CAT]);
     expect(form?.images[0].url).toContain("old.jpg");
   });
 
-  it("points errors at the right spreadsheet line and column", () => {
-    const { products } = load("name,price,option1_name,option1_value,variant_price\nStool,abc,Colour,Grey,\nStool,,,,12x\n");
+  it("points errors at the spreadsheet line and column", () => {
+    const { products } = load("name,price,choice_name,choices,stock_qty\nStool,abc,Colour,,x\n");
     const { errors } = validateImportProduct(products[0], { categoryIds: [], images: [], existing: null });
     expect(errors).toEqual(
       expect.arrayContaining([
         { line: 2, message: "price: Enter a price like 450 or 1250.50." },
-        expect.objectContaining({ line: 3, message: expect.stringMatching(/^variant_price: /) }),
+        expect.objectContaining({ line: 2, message: expect.stringMatching(/^stock_qty: /) }),
       ]),
     );
-    // Missing option values are checked once the prices are valid.
-    const fixed = load("name,price,option1_name,option1_value\nStool,120,Colour,Grey\nStool,,,\n").products[0];
+    const fixed = load("name,price,choice_name,choices\nStool,120,Colour,\n").products[0];
     expect(validateImportProduct(fixed, { categoryIds: [], images: [], existing: null }).errors).toEqual([
-      { line: 3, message: "option1_value: Enter the Colour." },
+      { line: 2, message: "choices: List the colours, separated by commas." },
     ]);
   });
 });
@@ -110,14 +132,11 @@ describe("productsToRows", () => {
       compare_at_price: null,
       is_active: true,
       is_featured: false,
-      option1_name: "Size",
-      option2_name: null,
+      option1_name: "Colour",
+      choices: ["Black", "Silver"],
       categorySlugs: ["coal-pots"],
       imageUrls: [],
-      variants: [
-        { option1_value: "Medium", option2_value: null, price_override: null, sku: null, in_stock: true, stock_qty: null },
-        { option1_value: "Large", option2_value: null, price_override: 12000, sku: "CP-L", in_stock: false, stock_qty: 2 },
-      ],
+      stock: { sku: "CP-1", in_stock: false, stock_qty: 2 },
     };
     const { products, errors } = load(toCsv(productsToRows([product])));
     expect(errors).toEqual([]);
@@ -126,11 +145,11 @@ describe("productsToRows", () => {
       slug: "coal-pot",
       description: 'Cast iron, "heavy"',
       price: 9000,
-      option1Name: "Size",
-      variants: [
-        { option1Value: "Medium", priceOverride: null, inStock: true },
-        { option1Value: "Large", priceOverride: 12000, sku: "CP-L", inStock: false, stockQty: 2 },
-      ],
+      choiceName: "Colour",
+      choices: ["Black", "Silver"],
+      sku: "CP-1",
+      inStock: false,
+      stockQty: 2,
     });
   });
 });

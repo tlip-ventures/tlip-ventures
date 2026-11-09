@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardAddAction, discountPercent, optionLabel, priceSummary, variantPrice } from "./product";
+import { cardAddAction, discountPercent, matchChoice, optionLabel, priceSummary, variantPrice } from "./product";
 
 const product = { price: 9000, compare_at_price: null };
 
@@ -79,36 +79,44 @@ describe("discountPercent", () => {
   });
 });
 
+describe("matchChoice", () => {
+  const colours = ["Black", "Pink"];
+
+  it("gives the product's own spelling, ignoring case and spaces", () => {
+    expect(matchChoice(colours, "black")).toBe("Black");
+    expect(matchChoice(colours, "  PINK ")).toBe("Pink");
+  });
+
+  it("refuses a colour the product doesn't have", () => {
+    expect(matchChoice(colours, "Gold")).toBeUndefined();
+  });
+
+  it("needs a pick when there are colours, unless it is optional", () => {
+    expect(matchChoice(colours, null)).toBeUndefined();
+    expect(matchChoice(colours, "")).toBeUndefined();
+    expect(matchChoice(colours, null, { required: false })).toBeNull();
+  });
+
+  it("is null when there is nothing to pick, and refuses a colour then", () => {
+    expect(matchChoice([], null)).toBeNull();
+    expect(matchChoice([], "Black")).toBeUndefined();
+  });
+});
+
 describe("cardAddAction", () => {
-  const variant = (id: string, in_stock: boolean, extra: Partial<{ option1_value: string; price_override: number }> = {}) => ({
-    id,
-    in_stock,
-    price_override: extra.price_override ?? null,
-    option1_value: extra.option1_value ?? null,
-    option2_value: null,
+  const variant = (id: string, in_stock: boolean, price_override: number | null = null) => ({ id, in_stock, price_override });
+
+  it("adds an in-stock product with nothing to pick straight from the card", () => {
+    expect(cardAddAction(product, variant("v1", true), [])).toEqual({ kind: "add", variantId: "v1", unitPrice: 9000 });
+    expect(cardAddAction(product, variant("v1", true, 9500), [])).toEqual({ kind: "add", variantId: "v1", unitPrice: 9500 });
   });
 
-  it("adds a single in-stock variant straight from the card", () => {
-    expect(cardAddAction(product, [variant("v1", true)])).toEqual({
-      kind: "add",
-      variantId: "v1",
-      optionValues: null,
-      unitPrice: 9000,
-    });
-    expect(cardAddAction(product, [variant("v1", true, { option1_value: "Black", price_override: 9500 })])).toEqual({
-      kind: "add",
-      variantId: "v1",
-      optionValues: "Black",
-      unitPrice: 9500,
-    });
+  it("sends products with colours to the product page", () => {
+    expect(cardAddAction(product, variant("v1", true), ["Black", "Pink"])).toEqual({ kind: "choose" });
   });
 
-  it("sends products with several variants to the product page", () => {
-    expect(cardAddAction(product, [variant("v1", true), variant("v2", false)])).toEqual({ kind: "choose" });
-  });
-
-  it("is out of stock when no variant is in stock (or there are none)", () => {
-    expect(cardAddAction(product, [variant("v1", false), variant("v2", false)])).toEqual({ kind: "out_of_stock" });
-    expect(cardAddAction(product, [])).toEqual({ kind: "out_of_stock" });
+  it("is out of stock when its stock entry is (or it has none)", () => {
+    expect(cardAddAction(product, variant("v1", false), ["Black"])).toEqual({ kind: "out_of_stock" });
+    expect(cardAddAction(product, null, [])).toEqual({ kind: "out_of_stock" });
   });
 });

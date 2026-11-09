@@ -20,7 +20,7 @@ describe("checkoutSchema", () => {
       location: "Dansoman, near Sharp Curve",
       notes: null,
       website: "",
-      items: [{ variantId: A, qty: 1 }],
+      items: [{ variantId: A, qty: 1, choice: null }],
     });
   });
 
@@ -48,14 +48,29 @@ describe("checkoutSchema", () => {
       ],
     });
     expect(parsed.items).toEqual([
-      { variantId: A, qty: 99 },
-      { variantId: B, qty: 1 },
+      { variantId: A, qty: 99, choice: null },
+      { variantId: B, qty: 1, choice: null },
+    ]);
+  });
+
+  it("keeps two colours of one product apart, and merges the same colour whatever its case", () => {
+    const parsed = checkoutSchema.parse({
+      ...valid,
+      items: [
+        { variantId: A, qty: 1, choice: "Pink" },
+        { variantId: A, qty: 2, choice: " Blue " },
+        { variantId: A, qty: 3, choice: "pink" },
+      ],
+    });
+    expect(parsed.items).toEqual([
+      { variantId: A, qty: 4, choice: "Pink" },
+      { variantId: A, qty: 2, choice: "Blue" },
     ]);
   });
 
   it("does not accept prices or other extra fields", () => {
     const parsed = checkoutSchema.parse({ ...valid, items: [{ variantId: A, qty: 1, unitPrice: 1 }], total: 1 });
-    expect(parsed.items[0]).toEqual({ variantId: A, qty: 1 });
+    expect(parsed.items[0]).toEqual({ variantId: A, qty: 1, choice: null });
     expect(parsed).not.toHaveProperty("total");
   });
 

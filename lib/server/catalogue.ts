@@ -6,7 +6,7 @@ import type { Category } from "@/lib/categories";
 import type { Tables } from "@/lib/database.types";
 import type { Sort } from "@/lib/listing";
 import { pageRange, PAGE_SIZE } from "@/lib/pagination";
-import { cardAddAction, optionLabel, priceSummary, variantPrice, type CardAddAction, type PriceSummary } from "@/lib/product";
+import { cardAddAction, priceSummary, variantPrice, type CardAddAction, type PriceSummary } from "@/lib/product";
 import { createPublicClient } from "@/lib/supabase/public";
 
 // Storefront reads, as an anonymous visitor (no cookies), so shop pages can be
@@ -27,7 +27,7 @@ export type ProductCardData = {
   brand: string | null;
   image: ProductImage | null;
   pricing: PriceSummary;
-  /** What the card's add button does: add the only variant, or send the customer to pick one. */
+  /** What the card's add button does: add it, or send the customer to pick a colour. */
   addAction: CardAddAction;
 };
 
@@ -74,7 +74,7 @@ export const getCategoryBySlug = cache(async (slug: string): Promise<Category | 
 
 // One cover image per card: the embedded images are ordered and limited below.
 const CARD_SELECT =
-  "id, slug, name, brand, price, compare_at_price, product_images(url, alt, sort_order), product_variants(id, option1_value, option2_value, in_stock, price_override)";
+  "id, slug, name, brand, price, compare_at_price, choices, product_images(url, alt, sort_order), product_variants(id, retired, in_stock, price_override)";
 const CARD_IN_CATEGORY_SELECT = `${CARD_SELECT}, product_categories!inner(category_id)` as const;
 
 type CardRow = {
@@ -84,26 +84,32 @@ type CardRow = {
   brand: string | null;
   price: number;
   compare_at_price: number | null;
+  choices: string[];
   product_images: { url: string; alt: string }[];
   product_variants: {
     id: string;
-    option1_value: string | null;
-    option2_value: string | null;
+    retired: boolean;
     in_stock: boolean;
     price_override: number | null;
   }[];
 };
 
+/** The product's stock entry in use (earlier, retired entries are history only). */
+function inUse<V extends { retired: boolean }>(variants: readonly V[]): V | null {
+  return variants.find((v) => !v.retired) ?? null;
+}
+
 function toCard(row: CardRow): ProductCardData {
   const image = row.product_images[0];
+  const variant = inUse(row.product_variants);
   return {
     id: row.id,
     slug: row.slug,
     name: row.name,
     brand: row.brand,
     image: image ? { url: image.url, alt: image.alt || row.name } : null,
-    pricing: priceSummary(row, row.product_variants),
-    addAction: cardAddAction(row, row.product_variants),
+    pricing: priceSummary(row, variant ? [variant] : []),
+    addAction: cardAddAction(row, variant, row.choices),
   };
 }
 
@@ -239,46 +245,60 @@ export async function getProductCards(ids: readonly string[]): Promise<SavedProd
   });
 }
 
-export type ProductVariant = Pick<
-  Tables<"product_variants">,
-  "id" | "option1_value" | "option2_value" | "sku" | "in_stock" | "price_override"
->;
+export type ProductVariant = Pick<Tables<"product_variants">, "id" | "sku" | "in_stock" | "price_override">;
 
 export type ProductDetail = Pick<
   Tables<"products">,
-  "id" | "slug" | "name" | "brand" | "description" | "price" | "compare_at_price" | "option1_name" | "option2_name"
+  "id" | "slug" | "name" | "brand" | "description" | "price" | "compare_at_price" | "choices"
 > & {
+  /** Heading for the choices, e.g. "Colour"; null when there is nothing to pick. */
+  choiceName: string | null;
   images: ProductImage[];
-  variants: ProductVariant[];
+  /** The one stock entry; null only if the product was saved without one. */
+  variant: ProductVariant | null;
   categoryIds: string[];
   pricing: PriceSummary;
 };
 
-/** One active product with all its images and variants. Cached per request for generateMetadata. */
+/** One active product with all its images and its stock entry. Cached per request for generateMetadata. */
 export const getProductBySlug = cache(async (slug: string): Promise<ProductDetail | null> => {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id, slug, name, brand, description, price, compare_at_price, option1_name, option2_name, product_images(url, alt, sort_order), product_variants(id, option1_value, option2_value, sku, in_stock, price_override), product_categories(category_id)",
+      "id, slug, name, brand, description, price, compare_at_price, option1_name, choices, product_images(url, alt, sort_order), product_variants(id, retired, sku, in_stock, price_override), product_categories(category_id)",
     )
     .eq("slug", slug)
     .eq("is_active", true)
     .order("sort_order", { referencedTable: "product_images" })
-    .order("option1_value", { referencedTable: "product_variants" })
-    .order("option2_value", { referencedTable: "product_variants" })
     .maybeSingle();
   if (error) throw new Error(`Could not load product: ${error.message}`);
   if (!data) return null;
 
-  const { product_images, product_variants, product_categories, ...product } = data;
+  const { product_images, product_variants, product_categories, option1_name, ...product } = data;
+  const found = inUse(product_variants);
+  const variant = found && { id: found.id, sku: found.sku, in_stock: found.in_stock, price_override: found.price_override };
   return {
     ...product,
+    choiceName: product.choices.length > 0 ? option1_name : null,
     images: product_images.map((img) => ({ url: img.url, alt: img.alt || product.name })),
-    variants: product_variants,
+    variant,
     categoryIds: product_categories.map((pc) => pc.category_id),
-    pricing: priceSummary(product, product_variants),
+    pricing: priceSummary(product, variant ? [variant] : []),
   };
+});
+
+/** Where a merged (duplicate) product's old web address now leads: the kept product's slug. */
+export const getProductRedirect = cache(async (slug: string): Promise<string | null> => {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("product_redirects")
+    .select("products!inner(slug, is_active)")
+    .eq("old_slug", slug)
+    .eq("products.is_active", true)
+    .maybeSingle();
+  if (error) throw new Error(`Could not look up the product: ${error.message}`);
+  return data?.products.slug ?? null;
 });
 
 /** A cart line as the database sees it now: current name, price and stock. */
@@ -287,15 +307,17 @@ export type CartVariant = {
   productId: string;
   slug: string;
   productName: string;
-  optionValues: string | null;
   unitPrice: number;
   inStock: boolean;
+  /** The colours (or other choices) the customer can pick; empty when there are none. */
+  choices: string[];
   image: ProductImage | null;
 };
 
 /**
  * Current details for the given variants. Variants whose product is inactive
- * or deleted are left out, so a missing id means "no longer available".
+ * or deleted, and retired ones (a former colour, a merged duplicate), are left
+ * out, so a missing id means "no longer available".
  */
 export async function getCartVariants(variantIds: readonly string[]): Promise<CartVariant[]> {
   if (variantIds.length === 0) return [];
@@ -304,9 +326,10 @@ export async function getCartVariants(variantIds: readonly string[]): Promise<Ca
   const { data, error } = await supabase
     .from("product_variants")
     .select(
-      "id, option1_value, option2_value, in_stock, price_override, products!inner(id, slug, name, price, compare_at_price, is_active, product_images(url, alt, sort_order))",
+      "id, in_stock, price_override, products!inner(id, slug, name, price, compare_at_price, is_active, choices, product_images(url, alt, sort_order))",
     )
     .in("id", variantIds)
+    .eq("retired", false)
     .eq("products.is_active", true)
     .order("sort_order", { referencedTable: "products.product_images" })
     .limit(1, { referencedTable: "products.product_images" });
@@ -320,9 +343,9 @@ export async function getCartVariants(variantIds: readonly string[]): Promise<Ca
       productId: product.id,
       slug: product.slug,
       productName: product.name,
-      optionValues: optionLabel(row),
       unitPrice: variantPrice(product, row),
       inStock: row.in_stock,
+      choices: product.choices,
       image: image ? { url: image.url, alt: image.alt || product.name } : null,
     };
   });

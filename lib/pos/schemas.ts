@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseCedis } from "@/lib/money";
+import { choicesSchema } from "@/lib/admin-product";
 
 // Form and action inputs for the Stock & POS app. The browser sends what was
 // typed; these turn it into database values (pesewas, whole numbers) and
@@ -71,21 +72,10 @@ export const countLineSchema = z.object({
   counted: z.union([z.literal(""), wholeNumber("Whole number, 0 or more.")]).transform((v) => (v === "" ? null : v)),
 });
 
-const variantSchema = z.object({
-  id: z.uuid().nullable(),
-  label: z.string().nullable(),
-  sku: optionalText(60),
-  barcode: z
-    .string()
-    .trim()
-    .refine((v) => v === "" || /^\S{1,64}$/.test(v), "A barcode has no spaces (up to 64 characters).")
-    .transform((v) => v || null),
-  reorderLevel: wholeNumber("Whole number, 0 or more."),
-  priceOverride: optionalCedis("Price like 450 or 1250.50, or leave empty to use the product price."),
-  cost: optionalCedis("Cost like 280 or 12.50, or leave empty."),
-});
-
-/** Add product (id null, one stock entry) or edit a product's stock details. */
+/**
+ * Add product (id null) or edit a product's stock details. One stock entry per
+ * product; colours (or designs) are only choices, typed as a list.
+ */
 export const posProductSchema = z
   .object({
     id: z.uuid().nullable(),
@@ -95,24 +85,24 @@ export const posProductSchema = z
     categoryId: z.uuid().nullable(),
     // Only when adding: how many are on the shelf now.
     startingStock: z.union([z.literal(""), wholeNumber("Whole number, 0 or more.")]).transform((v) => (v === "" ? 0 : v)),
-    variants: z.array(variantSchema).min(1).max(100),
+    /** "Colour" or "Design"; empty means Colour when there are choices. */
+    choiceName: optionalText(40),
+    choices: choicesSchema,
+    sku: optionalText(60),
+    barcode: z
+      .string()
+      .trim()
+      .refine((v) => v === "" || /^\S{1,64}$/.test(v), "A barcode has no spaces (up to 64 characters).")
+      .transform((v) => v || null),
+    reorderLevel: wholeNumber("Whole number, 0 or more."),
+    cost: optionalCedis("Cost like 280 or 12.50, or leave empty."),
   })
   .superRefine((p, ctx) => {
-    if (p.id === null && p.variants.length !== 1) {
-      ctx.addIssue({ code: "custom", path: ["variants"], message: "A new product starts with a single stock entry." });
-    }
-    if (p.onWebsite && p.variants.some((v) => (v.priceOverride ?? p.price) === 0)) {
+    if (p.onWebsite && p.price === 0) {
       ctx.addIssue({ code: "custom", path: ["price"], message: "Enter the price before showing this product on the website." });
     }
-    const codes = p.variants.map((v) => v.sku?.toLowerCase()).filter(Boolean);
-    if (new Set(codes).size !== codes.length) {
-      ctx.addIssue({ code: "custom", path: ["variants"], message: "Each code can only be used once." });
-    }
-    const barcodes = p.variants.map((v) => v.barcode).filter(Boolean);
-    if (new Set(barcodes).size !== barcodes.length) {
-      ctx.addIssue({ code: "custom", path: ["variants"], message: "Each barcode can only be used once." });
-    }
-  });
+  })
+  .transform((p) => ({ ...p, choiceName: p.choices.length > 0 ? (p.choiceName ?? "Colour") : null }));
 
 export type PosProductInput = z.input<typeof posProductSchema>;
 export type PosProduct = z.output<typeof posProductSchema>;
@@ -151,11 +141,23 @@ const deliveryInputSchema = z.object({
   note: z.string().trim().max(300, "At most 300 characters."),
 });
 
+/** A basket line: the item, how many, and the colour picked (checked against the product by the database). */
+const basketItemSchema = z.object({
+  variantId: z.uuid(),
+  qty: z.number().int().min(1).max(999),
+  choice: z
+    .string()
+    .trim()
+    .max(60)
+    .nullish()
+    .transform((v) => v || null),
+});
+
 /** What the till sends to save a sale. Prices are not sent: the database works them out. */
 export const completeSaleSchema = z
   .object({
     items: z
-      .array(z.object({ variantId: z.uuid(), qty: z.number().int().min(1).max(999) }))
+      .array(basketItemSchema)
       .min(1, "The basket is empty.")
       .max(200, "At most 200 lines in one sale."),
     customerId: z.uuid().nullable(),
@@ -179,7 +181,7 @@ export type CompleteSaleInput = z.input<typeof completeSaleSchema>;
 /** "Make invoice" at the till: the basket, priced by the database, nothing taken off the shelf. */
 export const createInvoiceSchema = z.object({
   items: z
-    .array(z.object({ variantId: z.uuid(), qty: z.number().int().min(1).max(999) }))
+    .array(basketItemSchema)
     .min(1, "The basket is empty.")
     .max(200, "At most 200 lines in one invoice."),
   customerId: z.uuid().nullable(),

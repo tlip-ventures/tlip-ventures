@@ -10,7 +10,12 @@ const product = (changes: Record<string, unknown> = {}) => ({
   onWebsite: false,
   categoryId: null,
   startingStock: "",
-  variants: [{ id: null, label: null, sku: "BLD15", barcode: "", reorderLevel: "2", priceOverride: "", cost: "310.50" }],
+  choiceName: "",
+  choices: "",
+  sku: "BLD15",
+  barcode: "",
+  reorderLevel: "2",
+  cost: "310.50",
   ...changes,
 });
 
@@ -40,10 +45,11 @@ describe("posProductSchema", () => {
   it("turns cedis into pesewas", () => {
     const p = posProductSchema.parse(product());
     expect(p.price).toBe(45000);
-    expect(p.variants[0].cost).toBe(31050);
-    expect(p.variants[0].reorderLevel).toBe(2);
-    expect(p.variants[0].barcode).toBeNull();
+    expect(p.cost).toBe(31050);
+    expect(p.reorderLevel).toBe(2);
+    expect(p.barcode).toBeNull();
     expect(p.startingStock).toBe(0);
+    expect(p).toMatchObject({ choiceName: null, choices: [] });
   });
 
   it("won't show a free product on the website", () => {
@@ -52,17 +58,14 @@ describe("posProductSchema", () => {
     if (!result.success) expect(fieldErrors(result.error).price).toMatch(/price/);
   });
 
-  it("refuses repeated codes and barcodes", () => {
-    const v = { id, label: "Black", sku: "B1", barcode: "600123", reorderLevel: "2", priceOverride: "", cost: "" };
-    const result = posProductSchema.safeParse(product({ id, variants: [v, { ...v, id: null, sku: "b1", barcode: "600124" }] }));
-    expect(result.success).toBe(false);
-    if (!result.success) expect(fieldErrors(result.error).variants).toMatch(/code/);
+  it("keeps colours as choices, under Colour unless named", () => {
+    expect(posProductSchema.parse(product({ choices: "Black, Pink, black" }))).toMatchObject({ choiceName: "Colour", choices: ["Black", "Pink"] });
+    expect(posProductSchema.parse(product({ choiceName: "Design", choices: "Delicious" }))).toMatchObject({ choiceName: "Design" });
+    expect(posProductSchema.parse(product({ choiceName: "Design", choices: "" }))).toMatchObject({ choiceName: null, choices: [] });
   });
 
   it("refuses barcodes with spaces", () => {
-    const result = posProductSchema.safeParse(
-      product({ variants: [{ id: null, label: null, sku: "", barcode: "600 123", reorderLevel: "2", priceOverride: "", cost: "" }] }),
-    );
+    const result = posProductSchema.safeParse(product({ barcode: "600 123" }));
     expect(result.success).toBe(false);
   });
 });

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { placeOrder, type PlaceOrderResult } from "@/app/(shop)/cart/actions";
-import { cartTotal, type CartLine, type CurrentVariant } from "@/lib/cart";
+import { cartTotal, lineKey, type CartLine, type CurrentVariant } from "@/lib/cart";
 import { useCart, useCartHydrated } from "@/lib/cart-store";
 import { MAX_LINE_QTY } from "@/lib/checkout";
 import { formatPesewas, lineTotal } from "@/lib/money";
@@ -19,7 +19,7 @@ export function CartView() {
   const [checked, setChecked] = useState(false);
 
   // Once per visit: replace the saved names, prices and stock with current ones.
-  const ids = lines.map((l) => l.variantId).join(",");
+  const ids = [...new Set(lines.map((l) => l.variantId))].join(",");
   useEffect(() => {
     if (!hydrated || !ids || checked) return;
     let cancelled = false;
@@ -67,7 +67,7 @@ export function CartView() {
         </h2>
         <ul className="divide-y divide-neutral-200 border-y border-neutral-200">
           {lines.map((line) => (
-            <CartLineRow key={line.variantId} line={line} />
+            <CartLineRow key={lineKey(line)} line={line} />
           ))}
         </ul>
         <p className="flex items-baseline justify-between text-lg">
@@ -124,7 +124,7 @@ function CartLineRow({ line }: { line: CartLine }) {
             <button
               type="button"
               className={stepper}
-              onClick={() => setQty(line.variantId, line.qty - 1)}
+              onClick={() => setQty(lineKey(line), line.qty - 1)}
               disabled={line.qty <= 1}
               aria-label="One fewer"
             >
@@ -136,7 +136,7 @@ function CartLineRow({ line }: { line: CartLine }) {
             <button
               type="button"
               className={stepper}
-              onClick={() => setQty(line.variantId, line.qty + 1)}
+              onClick={() => setQty(lineKey(line), line.qty + 1)}
               disabled={line.qty >= MAX_LINE_QTY || line.problem !== null}
               aria-label="One more"
             >
@@ -145,7 +145,7 @@ function CartLineRow({ line }: { line: CartLine }) {
           </div>
           <button
             type="button"
-            onClick={() => remove(line.variantId)}
+            onClick={() => remove(lineKey(line))}
             className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-brand-orange-dark underline underline-offset-2"
           >
             Remove<span className="sr-only"> {line.productName}</span>
@@ -173,7 +173,7 @@ function CheckoutForm({ blocked }: { blocked: boolean }) {
       try {
         const result = await placeOrder({
           ...form,
-          items: lines.map((l) => ({ variantId: l.variantId, qty: l.qty })),
+          items: lines.map((l) => ({ variantId: l.variantId, qty: l.qty, choice: l.optionValues })),
         });
         if (result.ok) {
           orderPlaced(result.order);
