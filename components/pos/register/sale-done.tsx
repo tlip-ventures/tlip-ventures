@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas } from "@/lib/money";
 import { ChatIcon, CheckIcon } from "../icons";
@@ -19,6 +20,15 @@ export function SaleDone({ sale, onNext }: { sale: CompletedSale & { method: str
           {sale.code} · {formatPesewas(sale.total)} · {sale.method}. Stock for {sale.items} {sale.items === 1 ? "item" : "items"} has been
           taken off the shelf count.
         </p>
+        {sale.delivery && (
+          <p className="m-0 text-sm leading-[22px] text-pos-soft">
+            It&apos;s on the{" "}
+            <Link href="/pos/deliveries" className="font-bold">
+              Deliveries
+            </Link>{" "}
+            list, ready to send out.
+          </p>
+        )}
         {sale.change !== null && sale.change > 0 && (
           <p className="m-0 text-sm font-bold text-pos-green-ink">Change to give: {formatPesewas(sale.change)}</p>
         )}

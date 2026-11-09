@@ -4,11 +4,13 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { BackLink, Facts, MoneySummary, PaymentsCard } from "@/components/pos/detail";
 import { ChatIcon } from "@/components/pos/icons";
+import { BackToListButton, DeliveredButton, SendOutButton } from "@/components/pos/delivery-actions";
 import { CancelWebsiteOrderButton, MarkOrderPaidButton, PaymentButton, VoidSaleButton } from "@/components/pos/record-actions";
 import { buttonClass, ButtonLink, Card, Notice, PageHeader, PageShell, Pill, ScrollTable, TableHead, Th } from "@/components/pos/ui";
 import { formatPesewas } from "@/lib/money";
 import { formatDay, formatDayTime, phoneText } from "@/lib/pos/format";
 import { buildReceiptMessage, lineName, receiptWhatsappUrl } from "@/lib/pos/receipt";
+import { DELIVERY_PILLS, deliveryProgress } from "@/lib/pos/deliveries";
 import { paymentPill, saleStatusPill } from "@/lib/pos/records";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { getSaleDetail } from "@/lib/server/pos/records";
@@ -27,7 +29,7 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
   const pay = paymentPill(sale.paid, sale.owed, sale.cancelled);
   // A basket sent from the website that hasn't been paid yet.
   const waiting = sale.source === "website" && (sale.status === "ordered" || sale.status === "pending");
-  const canReturn = sale.status === "completed" && sale.lines.some((l) => l.qty > l.returned);
+  const canReturn = sale.status === "completed" && sale.lines.some((l) => l.kind === "item" && l.qty > l.returned);
   const whatsapp = receiptWhatsappUrl(
     receipt.customer?.phone ?? null,
     buildReceiptMessage({
@@ -41,6 +43,7 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
       payments: receipt.payments,
       owed: receipt.owed,
       footer: receipt.shop.footer,
+        delivery: receipt.delivery,
     }),
   );
 
@@ -127,17 +130,18 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
                 <td className="px-3 py-3 text-right tabular-nums">{l.qty}</td>
                 <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{formatPesewas(l.unit_price)}</td>
                 <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{formatPesewas(l.line_total)}</td>
-                <td className="py-3 pl-3 pr-[18px] text-pos-soft">{l.returned ? `${l.returned} returned` : "—"}</td>
+                <td className="py-3 pl-3 pr-[18px] text-pos-soft">{l.kind === "item" && l.returned ? `${l.returned} returned` : "—"}</td>
               </tr>
             ))}
           </tbody>
         </ScrollTable>
         <MoneySummary
           rows={[
-            ...(sale.discount > 0
+            ...(sale.discount > 0 || sale.delivery
               ? ([
-                  ["Subtotal", sale.subtotal],
-                  ["Discount", -sale.discount],
+                  ["Items", sale.subtotal - sale.deliveryFee],
+                  ...(sale.discount > 0 ? [["Discount", -sale.discount]] : []),
+                  ...(sale.delivery ? [["Delivery", sale.deliveryFee]] : []),
                 ] as [string, number][])
               : []),
             ["Total", sale.total, "bold"],
@@ -147,6 +151,37 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
         />
         {sale.note && <p className="m-0 border-t border-pos-paper-deep px-5 py-3 text-sm text-pos-soft">Note: {sale.note}</p>}
       </Card>
+
+      {sale.delivery && (
+        <Card label="Delivery">
+          <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
+            <div className="flex min-w-0 flex-col gap-1">
+              <h2 className="m-0 flex flex-wrap items-center gap-2 text-lg font-bold leading-6">
+                Delivery
+                <Pill className={DELIVERY_PILLS[sale.delivery.status].className}>{DELIVERY_PILLS[sale.delivery.status].label}</Pill>
+              </h2>
+              <span className="text-[15px] font-semibold">{sale.delivery.address}</span>
+              <span className="text-[13px] text-pos-soft">
+                {[sale.delivery.contact_name, phoneText(sale.delivery.contact_phone)].filter(Boolean).join(" · ") || "No phone number"}
+                {sale.delivery.note ? ` · ${sale.delivery.note}` : ""}
+              </span>
+              {deliveryProgress(sale.delivery.status, sale.delivery.rider) && (
+                <span className="text-[13px] font-semibold text-pos-green-ink">
+                  {deliveryProgress(sale.delivery.status, sale.delivery.rider)}
+                  {sale.delivery.delivered_at ? `, ${formatDayTime(sale.delivery.delivered_at)}` : ""}
+                </span>
+              )}
+            </div>
+            {sale.status === "completed" && (
+              <span className="flex flex-wrap gap-1.5">
+                {sale.delivery.status === "to_deliver" && <SendOutButton saleId={sale.id} code={sale.code} rider={sale.delivery.rider} />}
+                {sale.delivery.status === "out" && <DeliveredButton saleId={sale.id} code={sale.code} owed={sale.owed} />}
+                {sale.delivery.status !== "to_deliver" && <BackToListButton saleId={sale.id} code={sale.code} />}
+              </span>
+            )}
+          </div>
+        </Card>
+      )}
 
       <PaymentsCard
         title="Payments"

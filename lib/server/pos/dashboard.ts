@@ -3,8 +3,10 @@ import { periodRange, type Period } from "@/lib/pos/periods";
 import { requirePosUser } from "./auth";
 
 export type PeriodFigures = {
-  bars: { label: string; short: string; sales: number; purchases: number; profit: number | null; count: number }[];
+  bars: { label: string; short: string; sales: number; delivery: number; purchases: number; profit: number | null; count: number }[];
+  /** Items sold (after discounts); delivery fees are apart. */
   sales: number;
+  delivery: number;
   purchases: number;
   count: number;
   /** Owner only. */
@@ -17,7 +19,7 @@ export type PeriodFigures = {
 };
 
 type RawFigures = {
-  periods: { sales: number; count: number; purchases: number; profit: number | null }[];
+  periods: { sales: number; delivery: number; count: number; purchases: number; profit: number | null }[];
   prev_sales: number;
   missing_costs: number | null;
 };
@@ -39,6 +41,7 @@ export async function getPeriodFigures(period: Period, now = new Date()): Promis
   return {
     bars,
     sales: sum((b) => b.sales),
+    delivery: sum((b) => b.delivery),
     purchases: sum((b) => b.purchases),
     count: sum((b) => b.count),
     profit: owner ? sum((b) => b.profit ?? 0) : null,
@@ -132,7 +135,7 @@ export async function getTopProducts(from: Date, to: Date, limit = 10): Promise<
   }));
 }
 
-export type MonthFigures = { key: string; label: string; sales: number; count: number; purchases: number; profit: number | null };
+export type MonthFigures = { key: string; label: string; sales: number; delivery: number; count: number; purchases: number; profit: number | null };
 
 /** The last twelve months, newest first, for Reports. */
 export async function getMonthlyFigures(now = new Date()): Promise<{ months: MonthFigures[]; missingCosts: number | null }> {

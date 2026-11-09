@@ -23,14 +23,15 @@ export default async function NewReturnPage({ searchParams }: PageProps<"/pos/re
   if (saleId.success && !detail) problem = "That sale wasn't found.";
   if (detail) {
     if (detail.status !== "completed") problem = `${detail.code} isn't a completed sale, so nothing can be returned from it.`;
-    else if (!detail.lines.some((l) => l.qty > l.returned)) problem = `Everything on ${detail.code} has already been returned.`;
+    else if (!detail.lines.some((l) => l.kind === "item" && l.qty > l.returned)) problem = `Everything on ${detail.code} has already been returned.`;
     else
       sale = {
         id: detail.id,
         code: detail.code,
         customerName: detail.customer?.name ?? null,
         owed: detail.owed,
-        lines: detail.lines.map((l) => ({
+        // The delivery fee can't come back; cancel the sale for that.
+        lines: detail.lines.filter((l) => l.kind === "item").map((l) => ({
           saleItemId: l.id,
           name: lineName(l.product_name, l.option_values),
           unitPrice: l.unit_price,

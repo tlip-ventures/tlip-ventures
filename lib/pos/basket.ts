@@ -1,4 +1,4 @@
-import { lineTotal, sumPesewas, type Pesewas } from "@/lib/money";
+import { lineTotal, parseCedis, sumPesewas, type Pesewas } from "@/lib/money";
 
 // The till's basket. Prices here are for display only: the database works
 // every price out again when the sale is saved (pos_complete_sale).
@@ -46,18 +46,34 @@ export function basketQty(lines: readonly BasketLine[], variantId: string): numb
   return lines.find((l) => l.variantId === variantId)?.qty ?? 0;
 }
 
-export type BasketTotals = { items: number; subtotal: Pesewas; discount: Pesewas; total: Pesewas };
+export type BasketTotals = { items: number; subtotal: Pesewas; discount: Pesewas; delivery: Pesewas; total: Pesewas };
 
-/** Item count and money. A discount larger than the sale is capped at the sale. */
-export function basketTotals(lines: readonly BasketLine[], discount: Pesewas = 0): BasketTotals {
+/**
+ * Item count and money. A discount larger than the items is capped at the
+ * items; a delivery fee comes on top and is never discounted.
+ */
+export function basketTotals(lines: readonly BasketLine[], discount: Pesewas = 0, deliveryFee: Pesewas = 0): BasketTotals {
   const subtotal = sumPesewas(lines.map((l) => lineTotal(l.unitPrice, l.qty)));
   const capped = Math.max(0, Math.min(discount, subtotal));
+  const delivery = Math.max(0, deliveryFee);
   return {
     items: lines.reduce((n, l) => n + l.qty, 0),
     subtotal,
     discount: capped,
-    total: subtotal - capped,
+    delivery,
+    total: subtotal - capped + delivery,
   };
+}
+
+/** How the customer gets the goods: takes them from the shop, or the shop delivers. */
+export const FULFILMENTS = ["collect", "delivery"] as const;
+export type Fulfilment = (typeof FULFILMENTS)[number];
+export const FULFILMENT_LABELS: Record<Fulfilment, string> = { collect: "Collect in shop", delivery: "Delivery" };
+
+/** The delivery fee as typed at the till, in pesewas: 0 when collecting or left empty, null when it isn't an amount. */
+export function draftDeliveryFee(fulfilment: Fulfilment, feeText: string): Pesewas | null {
+  if (fulfilment !== "delivery" || feeText.trim() === "") return 0;
+  return parseCedis(feeText);
 }
 
 /** What a product tile says about the shelf, as in the design. */

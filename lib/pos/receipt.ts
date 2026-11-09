@@ -17,6 +17,8 @@ export type Receipt = {
   /** total minus what has been paid. */
   owed: Pesewas;
   footer: string | null;
+  /** A delivery: its fee (already in total, not in lines) and where it goes. */
+  delivery?: { fee: Pesewas; address: string } | null;
 };
 
 const METHOD_NAMES = { cash: "cash", momo: "Mobile Money", bank: "bank transfer" } as const;
@@ -42,7 +44,8 @@ export function paymentSummary(payments: readonly ReceiptPayment[], owed: Pesewa
  *   Sale SL_1210 · 29 Oct 2026, 14:05
  *   2 x Frying pan 28 cm - GH₵ 320
  *   Discount: -GH₵ 20
- *   Total: GH₵ 300
+ *   Delivery: GH₵ 30                (delivery sales only)
+ *   Total: GH₵ 330
  *   Paid by cash: GH₵ 500, change GH₵ 200
  *   Thank you for shopping with us.
  */
@@ -52,6 +55,7 @@ export function buildReceiptMessage(r: Receipt): string {
     out.push(`${line.qty} x ${lineName(line.productName, line.optionValues)} - ${formatPesewas(line.lineTotal)}`);
   }
   if (r.discount > 0) out.push(`Discount: -${formatPesewas(r.discount)}`);
+  if (r.delivery && r.delivery.fee > 0) out.push(`Delivery: ${formatPesewas(r.delivery.fee)}`);
   out.push(`Total: ${formatPesewas(r.total)}`);
   for (const p of r.payments) {
     if (p.method === "cash" && p.cashReceived !== null && (p.changeGiven ?? 0) > 0) {
@@ -61,6 +65,7 @@ export function buildReceiptMessage(r: Receipt): string {
     }
   }
   if (r.owed > 0) out.push(`Still to pay: ${formatPesewas(r.owed)}`);
+  if (r.delivery) out.push(`Deliver to: ${r.delivery.address}`);
   out.push(r.footer?.trim() || "Thank you for shopping with us.");
   return out.join("\n");
 }

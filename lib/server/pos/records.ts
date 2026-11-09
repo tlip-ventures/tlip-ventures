@@ -155,7 +155,7 @@ export async function getSaleDetail(id: string) {
   const { data: s, error } = await supabase
     .from("sales")
     .select(
-      "id, code, source, status, subtotal, discount, total, note, created_at, created_by, completed_at, voided_at, voided_by, void_reason, order_id, customers(id, name, phone), sale_items(id, variant_id, product_name, option_values, unit_price, qty, line_total), payments(method, amount, cash_received, change_given, paid_at, created_by, note), returns(id, code, created_at, refund_total)",
+      "id, code, source, status, subtotal, discount, total, note, created_at, created_by, completed_at, voided_at, voided_by, void_reason, order_id, customers(id, name, phone), sale_items(id, variant_id, product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at, created_by, note), returns(id, code, created_at, refund_total), deliveries(address, contact_name, contact_phone, note, status, rider, out_at, delivered_at)",
     )
     .eq("id", id)
     .order("paid_at", { referencedTable: "payments" })
@@ -205,6 +205,8 @@ export async function getSaleDetail(id: string) {
     cancelled,
     voided: s.voided_at ? { at: s.voided_at, by: by(s.voided_by), reason: s.void_reason } : null,
     returns: s.returns,
+    deliveryFee: s.sale_items.filter((i) => i.kind === "delivery").reduce((n, i) => n + i.line_total, 0),
+    delivery: s.deliveries,
   };
 }
 

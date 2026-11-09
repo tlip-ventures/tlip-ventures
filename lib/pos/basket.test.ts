@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addToBasket, basketQty, basketTotals, cashOptions, changeDue, setBasketQty, tileStock, type NewBasketLine } from "./basket";
+import { addToBasket, basketQty, basketTotals, cashOptions, changeDue, draftDeliveryFee, setBasketQty, tileStock, type NewBasketLine } from "./basket";
 
 const kettle: NewBasketLine = { variantId: "k", name: "Electric kettle", sku: "KTL18", unitPrice: 28000, maxQty: 3 };
 const pan: NewBasketLine = { variantId: "p", name: "Frying pan", sku: "NSF28", unitPrice: 16000, maxQty: 11 };
@@ -27,9 +27,12 @@ describe("basket", () => {
 
   it("totals in pesewas and caps the discount", () => {
     const lines = addToBasket(addToBasket(addToBasket([], kettle), pan), pan);
-    expect(basketTotals(lines)).toEqual({ items: 3, subtotal: 60000, discount: 0, total: 60000 });
+    expect(basketTotals(lines)).toEqual({ items: 3, subtotal: 60000, discount: 0, delivery: 0, total: 60000 });
     expect(basketTotals(lines, 2050).total).toBe(57950);
     expect(basketTotals(lines, 999999).total).toBe(0);
+    // A delivery fee comes on top and the discount never eats into it.
+    expect(basketTotals(lines, 2050, 3000)).toEqual({ items: 3, subtotal: 60000, discount: 2050, delivery: 3000, total: 60950 });
+    expect(basketTotals(lines, 999999, 3000).total).toBe(3000);
   });
 });
 
@@ -56,5 +59,15 @@ describe("cash", () => {
     expect(changeDue(44000, 44000)).toBe(0);
     expect(changeDue(44000, 40000)).toBeNull();
     expect(changeDue(44000, null)).toBe(0);
+  });
+});
+
+describe("draftDeliveryFee", () => {
+  it("reads the fee typed at the till", () => {
+    expect(draftDeliveryFee("collect", "30")).toBe(0);
+    expect(draftDeliveryFee("delivery", "")).toBe(0);
+    expect(draftDeliveryFee("delivery", "30")).toBe(3000);
+    expect(draftDeliveryFee("delivery", "12.50")).toBe(1250);
+    expect(draftDeliveryFee("delivery", "abc")).toBeNull();
   });
 });

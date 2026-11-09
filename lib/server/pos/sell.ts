@@ -89,7 +89,7 @@ export async function getSaleReceipt(saleId: string) {
     supabase
       .from("sales")
       .select(
-        "id, code, status, subtotal, discount, total, note, created_at, created_by, customers(name, phone), sale_items(product_name, option_values, unit_price, qty, line_total), payments(method, amount, cash_received, change_given, paid_at)",
+        "id, code, status, subtotal, discount, total, note, created_at, created_by, customers(name, phone), sale_items(product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at), deliveries(address, contact_name, contact_phone, status, rider)",
       )
       .eq("id", saleId)
       .maybeSingle(),
@@ -107,6 +107,9 @@ export async function getSaleReceipt(saleId: string) {
     changeGiven: p.change_given,
   }));
   const paid = payments.reduce((n, p) => n + p.amount, 0);
+  // The delivery fee is a sale line of its own; the receipt shows it under the items.
+  const items = sale.sale_items.filter((i) => i.kind !== "delivery");
+  const deliveryFee = sale.sale_items.filter((i) => i.kind === "delivery").reduce((n, i) => n + i.line_total, 0);
 
   return {
     id: sale.id,
@@ -116,15 +119,25 @@ export async function getSaleReceipt(saleId: string) {
     servedBy: (sale.created_by && people.get(sale.created_by)) || null,
     customer: sale.customers ? { name: sale.customers.name, phone: sale.customers.phone } : null,
     note: sale.note,
-    lines: sale.sale_items.map((i) => ({
+    lines: items.map((i) => ({
       qty: i.qty,
       productName: i.product_name,
       optionValues: i.option_values,
       unitPrice: i.unit_price,
       lineTotal: i.line_total,
     })),
-    subtotal: sale.subtotal,
+    subtotal: sale.subtotal - deliveryFee,
     discount: sale.discount,
+    delivery: sale.deliveries
+      ? {
+          fee: deliveryFee,
+          address: sale.deliveries.address,
+          name: sale.deliveries.contact_name,
+          phone: sale.deliveries.contact_phone,
+          status: sale.deliveries.status,
+          rider: sale.deliveries.rider,
+        }
+      : null,
     total: sale.total,
     payments,
     owed: Math.max(0, sale.total - paid),

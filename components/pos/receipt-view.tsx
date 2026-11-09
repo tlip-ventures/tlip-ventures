@@ -68,8 +68,9 @@ export function ReceiptView({ r }: { r: SaleReceipt }) {
 
       <div className="my-3 border-t border-dashed border-black" />
       <div className="flex flex-col gap-0.5">
-        {r.discount > 0 && <Row label="Subtotal" value={formatPesewas(r.subtotal)} />}
+        {(r.discount > 0 || r.delivery) && <Row label="Items" value={formatPesewas(r.subtotal)} />}
         {r.discount > 0 && <Row label="Discount" value={`-${formatPesewas(r.discount)}`} />}
+        {r.delivery && <Row label="Delivery" value={formatPesewas(r.delivery.fee)} />}
         <Row label="Total" value={formatPesewas(r.total)} strong />
         {r.payments.map((p, i) => (
           <div key={i} className="flex flex-col gap-0.5">
@@ -79,6 +80,19 @@ export function ReceiptView({ r }: { r: SaleReceipt }) {
         ))}
         {r.owed > 0 && <Row label="Still to pay" value={formatPesewas(r.owed)} strong />}
       </div>
+
+      {r.delivery && (
+        <>
+          <div className="my-3 border-t border-dashed border-black" />
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold">Deliver to</span>
+            <span>{r.delivery.address}</span>
+            {(r.delivery.name || r.delivery.phone) && (
+              <span>{[r.delivery.name, phone(r.delivery.phone)].filter(Boolean).join(", ")}</span>
+            )}
+          </div>
+        </>
+      )}
 
       <div className="my-3 border-t border-dashed border-black" />
       <p className="m-0 text-center">{r.shop.footer?.trim() || "Thank you for shopping with us."}</p>

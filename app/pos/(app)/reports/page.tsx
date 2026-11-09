@@ -23,8 +23,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
   const [y, mo] = month.key.split("-").map(Number);
   const top = await getTopProducts(new Date(Date.UTC(y, mo - 1, 1)), new Date(Date.UTC(y, mo, 1)), 20);
   const year = months.reduce(
-    (t, m) => ({ sales: t.sales + m.sales, purchases: t.purchases + m.purchases, profit: t.profit + (m.profit ?? 0) }),
-    { sales: 0, purchases: 0, profit: 0 },
+    (t, m) => ({ sales: t.sales + m.sales, delivery: t.delivery + m.delivery, purchases: t.purchases + m.purchases, profit: t.profit + (m.profit ?? 0) }),
+    { sales: 0, delivery: 0, purchases: 0, profit: 0 },
   );
 
   return (
@@ -35,6 +35,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
         <StatCard label="Profit, last 12 months" value={formatPesewas(year.profit)} tone="good" />
         <StatCard label="Margin" value={margin(year.profit, year.sales)} />
         <StatCard label="Bought from suppliers" value={formatPesewas(year.purchases)} />
+        <StatCard label="Delivery fees, last 12 months" value={formatPesewas(year.delivery)} />
       </StatGrid>
       {missingCosts ? (
         <p className="m-0 text-[13px] text-pos-soft">
@@ -46,13 +47,14 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
       <Card label="Month by month">
         <div className="px-5 py-4">
           <h2 className="m-0 text-lg font-bold leading-6">Month by month</h2>
-          <p className="m-0 text-[13px] text-pos-muted">Profit is sales less what those items cost, less refunds. Choose a month to see its best sellers.</p>
+          <p className="m-0 text-[13px] text-pos-muted">Sales and profit are for items; delivery fees are counted apart. Profit is item sales less what those items cost, less refunds. Choose a month to see its best sellers.</p>
         </div>
-        <ScrollTable minWidth={640}>
+        <ScrollTable minWidth={720}>
           <TableHead>
             <Th>Month</Th>
             <Th align="right">Sales</Th>
             <Th align="right">Number</Th>
+            <Th align="right">Delivery fees</Th>
             <Th align="right">Purchases</Th>
             <Th align="right">Profit</Th>
             <Th align="right">Margin</Th>
@@ -69,6 +71,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
                   </td>
                   <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{formatPesewas(m.sales)}</td>
                   <td className="px-3 py-3 text-right tabular-nums text-pos-soft">{m.count.toLocaleString("en-US")}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-pos-soft">{m.delivery ? formatPesewas(m.delivery) : "—"}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{formatPesewas(m.purchases)}</td>
                   <td className={`whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums ${(m.profit ?? 0) < 0 ? "text-pos-rust" : "text-pos-green-ink"}`}>
                     {formatPesewas(m.profit ?? 0)}
