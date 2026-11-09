@@ -28,6 +28,7 @@ export const NAV_ICON_PATHS = {
   dash: "M4 13h6V4H4z M14 20h6v-9h-6z M14 4h6v4h-6z M4 20h6v-3H4z",
   pos: "M3 8h18v12H3z M7 8V4h10v4 M7 12h2 M11 12h2 M15 12h2 M7 16h10",
   sales: "M6 3h12v18l-3-2-3 2-3-2-3 2z M9 8h6 M9 12h6",
+  invoices: "M6 3h9l3 3v15H6z M15 3v3h3 M9 10h6 M9 14h6 M9 18h3",
   returns: "M9 14 4 9l5-5 M4 9h11a5 5 0 0 1 0 10h-3",
   products: "M3 7l9-4 9 4v10l-9 4-9-4z M3 7l9 4 9-4 M12 11v10",
   count: "M9 3h6v3H9z M7 4.5H5V21h14V4.5h-2 M9 13l2 2 4-4",

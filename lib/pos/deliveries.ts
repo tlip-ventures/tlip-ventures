@@ -1,5 +1,23 @@
 // Deliveries at the till: where a delivery is, and the words and colours for it.
 
+import { normaliseGhanaPhone } from "@/lib/phone";
+
+export const BAD_RIDER_PHONE = "Enter the rider's phone number like 024 123 4567, or leave it empty.";
+
+/**
+ * A delivery typed at the till as the database takes it, with the phone stored
+ * as 233…; "bad phone" when the phone isn't a Ghana number.
+ */
+export function deliveryForDb(d: { fee: number; address: string; phone: string; note: string } | null) {
+  if (!d) return null;
+  let phone: string | null = null;
+  if (d.phone) {
+    phone = normaliseGhanaPhone(d.phone);
+    if (!phone) return "bad phone" as const;
+  }
+  return { fee: d.fee, address: d.address, phone, note: d.note };
+}
+
 export const DELIVERY_STATUSES = ["to_deliver", "out", "delivered"] as const;
 export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 

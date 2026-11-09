@@ -15,6 +15,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { icon: "pos", name: "Point of sale", href: "/pos/sell" },
       { icon: "sales", name: "Sales", href: "/pos/sales" },
+      { icon: "invoices", name: "Invoices", href: "/pos/invoices" },
       { icon: "deliveries", name: "Deliveries", href: "/pos/deliveries" },
       { icon: "returns", name: "Returns", href: "/pos/returns" },
     ],
