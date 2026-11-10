@@ -30,6 +30,8 @@ export type RecordRow = {
   delivery?: number;
   /** Sales: of what was paid, how much was for delivery (paid - deliveryPaid = paid for items). */
   deliveryPaid?: number;
+  /** Sales: the delivery fee was already in the price agreed. */
+  deliveryIncluded?: boolean;
   /** Sales: who took the delivery, if anyone yet. */
   rider?: string | null;
   /** Sales: a website order (no shop counter involved). */
@@ -64,7 +66,7 @@ export async function listRecords(
   if (kind === "sales") {
     let query = supabase
       .from("pos_sales_list")
-      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery, rider, delivery_address, payment_methods, delivery_paid", { count: "exact" })
+      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery, rider, delivery_address, payment_methods, delivery_paid, delivery_included", { count: "exact" })
       .order("created_at", { ascending: false })
       .order("code", { ascending: false });
     if (q) query = query.or(`code.ilike.*${q}*,customer_name.ilike.*${q}*`);
@@ -92,6 +94,7 @@ export async function listRecords(
       saleStatus: r.status!,
       delivery: r.delivery ?? 0,
       deliveryPaid: r.delivery_paid ?? 0,
+      deliveryIncluded: r.delivery_included ?? false,
       rider: r.rider,
       fromWebsite: r.source === "website",
       deliverTo: r.delivery_address,
@@ -197,7 +200,7 @@ export async function getSaleDetail(id: string) {
   const { data: s, error } = await supabase
     .from("sales")
     .select(
-      "id, code, source, status, subtotal, discount, total, note, created_at, created_by, completed_at, voided_at, voided_by, void_reason, order_id, customers(id, name, phone), sale_items(id, variant_id, product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at, created_by, note, delivery_amount), returns(id, code, created_at, refund_total), deliveries(address, contact_name, contact_phone, note, status, rider, out_at, delivered_at)",
+      "id, code, source, status, subtotal, discount, total, note, delivery_included, created_at, created_by, completed_at, voided_at, voided_by, void_reason, order_id, customers(id, name, phone), sale_items(id, variant_id, product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at, created_by, note, delivery_amount), returns(id, code, created_at, refund_total), deliveries(address, contact_name, contact_phone, note, status, rider, out_at, delivered_at)",
     )
     .eq("id", id)
     .order("paid_at", { referencedTable: "payments" })
@@ -251,6 +254,8 @@ export async function getSaleDetail(id: string) {
     voided: s.voided_at ? { at: s.voided_at, by: by(s.voided_by), reason: s.void_reason } : null,
     returns: s.returns,
     deliveryFee: s.sale_items.filter((i) => i.kind === "delivery").reduce((n, i) => n + i.line_total, 0),
+    /** The fee was already in the price agreed (part of the total, not added). */
+    deliveryIncluded: s.delivery_included,
     delivery: s.deliveries,
   };
 }

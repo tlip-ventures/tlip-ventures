@@ -57,11 +57,15 @@ On the shop's phone and the owner's laptop:
 
 - [ ] Sell one item for cash with change, one by Mobile Money and one on Pay
       later to a customer. The shelf count goes down each time.
+- [ ] Sell one by Mobile Money for part (type a smaller MoMo amount) and the rest in cash: the
+      change is worked out on the cash part, and the sale shows "Cash + Mobile Money".
 - [ ] Print a receipt (or Save as PDF) and send one on WhatsApp.
 - [ ] Ring up a **Delivery** on Pay later (address, fee GH₵ 30): the total includes the fee and it shows
       on **Deliveries**. Send it out with a rider's name, mark it Delivered, then Mark paid when the
       money comes back.
 - [ ] Mark the Pay later sale paid from the Sales list.
+- [ ] Ring up a Delivery with the fee **Already in the price** (e.g. GH₵ 70 with GH₵ 20 delivery): the
+      total stays GH₵ 70 and the Sales list shows items GH₵ 50 and delivery GH₵ 20.
 - [ ] Ring up a Delivery on Pay later, then Mark paid part of it and say how much is for delivery: the
       Sales list shows paid and still owed for items and for delivery apart.
 - [ ] On **Sales**, choose Today and a rider under **Deliveries by rider**: the list and the Delivery

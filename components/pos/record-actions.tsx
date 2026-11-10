@@ -154,8 +154,10 @@ export function MarkOrderPaidButton({
   const [cash, setCash] = useState("");
   const [deliver, setDeliver] = useState(false);
   const [fee, setFee] = useState("");
+  // The fee agreed is already in the order total: nothing is added.
+  const [inPrice, setInPrice] = useState(false);
   const feeAmount = deliver ? (parseCedis(fee) ?? 0) : 0;
-  const due = total + feeAmount;
+  const due = total + (inPrice ? 0 : feeAmount);
   const received = parseCedis(cash);
   const change = received === null ? null : received - due;
   return (
@@ -171,7 +173,7 @@ export function MarkOrderPaidButton({
       <input type="hidden" name="saleId" value={saleId} />
       <p className="m-0 text-sm leading-[22px] text-pos-soft">
         The customer paid <strong className="text-pos-ink">{formatPesewas(due)}</strong>
-        {feeAmount > 0 && <> (with {formatPesewas(feeAmount)} delivery)</>}. Its items come off the shelf count now.
+        {feeAmount > 0 && <> ({inPrice ? "of which" : "with"} {formatPesewas(feeAmount)} delivery)</>}. Its items come off the shelf count now.
       </p>
       <label className="flex min-h-11 items-start gap-3 text-sm">
         <input
@@ -195,6 +197,19 @@ export function MarkOrderPaidButton({
           <label className={dialogLabelClass}>
             <span>Deliver to</span>
             <input name="deliveryAddress" maxLength={300} placeholder="Order’s location" className={dialogInputClass} />
+          </label>
+          <label className="col-span-2 flex min-h-11 items-start gap-3 text-sm">
+            <input
+              type="checkbox"
+              name="deliveryIncluded"
+              checked={inPrice}
+              onChange={(e) => setInPrice(e.target.checked)}
+              className="mt-0.5 h-5 w-5 flex-none accent-pos-green"
+            />
+            <span className="flex flex-col">
+              <span className="font-semibold">The fee is already in the price</span>
+              <span className="text-[13px] text-pos-muted">The customer pays the order total; part of it counts as delivery.</span>
+            </span>
           </label>
         </div>
       )}

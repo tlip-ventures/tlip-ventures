@@ -63,23 +63,44 @@ export function setBasketQty(lines: readonly BasketLine[], key: string, qty: num
   return lines.map((l) => (basketLineKey(l) === key ? { ...l, qty: Math.max(1, Math.min(qty, room(lines, l, l.maxQty))) } : l));
 }
 
-export type BasketTotals = { items: number; subtotal: Pesewas; discount: Pesewas; delivery: Pesewas; total: Pesewas };
+export type BasketTotals = {
+  items: number;
+  subtotal: Pesewas;
+  discount: Pesewas;
+  delivery: Pesewas;
+  /** The delivery fee is already in the price agreed: part of the total, not added. */
+  deliveryIncluded: boolean;
+  total: Pesewas;
+};
 
 /**
  * Item count and money. A discount larger than the items is capped at the
- * items; a delivery fee comes on top and is never discounted.
+ * items; a delivery fee comes on top and is never discounted, unless it is
+ * already in the price, when the total stays and the fee is part of it.
  */
-export function basketTotals(lines: readonly BasketLine[], discount: Pesewas = 0, deliveryFee: Pesewas = 0): BasketTotals {
+export function basketTotals(
+  lines: readonly BasketLine[],
+  discount: Pesewas = 0,
+  deliveryFee: Pesewas = 0,
+  deliveryIncluded = false,
+): BasketTotals {
   const subtotal = sumPesewas(lines.map((l) => lineTotal(l.unitPrice, l.qty)));
   const capped = Math.max(0, Math.min(discount, subtotal));
   const delivery = Math.max(0, deliveryFee);
+  const included = deliveryIncluded && delivery > 0;
   return {
     items: lines.reduce((n, l) => n + l.qty, 0),
     subtotal,
     discount: capped,
     delivery,
-    total: subtotal - capped + delivery,
+    deliveryIncluded: included,
+    total: subtotal - capped + (included ? 0 : delivery),
   };
+}
+
+/** A fee "in the price" can't be more than the total it is part of. */
+export function deliveryTooBig(totals: BasketTotals): boolean {
+  return totals.deliveryIncluded && totals.delivery > totals.total;
 }
 
 /** How the customer gets the goods: takes them from the shop, or the shop delivers. */
@@ -130,3 +151,32 @@ export const PAYMENT_LABELS: Record<PaymentChoice, string> = {
   bank: "Bank transfer",
   later: "Pay later",
 };
+
+/** Mobile Money for part of the total: how the rest is paid. Pay later leaves it owed. */
+export const REST_METHODS = ["cash", "bank", "later"] as const;
+export type RestMethod = (typeof REST_METHODS)[number];
+export const REST_LABELS: Record<RestMethod, string> = { cash: "Cash", bank: "Bank transfer", later: "Pay later" };
+
+export type SplitPayment = { method: "cash" | "momo" | "bank"; amount: Pesewas };
+
+export type MomoSplit =
+  | { kind: "full" }
+  | { kind: "split"; momo: Pesewas; rest: Pesewas; restMethod: RestMethod; payments: SplitPayment[]; owed: Pesewas }
+  | { kind: "error"; message: string };
+
+/**
+ * The MoMo amount typed at the till: empty or the whole total is a plain
+ * Mobile Money sale; less splits it, the rest paid by cash or bank, or owed.
+ */
+export function momoSplit(total: Pesewas, momoText: string, restMethod: RestMethod): MomoSplit {
+  if (momoText.trim() === "") return { kind: "full" };
+  const momo = parseCedis(momoText);
+  if (momo === null) return { kind: "error", message: "Enter the MoMo amount like 50 or 12.50, or leave it empty." };
+  if (momo <= 0) return { kind: "error", message: "Enter a MoMo amount above GH₵ 0, or leave it empty." };
+  if (momo > total) return { kind: "error", message: "The MoMo amount is more than the total." };
+  if (momo === total) return { kind: "full" };
+  const rest = total - momo;
+  const payments: SplitPayment[] = [{ method: "momo", amount: momo }];
+  if (restMethod !== "later") payments.push({ method: restMethod, amount: rest });
+  return { kind: "split", momo, rest, restMethod, payments, owed: restMethod === "later" ? rest : 0 };
+}

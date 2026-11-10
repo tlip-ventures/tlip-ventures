@@ -43,7 +43,9 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
     p_customer_id: s.customerId as string,
     p_discount: s.discount,
     p_method: s.method,
-    p_cash_received: s.method === "cash" && s.cashReceived !== null ? s.cashReceived : undefined,
+    p_cash_received: (s.method === "cash" || s.method === "split") && s.cashReceived !== null ? s.cashReceived : undefined,
+    // Always sent (null unless split): it picks the version of the function that takes split payments.
+    p_payments: s.method === "split" ? (s.payments ?? []) : null,
     // Always sent (null when the customer takes the goods): it picks the version of the function with deliveries.
     p_delivery: delivery,
   });

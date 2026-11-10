@@ -45,6 +45,16 @@ describe("buildReceiptMessage", () => {
     expect(text).toContain("Still to pay: GH₵ 780\nDeliver to: Dansoman, near Sharp Curve");
   });
 
+  it("marks a fee that was already in the price", () => {
+    const text = buildReceiptMessage({
+      ...receipt,
+      payments: [],
+      owed: 75000,
+      delivery: { fee: 3000, address: "Osu", included: true },
+    });
+    expect(text).toContain("Delivery (in the price): GH₵ 30\nTotal: GH₵ 750");
+  });
+
   it("says what is still owed on a pay-later sale", () => {
     const text = buildReceiptMessage({ ...receipt, discount: 0, total: 77000, payments: [], owed: 77000, footer: "Judges 6:24" });
     expect(text).toContain("Still to pay: GH₵ 770");

@@ -81,6 +81,7 @@ export async function markOrderPaid(_prev: ActionResult | null, formData: FormDa
     deliver: formData.get("deliver") === "on",
     deliveryFee: formData.get("deliveryFee") ?? "",
     deliveryAddress: formData.get("deliveryAddress") ?? "",
+    deliveryIncluded: formData.get("deliveryIncluded") === "on",
   });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const p = parsed.data;
@@ -90,7 +91,7 @@ export async function markOrderPaid(_prev: ActionResult | null, formData: FormDa
     p_method: p.method,
     p_cash_received: p.method === "cash" && p.cashReceived !== null ? p.cashReceived : undefined,
     // Always sent (null: no delivery); the database fills in the order's location and phone.
-    p_delivery: p.deliver ? { fee: p.deliveryFee ?? 0, address: p.deliveryAddress } : null,
+    p_delivery: p.deliver ? { fee: p.deliveryFee ?? 0, address: p.deliveryAddress, included: p.deliveryIncluded } : null,
   });
   if (error) return { ok: false, message: friendlyDbError(error) };
   refreshPosAndShop();

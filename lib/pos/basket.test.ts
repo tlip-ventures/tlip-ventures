@@ -7,6 +7,8 @@ import {
   basketTotals,
   cashOptions,
   changeDue,
+  deliveryTooBig,
+  momoSplit,
   draftDeliveryFee,
   setBasketQty,
   tileStock,
@@ -57,11 +59,11 @@ describe("basket", () => {
 
   it("totals in pesewas and caps the discount", () => {
     const lines = addToBasket(addToBasket(addToBasket([], kettle), pan), pan);
-    expect(basketTotals(lines)).toEqual({ items: 3, subtotal: 60000, discount: 0, delivery: 0, total: 60000 });
+    expect(basketTotals(lines)).toEqual({ items: 3, subtotal: 60000, discount: 0, delivery: 0, deliveryIncluded: false, total: 60000 });
     expect(basketTotals(lines, 2050).total).toBe(57950);
     expect(basketTotals(lines, 999999).total).toBe(0);
     // A delivery fee comes on top and the discount never eats into it.
-    expect(basketTotals(lines, 2050, 3000)).toEqual({ items: 3, subtotal: 60000, discount: 2050, delivery: 3000, total: 60950 });
+    expect(basketTotals(lines, 2050, 3000)).toEqual({ items: 3, subtotal: 60000, discount: 2050, delivery: 3000, deliveryIncluded: false, total: 60950 });
     expect(basketTotals(lines, 999999, 3000).total).toBe(3000);
   });
 });
@@ -99,5 +101,47 @@ describe("draftDeliveryFee", () => {
     expect(draftDeliveryFee("delivery", "30")).toBe(3000);
     expect(draftDeliveryFee("delivery", "12.50")).toBe(1250);
     expect(draftDeliveryFee("delivery", "abc")).toBeNull();
+  });
+});
+
+describe("delivery already in the price", () => {
+  const lines = [{ variantId: "a", name: "Hanger", sku: null, unitPrice: 7000, qty: 1, maxQty: 5 }];
+  it("keeps the total and makes the fee part of it", () => {
+    const t = basketTotals(lines as never, 0, 2000, true);
+    expect(t).toMatchObject({ subtotal: 7000, delivery: 2000, deliveryIncluded: true, total: 7000 });
+    expect(deliveryTooBig(t)).toBe(false);
+  });
+  it("says when the fee is more than the total", () => {
+    expect(deliveryTooBig(basketTotals(lines as never, 6000, 2000, true))).toBe(true);
+  });
+  it("ignores the switch when there is no fee", () => {
+    expect(basketTotals(lines as never, 0, 0, true).deliveryIncluded).toBe(false);
+  });
+});
+
+describe("momoSplit", () => {
+  it("is a plain MoMo sale when the amount is empty or the whole total", () => {
+    expect(momoSplit(7000, "", "cash")).toEqual({ kind: "full" });
+    expect(momoSplit(7000, "70", "cash")).toEqual({ kind: "full" });
+  });
+  it("pays the rest in cash or by bank, or leaves it owed", () => {
+    expect(momoSplit(7000, "50", "cash")).toEqual({
+      kind: "split",
+      momo: 5000,
+      rest: 2000,
+      restMethod: "cash",
+      payments: [
+        { method: "momo", amount: 5000 },
+        { method: "cash", amount: 2000 },
+      ],
+      owed: 0,
+    });
+    expect(momoSplit(7000, "50", "bank")).toMatchObject({ payments: [{ method: "momo" }, { method: "bank", amount: 2000 }] });
+    expect(momoSplit(7000, "30", "later")).toMatchObject({ payments: [{ method: "momo", amount: 3000 }], owed: 4000 });
+  });
+  it("refuses an amount that isn't money, is nothing, or is more than the total", () => {
+    expect(momoSplit(7000, "abc", "cash").kind).toBe("error");
+    expect(momoSplit(7000, "0", "cash").kind).toBe("error");
+    expect(momoSplit(7000, "71", "cash")).toEqual({ kind: "error", message: "The MoMo amount is more than the total." });
   });
 });

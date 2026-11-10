@@ -95,7 +95,7 @@ export async function getSaleReceipt(saleId: string) {
     supabase
       .from("sales")
       .select(
-        "id, code, status, subtotal, discount, total, note, created_at, created_by, customers(name, phone), sale_items(product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at), deliveries(address, contact_name, contact_phone, status, rider)",
+        "id, code, status, subtotal, discount, total, note, created_at, created_by, delivery_included, customers(name, phone), sale_items(product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at), deliveries(address, contact_name, contact_phone, status, rider)",
       )
       .eq("id", saleId)
       .maybeSingle(),
@@ -132,11 +132,13 @@ export async function getSaleReceipt(saleId: string) {
       unitPrice: i.unit_price,
       lineTotal: i.line_total,
     })),
-    subtotal: sale.subtotal - deliveryFee,
+    // The items before any discount (a fee "in the price" was never added to the subtotal).
+    subtotal: sale.delivery_included ? sale.subtotal : sale.subtotal - deliveryFee,
     discount: sale.discount,
     delivery: sale.deliveries
       ? {
           fee: deliveryFee,
+          included: sale.delivery_included,
           address: sale.deliveries.address,
           name: sale.deliveries.contact_name,
           phone: sale.deliveries.contact_phone,

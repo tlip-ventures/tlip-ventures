@@ -70,7 +70,7 @@ export function ReceiptView({ r }: { r: SaleReceipt }) {
       <div className="flex flex-col gap-0.5">
         {(r.discount > 0 || r.delivery) && <Row label="Items" value={formatPesewas(r.subtotal)} />}
         {r.discount > 0 && <Row label="Discount" value={`-${formatPesewas(r.discount)}`} />}
-        {r.delivery && <Row label="Delivery" value={formatPesewas(r.delivery.fee)} />}
+        {r.delivery && <Row label={r.delivery.included ? "Delivery (in the price)" : "Delivery"} value={formatPesewas(r.delivery.fee)} />}
         <Row label="Total" value={formatPesewas(r.total)} strong />
         {r.payments.map((p, i) => (
           <div key={i} className="flex flex-col gap-0.5">

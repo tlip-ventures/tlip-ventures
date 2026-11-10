@@ -34,6 +34,7 @@ export default async function InvoicePage({ params }: PageProps<"/pos/invoice/[i
     discount: inv.discount,
     deliveryFee: inv.delivery?.fee ?? 0,
     deliveryAddress: inv.delivery?.address ?? null,
+    deliveryIncluded: inv.delivery?.included ?? false,
     total: inv.total,
   });
 
