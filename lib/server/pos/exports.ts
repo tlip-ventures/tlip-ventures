@@ -10,10 +10,13 @@ import {
   RECORD_PERIODS,
   returnStatusPill,
   riderTerm,
+  SALE_TYPE_LABELS,
+  SALE_TYPES,
   saleStatusPill,
   TAB_META,
   type RecordFilter,
   type RecordPeriod,
+  type SaleType,
 } from "@/lib/pos/records";
 import { STOCK_FILTER_LABELS, STOCK_FILTERS, STOCK_PILLS, type StockFilter } from "@/lib/pos/stock";
 import type { XlsxCell } from "@/lib/pos/xlsx";
@@ -46,7 +49,7 @@ export type ExportTable = {
   cut: boolean;
 };
 
-export type ExportParams = { q: string; filter: string; period: RecordPeriod; rider: string };
+export type ExportParams = { q: string; filter: string; period: RecordPeriod; rider: string; type: SaleType };
 
 export function parseExportParams(get: (name: string) => string | null): ExportParams {
   const period = get("period") ?? "all";
@@ -55,6 +58,7 @@ export function parseExportParams(get: (name: string) => string | null): ExportP
     filter: get("filter") ?? "all",
     period: (RECORD_PERIODS as readonly string[]).includes(period) ? (period as RecordPeriod) : "all",
     rider: riderTerm(get("rider") ?? undefined),
+    type: (SALE_TYPES as readonly string[]).includes(get("type") ?? "") ? (get("type") as SaleType) : "all",
   };
 }
 
@@ -134,7 +138,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
   }
 
   const filter: RecordFilter = (RECORD_FILTERS as readonly string[]).includes(params.filter) ? (params.filter as RecordFilter) : "all";
-  const { rows, cut } = await everyPage<RecordRow>((page) => listRecords(kind, { search: params.q, filter, period: params.period, rider: kind === "sales" ? params.rider : "", page, pageSize: BATCH }));
+  const { rows, cut } = await everyPage<RecordRow>((page) => listRecords(kind, { search: params.q, filter, period: params.period, rider: kind === "sales" ? params.rider : "", type: kind === "sales" ? params.type : "all", page, pageSize: BATCH }));
   const meta = TAB_META[kind];
   const status = (r: RecordRow) =>
     kind === "sales"
@@ -151,6 +155,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
       [
         params.period === "all" ? null : RECORD_PERIOD_LABELS[params.period],
         kind === "sales" && params.rider ? `Rider ${params.rider}` : null,
+        kind === "sales" && params.type !== "all" ? SALE_TYPE_LABELS[params.type] : null,
         filter === "all" ? null : RECORD_FILTER_LABELS[filter],
       ]
         .filter(Boolean)
@@ -161,6 +166,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
     columns: [
       { label: "Date", width: 18 },
       { label: "Reference", width: 12 },
+      ...(kind === "sales" ? ([{ label: "Wholesale", width: 11 }] as ExportColumn[]) : []),
       { label: meta.party, width: 28 },
       ...(kind === "sales" ? ([{ label: "Deliver to", width: 30 }] as ExportColumn[]) : []),
       { label: "Status", width: 14 },
@@ -188,6 +194,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
     rows: rows.map((r) => [
       formatDayTime(r.createdAt),
       r.code,
+      ...(kind === "sales" ? [r.wholesale ? "Yes" : ""] : []),
       r.party,
       ...(kind === "sales" ? [r.deliverTo ?? (r.fromWebsite ? "" : "In the shop")] : []),
       status(r),

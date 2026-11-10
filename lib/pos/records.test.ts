@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { paidByText, paymentPill, purchaseStatusPill, recordPeriodRange, returnStatusPill, riderTerm, saleStatusPill } from "./records";
+import { paidByText, saleTypeFilter, paymentPill, purchaseStatusPill, recordPeriodRange, returnStatusPill, riderTerm, saleStatusPill } from "./records";
 
 describe("record pills", () => {
   it("labels payment like the design", () => {
@@ -48,5 +48,11 @@ describe("paidByText", () => {
     expect(paidByText("momo")).toBe("Mobile Money");
     expect(paidByText("bank,cash")).toBe("Bank transfer + Cash");
     expect(paidByText(null)).toBe("—");
+  });
+});
+
+describe("saleTypeFilter", () => {
+  it("maps the chips to the database filter", () => {
+    expect([saleTypeFilter("all"), saleTypeFilter("retail"), saleTypeFilter("wholesale")]).toEqual([null, false, true]);
   });
 });

@@ -19,6 +19,11 @@ type RawOverview = {
     missing_costs: number;
     cancelled_count: number;
     cancelled_value: number;
+    wholesale_count: number;
+    wholesale_items: number;
+    retail_items: number;
+    /** Retail price less wholesale price on items sold at wholesale. */
+    wholesale_off: number;
   };
   by_staff: { user_id: string | null; count: number; total: number }[];
   money_in: ByMethod;

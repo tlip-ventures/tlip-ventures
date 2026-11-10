@@ -34,6 +34,7 @@ export default async function ReceiptPage({ params }: PageProps<"/pos/receipt/[i
     payments: r.payments,
     owed: r.owed,
     footer: r.shop.footer,
+    wholesale: r.wholesale,
     delivery: r.delivery,
   });
 

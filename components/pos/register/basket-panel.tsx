@@ -6,7 +6,7 @@ import { createInvoice } from "@/app/pos/(app)/invoices/actions";
 import { completeSale, type CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
 import { phoneText } from "@/lib/pos/format";
-import { basketLineKey, basketLineName, basketQty, basketTotals, cashOptions, changeDue, deliveryTooBig, draftDeliveryFee, momoSplit, REST_LABELS, REST_METHODS, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
+import { basketLineKey, basketLineName, basketQty, basketTotals, linePrice, cashOptions, changeDue, deliveryTooBig, draftDeliveryFee, momoSplit, REST_LABELS, REST_METHODS, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
 import { useBasket, useBasketHydrated, type CashChoice } from "@/lib/pos/basket-store";
 import { defaultValidUntil, ghanaToday } from "@/lib/pos/invoices";
 import { CustomerPicker } from "./customer-picker";
@@ -35,7 +35,9 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
   const delivering = hydrated && state.fulfilment === "delivery";
   const deliveryFee = draftDeliveryFee(delivering ? "delivery" : "collect", state.delivery.fee);
   const feeInPrice = delivering && Boolean(state.delivery.included);
-  const totals = basketTotals(lines, canGiveDiscounts ? state.discount : 0, deliveryFee ?? 0, feeInPrice);
+  // Wholesale: items with a wholesale price use it (owner and discount staff only).
+  const wholesale = hydrated && canGiveDiscounts && Boolean(state.wholesale);
+  const totals = basketTotals(lines, canGiveDiscounts ? state.discount : 0, deliveryFee ?? 0, feeInPrice, wholesale);
   const options = cashOptions(totals.total);
   const otherCash = parseCedis(state.cashOther);
   const cashReceived: number | null =
@@ -116,6 +118,7 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
         discount: totals.discount,
         delivery: deliveryInput(),
         validUntil,
+        wholesale,
       });
       if (!result.ok) {
         setError(result.message);
@@ -141,6 +144,7 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
         payments: split?.kind === "split" ? split.payments : null,
         delivery: deliveryInput(),
         invoiceId: state.invoice?.id ?? null,
+        wholesale,
       });
       if (!result.ok) {
         setError(result.message);
@@ -204,6 +208,29 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
               </span>
             )}
           </div>
+        )}
+        <div role="group" aria-label="Retail or wholesale prices" className="grid grid-cols-2 gap-2">
+          {([
+            [false, "Retail"],
+            [true, "Wholesale"],
+          ] as const).map(([value, label]) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={wholesale === value}
+              disabled={value && !canGiveDiscounts}
+              title={value && !canGiveDiscounts ? "Ask the owner: wholesale needs “Can give discounts”." : undefined}
+              onClick={() => state.setWholesale(value)}
+              className={`${choiceClass(wholesale === value)} disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {wholesale && (
+          <span className="-mt-1 text-xs leading-[18px] text-pos-muted">
+            Items with a wholesale price are sold at it; the others at their normal price.
+          </span>
         )}
         <CustomerPicker />
         <div role="group" aria-label="How the customer gets the goods" className="grid grid-cols-2 gap-2">
@@ -301,7 +328,15 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
           <div key={key} className="flex items-center gap-2.5 border-b border-pos-paper-deep py-3">
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="text-sm font-semibold leading-[19px]">{name}</span>
-              <span className="text-xs tabular-nums text-pos-muted">{formatPesewas(l.unitPrice)} each</span>
+              <span className="text-xs tabular-nums text-pos-muted">
+                {formatPesewas(linePrice(l, wholesale))} each
+                {wholesale && l.wholesalePrice != null && l.wholesalePrice !== l.unitPrice && (
+                  <>
+                    {" "}
+                    <s>{formatPesewas(l.unitPrice)}</s> <span className="font-semibold text-pos-green-ink">wholesale</span>
+                  </>
+                )}
+              </span>
             </span>
             <span className="flex items-center rounded-md border border-pos-line">
               <button
@@ -326,7 +361,7 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
                 +
               </button>
             </span>
-            <span className="w-[92px] text-right text-sm font-bold tabular-nums">{formatPesewas(l.unitPrice * l.qty)}</span>
+            <span className="w-[92px] text-right text-sm font-bold tabular-nums">{formatPesewas(linePrice(l, wholesale) * l.qty)}</span>
           </div>
           );
         })}

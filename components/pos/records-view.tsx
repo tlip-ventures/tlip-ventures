@@ -11,11 +11,14 @@ import {
   RECORD_PERIODS,
   returnStatusPill,
   riderTerm,
+  SALE_TYPE_LABELS,
+  SALE_TYPES,
   saleStatusPill,
   TAB_META,
   type RecordFilter,
   type RecordKind,
   type RecordPeriod,
+  type SaleType,
 } from "@/lib/pos/records";
 import type { RiderTotals } from "@/lib/server/pos/deliveries";
 import type { RecordRow, RecordsSummary } from "@/lib/server/pos/records";
@@ -25,7 +28,8 @@ import { MarkOrderPaidButton, PaymentButton } from "./record-actions";
 import { buttonClass, ButtonLink, Card, PageHeader, PageShell, Pill, ScrollTable, StatGrid, TableHead, Th } from "./ui";
 
 /** rider: Sales only, one rider's deliveries ("" for every sale). */
-export type RecordsParams = { q: string; filter: RecordFilter; period: RecordPeriod; rider: string; page: number };
+/** type: Sales only, Retail / Wholesale ("all" for both). */
+export type RecordsParams = { q: string; filter: RecordFilter; period: RecordPeriod; rider: string; type: SaleType; page: number };
 
 const PATHS: Record<RecordKind, string> = { sales: "/pos/sales", purchases: "/pos/purchases", returns: "/pos/returns" };
 const SETTLE_KIND = { sales: "sale", purchases: "purchase", returns: "refund" } as const;
@@ -65,6 +69,7 @@ export function RecordsView({
     if (next.period !== "all") q.set("period", next.period);
     if (next.filter !== "all") q.set("filter", next.filter);
     if (next.rider) q.set("rider", next.rider);
+    if (next.type !== "all") q.set("type", next.type);
     if (next.q) q.set("q", next.q);
     if (next.page > 1) q.set("page", String(next.page));
     return q.toString();
@@ -223,8 +228,17 @@ export function RecordsView({
               ...(params.filter !== "all" ? { filter: params.filter } : {}),
               ...(params.period !== "all" ? { period: params.period } : {}),
               ...(params.rider ? { rider: params.rider } : {}),
+              ...(params.type !== "all" ? { type: params.type } : {}),
             }}
           />
+          {kind === "sales" && (
+            <FilterChips<SaleType>
+              label="Retail or wholesale"
+              options={SALE_TYPES.map((t) => ({ value: t, name: SALE_TYPE_LABELS[t] }))}
+              current={params.type}
+              href={(type) => href({ type, page: 1 })}
+            />
+          )}
           <FilterChips<RecordFilter>
             label="Payment filter"
             options={RECORD_FILTERS.map((f) => ({ value: f, name: RECORD_FILTER_LABELS[f] }))}
@@ -277,6 +291,7 @@ export function RecordsView({
                         <Link href={detail} className="text-pos-ink no-underline hover:underline">
                           {r.code}
                         </Link>
+                        {r.wholesale && <span className="mt-0.5 block text-xs font-semibold text-pos-green-ink">Wholesale</span>}
                       </td>
                       <td className="min-w-[170px] px-3 py-3.5">
                         <span className="flex flex-col">
@@ -391,6 +406,7 @@ export function parseRecordsParams(raw: Record<string, string | string[] | undef
     filter: (RECORD_FILTERS as readonly string[]).includes(filter) ? (filter as RecordFilter) : "all",
     period: (RECORD_PERIODS as readonly string[]).includes(period) ? (period as RecordPeriod) : "all",
     rider: riderTerm(one(raw.rider)),
+    type: (SALE_TYPES as readonly string[]).includes(one(raw.type)) ? (one(raw.type) as SaleType) : "all",
     page: Number.isSafeInteger(page) && page >= 1 && page <= 10_000 ? page : 1,
   };
 }

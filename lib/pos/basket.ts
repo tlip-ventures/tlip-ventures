@@ -11,6 +11,8 @@ export type BasketLine = {
   choice: string | null;
   sku: string | null;
   unitPrice: Pesewas;
+  /** The wholesale price, used on wholesale sales; null or missing: none (the normal price). */
+  wholesalePrice?: Pesewas | null;
   qty: number;
   /** What was on the shelf when it was added: the basket's lines for this item never go above it together. */
   maxQty: number;
@@ -83,8 +85,9 @@ export function basketTotals(
   discount: Pesewas = 0,
   deliveryFee: Pesewas = 0,
   deliveryIncluded = false,
+  wholesale = false,
 ): BasketTotals {
-  const subtotal = sumPesewas(lines.map((l) => lineTotal(l.unitPrice, l.qty)));
+  const subtotal = sumPesewas(lines.map((l) => lineTotal(linePrice(l, wholesale), l.qty)));
   const capped = Math.max(0, Math.min(discount, subtotal));
   const delivery = Math.max(0, deliveryFee);
   const included = deliveryIncluded && delivery > 0;
@@ -96,6 +99,11 @@ export function basketTotals(
     deliveryIncluded: included,
     total: subtotal - capped + (included ? 0 : delivery),
   };
+}
+
+/** What one of the line costs: its wholesale price on a wholesale sale (when it has one), else the normal price. */
+export function linePrice(line: Pick<BasketLine, "unitPrice" | "wholesalePrice">, wholesale: boolean): Pesewas {
+  return wholesale && line.wholesalePrice != null ? line.wholesalePrice : line.unitPrice;
 }
 
 /** A fee "in the price" can't be more than the total it is part of. */

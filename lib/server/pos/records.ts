@@ -1,6 +1,6 @@
 import "server-only";
 import { pageRange } from "@/lib/pagination";
-import { recordPeriodRange, riderTerm, type RecordFilter, type RecordKind, type RecordPeriod } from "@/lib/pos/records";
+import { recordPeriodRange, riderTerm, saleTypeFilter, type RecordFilter, type SaleType, type RecordKind, type RecordPeriod } from "@/lib/pos/records";
 import type { ReceiptPayment } from "@/lib/pos/receipt";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { getPeopleNames } from "@/lib/server/pos/stock";
@@ -32,6 +32,8 @@ export type RecordRow = {
   deliveryPaid?: number;
   /** Sales: the delivery fee was already in the price agreed. */
   deliveryIncluded?: boolean;
+  /** Sales: sold at wholesale prices. */
+  wholesale?: boolean;
   /** Sales: who took the delivery, if anyone yet. */
   rider?: string | null;
   /** Sales: a website order (no shop counter involved). */
@@ -53,7 +55,7 @@ function term(raw: string | undefined): string {
 
 export async function listRecords(
   kind: RecordKind,
-  options: { search?: string; filter?: RecordFilter; period?: RecordPeriod; rider?: string; page?: number; pageSize?: number },
+  options: { search?: string; filter?: RecordFilter; period?: RecordPeriod; rider?: string; type?: SaleType; page?: number; pageSize?: number },
 ) {
   const { supabase } = await requirePosUser();
   const { from, to } = pageRange(options.page ?? 1, options.pageSize ?? RECORDS_PAGE_SIZE);
@@ -66,7 +68,7 @@ export async function listRecords(
   if (kind === "sales") {
     let query = supabase
       .from("pos_sales_list")
-      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery, rider, delivery_address, payment_methods, delivery_paid, delivery_included", { count: "exact" })
+      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery, rider, delivery_address, payment_methods, delivery_paid, delivery_included, wholesale", { count: "exact" })
       .order("created_at", { ascending: false })
       .order("code", { ascending: false });
     if (q) query = query.or(`code.ilike.*${q}*,customer_name.ilike.*${q}*`);
@@ -74,6 +76,8 @@ export async function listRecords(
     // One rider's deliveries; names match whatever their capital letters.
     const rider = riderTerm(options.rider);
     if (rider) query = query.ilike("rider", rider);
+    const wholesale = saleTypeFilter(options.type ?? "all");
+    if (wholesale !== null) query = query.eq("wholesale", wholesale);
     if (options.filter === "unpaid") query = query.gt("owed", 0);
     if (options.filter === "paid") query = query.eq("owed", 0).not("status", "in", "(voided,cancelled)");
     const { data, count, error } = await query.range(from, to);
@@ -95,6 +99,7 @@ export async function listRecords(
       delivery: r.delivery ?? 0,
       deliveryPaid: r.delivery_paid ?? 0,
       deliveryIncluded: r.delivery_included ?? false,
+      wholesale: r.wholesale ?? false,
       rider: r.rider,
       fromWebsite: r.source === "website",
       deliverTo: r.delivery_address,
@@ -176,17 +181,36 @@ export type RecordsSummary = {
   counts: Record<RecordKind, number>;
 };
 
-export async function getRecordsSummary(kind: RecordKind, search?: string, period: RecordPeriod = "all", rider?: string): Promise<RecordsSummary> {
+export async function getRecordsSummary(
+  kind: RecordKind,
+  search?: string,
+  period: RecordPeriod = "all",
+  rider?: string,
+  type: SaleType = "all",
+): Promise<RecordsSummary> {
   const { supabase } = await requirePosUser();
   const range = recordPeriodRange(period, new Date());
+  if (kind === "sales") {
+    // Sales: also by rider and Retail / Wholesale.
+    const { data, error } = await supabase.rpc("pos_sales_totals", {
+      p_search: term(search),
+      // The function treats null as all time / any rider / both; the generated types don't know it accepts null.
+      p_from: (range?.from.toISOString() ?? null) as string,
+      p_to: (range?.to.toISOString() ?? null) as string,
+      p_rider: (riderTerm(rider) || null) as string,
+      p_wholesale: saleTypeFilter(type) as boolean,
+    });
+    if (error) throw new Error(`Could not load the totals: ${error.message}`);
+    return data as unknown as RecordsSummary;
+  }
   const { data, error } = await supabase.rpc("pos_records_totals", {
     p_kind: kind,
     p_search: term(search),
     // The function treats null as all time; the generated types don't know it accepts null.
     p_from: (range?.from.toISOString() ?? null) as string,
     p_to: (range?.to.toISOString() ?? null) as string,
-    // Always sent (null for every sale): it picks the version of the function that knows riders.
-    p_rider: (kind === "sales" && riderTerm(rider) ? riderTerm(rider) : null) as string,
+    // Purchases and returns have no riders: always null.
+    p_rider: null as unknown as string,
   });
   if (error) throw new Error(`Could not load the totals: ${error.message}`);
   return data as unknown as RecordsSummary;
@@ -200,7 +224,7 @@ export async function getSaleDetail(id: string) {
   const { data: s, error } = await supabase
     .from("sales")
     .select(
-      "id, code, source, status, subtotal, discount, total, note, delivery_included, created_at, created_by, completed_at, voided_at, voided_by, void_reason, order_id, customers(id, name, phone), sale_items(id, variant_id, product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at, created_by, note, delivery_amount), returns(id, code, created_at, refund_total), deliveries(address, contact_name, contact_phone, note, status, rider, out_at, delivered_at)",
+      "id, code, source, status, subtotal, discount, total, note, delivery_included, wholesale, created_at, created_by, completed_at, voided_at, voided_by, void_reason, order_id, customers(id, name, phone), sale_items(id, variant_id, product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at, created_by, note, delivery_amount), returns(id, code, created_at, refund_total), deliveries(address, contact_name, contact_phone, note, status, rider, out_at, delivered_at)",
     )
     .eq("id", id)
     .order("paid_at", { referencedTable: "payments" })
@@ -256,6 +280,8 @@ export async function getSaleDetail(id: string) {
     deliveryFee: s.sale_items.filter((i) => i.kind === "delivery").reduce((n, i) => n + i.line_total, 0),
     /** The fee was already in the price agreed (part of the total, not added). */
     deliveryIncluded: s.delivery_included,
+    /** Sold at wholesale prices. */
+    wholesale: s.wholesale,
     delivery: s.deliveries,
   };
 }

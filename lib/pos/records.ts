@@ -163,3 +163,13 @@ export function paidByText(methods: string | null | undefined): string {
     .filter(Boolean);
   return names.length ? names.join(" + ") : "—";
 }
+
+/** The Sales list's Retail / Wholesale filter. */
+export const SALE_TYPES = ["all", "retail", "wholesale"] as const;
+export type SaleType = (typeof SALE_TYPES)[number];
+export const SALE_TYPE_LABELS: Record<SaleType, string> = { all: "All sales", retail: "Retail", wholesale: "Wholesale" };
+
+/** For the database: null = both, true = wholesale only, false = retail only. */
+export function saleTypeFilter(type: SaleType): boolean | null {
+  return type === "all" ? null : type === "wholesale";
+}

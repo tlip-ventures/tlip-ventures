@@ -48,6 +48,7 @@ export function ReceiptView({ r }: { r: SaleReceipt }) {
             {r.customer.phone ? `, ${phone(r.customer.phone)}` : ""}
           </span>
         )}
+        {r.wholesale && <span className="font-bold">Wholesale prices</span>}
         {r.status !== "completed" && <span className="font-bold uppercase">{r.status}</span>}
       </div>
 

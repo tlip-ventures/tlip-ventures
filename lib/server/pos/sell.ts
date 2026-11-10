@@ -16,6 +16,8 @@ export type SellTile = {
   choices: string[];
   sku: string | null;
   price: number;
+  /** null: no wholesale price (sold at the normal price on wholesale sales too). */
+  wholesalePrice: number | null;
   onHand: number;
   imageUrl: string | null;
   topCategory: string | null;
@@ -37,6 +39,7 @@ export async function listSellTiles(options: { search?: string; topCategoryId?: 
     choices: r.choices,
     sku: r.sku,
     price: r.price,
+    wholesalePrice: r.wholesalePrice,
     onHand: r.onHand,
     imageUrl: r.imageUrl,
     topCategory: r.topCategoryName,
@@ -51,7 +54,7 @@ export async function findTileByCode(code: string): Promise<SellTile | null> {
   const { supabase } = await requirePosUser();
   const { data, error } = await supabase
     .from("pos_stock_rows")
-    .select("variant_id, product_name, choice_name, choices, sku, price, on_hand, image_url, top_category_name")
+    .select("variant_id, product_name, choice_name, choices, sku, price, on_hand, image_url, top_category_name, wholesale_price")
     .or(`barcode.eq.${term},sku.ilike.${term}`)
     .limit(2);
   if (error) throw new Error(`Could not look up the code: ${error.message}`);
@@ -65,6 +68,7 @@ export async function findTileByCode(code: string): Promise<SellTile | null> {
     choices: r.choices ?? [],
     sku: r.sku,
     price: r.price ?? 0,
+    wholesalePrice: r.wholesale_price,
     onHand: r.on_hand ?? 0,
     imageUrl: r.image_url,
     topCategory: r.top_category_name,
@@ -95,7 +99,7 @@ export async function getSaleReceipt(saleId: string) {
     supabase
       .from("sales")
       .select(
-        "id, code, status, subtotal, discount, total, note, created_at, created_by, delivery_included, customers(name, phone), sale_items(product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at), deliveries(address, contact_name, contact_phone, status, rider)",
+        "id, code, status, subtotal, discount, total, note, created_at, created_by, delivery_included, wholesale, customers(name, phone), sale_items(product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at), deliveries(address, contact_name, contact_phone, status, rider)",
       )
       .eq("id", saleId)
       .maybeSingle(),
@@ -122,6 +126,7 @@ export async function getSaleReceipt(saleId: string) {
     code: sale.code,
     status: sale.status,
     createdAt: sale.created_at,
+    wholesale: sale.wholesale,
     servedBy: (sale.created_by && people.get(sale.created_by)) || null,
     customer: sale.customers ? { name: sale.customers.name, phone: sale.customers.phone } : null,
     note: sale.note,

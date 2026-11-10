@@ -46,6 +46,7 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
       payments: receipt.payments,
       owed: receipt.owed,
       footer: receipt.shop.footer,
+      wholesale: receipt.wholesale,
         delivery: receipt.delivery,
     }),
   );
@@ -98,6 +99,7 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
           items={[
             ["Date", formatDayTime(sale.createdAt)],
             ["Sold by", sale.source === "website" ? "From the website" : sale.source === "import" ? "Imported from the old system" : sale.soldBy],
+            ["Prices", sale.wholesale ? "Wholesale" : "Retail"],
             [
               "Customer",
               sale.customer ? (

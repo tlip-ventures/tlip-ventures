@@ -17,6 +17,8 @@ export type Receipt = {
   /** total minus what has been paid. */
   owed: Pesewas;
   footer: string | null;
+  /** Sold at wholesale prices. */
+  wholesale?: boolean;
   /** A delivery: its fee (already in total, not in lines) and where it goes. */
   delivery?: { fee: Pesewas; address: string; included?: boolean } | null;
 };
@@ -51,6 +53,7 @@ export function paymentSummary(payments: readonly ReceiptPayment[], owed: Pesewa
  */
 export function buildReceiptMessage(r: Receipt): string {
   const out = [`${r.storeName} receipt`, `Sale ${r.code} · ${formatDayTime(r.createdAt)}`];
+  if (r.wholesale) out.push("Wholesale prices");
   for (const line of r.lines) {
     out.push(`${line.qty} x ${lineName(line.productName, line.optionValues)} - ${formatPesewas(line.lineTotal)}`);
   }
