@@ -357,3 +357,55 @@ export const importBatchSchema = z.discriminatedUnion("kind", [
 ]);
 
 export type ImportBatch = z.input<typeof importBatchSchema>;
+
+/** A distance typed in km, to one decimal: "12.5". */
+const km = (message: string) =>
+  z.union([z.string(), z.number()]).transform((value, ctx) => {
+    const text = String(value).trim();
+    if (!/^\d{1,3}(\.\d)?$/.test(text)) {
+      ctx.addIssue({ code: "custom", message });
+      return z.NEVER;
+    }
+    return Number(text);
+  });
+
+/** What was typed in the till's "search the map" box: a place, a map link or a position. */
+export const placeSearchSchema = z
+  .string()
+  .trim()
+  .min(2, "Type at least 2 letters of the area or landmark.")
+  .max(500, "That is too long to search.");
+
+/** A place found on the map at the till, added to the price list. */
+export const newDeliveryAreaSchema = z
+  .object({
+    name: z.string().trim().min(1, "Give the area a name.").max(80, "At most 80 characters."),
+    km: km("Enter the distance in km, like 12.5."),
+    lat: z.number().min(-90).max(90).nullable(),
+    lng: z.number().min(-180).max(180).nullable(),
+  })
+  .refine((a) => (a.lat === null) === (a.lng === null), { message: "That position on the map is not valid." });
+
+/** Owner: an area on the price list renamed, re-measured or taken off. */
+export const deliveryAreaUpdateSchema = z.object({
+  id: z.uuid(),
+  name: z.string().trim().min(1, "Give the area a name.").max(80, "At most 80 characters."),
+  km: km("Enter the distance in km, like 12.5."),
+  isActive: z.boolean(),
+});
+
+/** Owner: the delivery price formula, typed in cedis and km. */
+export const deliveryPricingSchema = z.object({
+  baseFee: cedis("Enter the base fee like 20."),
+  baseKm: km("Enter the km the base fee covers, like 3."),
+  midRate: cedis("Enter the price per km like 3 or 2.50."),
+  midEndKm: km("Enter where the middle band ends in km, like 10."),
+  farRate: cedis("Enter the price per km like 1.50."),
+  roundTo: cedis("Enter what to round up to, like 5.").refine((v) => v >= 1, "Round up to at least GH₵ 0.01."),
+  closeKm: km("Enter the very-close distance in km, like 1."),
+  closeFee: cedis("Enter the very-close fee like 10."),
+  maxKm: km("Enter the furthest distance in km, like 65."),
+  freeFrom: optionalCedis("Enter the order amount like 1000, or leave it empty for no free delivery."),
+  freeOff: cedis("Enter the amount free delivery takes off, like 40."),
+  shopLocation: z.string().trim().max(500, "That is too long."),
+});

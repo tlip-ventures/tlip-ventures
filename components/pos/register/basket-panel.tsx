@@ -6,10 +6,12 @@ import { createInvoice } from "@/app/pos/(app)/invoices/actions";
 import { completeSale, type CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
 import { phoneText } from "@/lib/pos/format";
-import { basketLineKey, basketLineName, basketQty, basketTotals, linePrice, cashOptions, changeDue, deliveryTooBig, draftDeliveryFee, momoSplit, REST_LABELS, REST_METHODS, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
+import { basketLineKey, basketLineName, basketQty, basketTotals, linePrice, cashOptions, changeDue, deliveryFeeText, deliveryTooBig, draftDeliveryFee, momoSplit, REST_LABELS, REST_METHODS, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
 import { useBasket, useBasketHydrated, type CashChoice } from "@/lib/pos/basket-store";
 import { defaultValidUntil, ghanaToday } from "@/lib/pos/invoices";
+import type { DeliveryArea, DeliveryPricing } from "@/lib/delivery";
 import { CustomerPicker } from "./customer-picker";
+import { DeliveryAreaPicker } from "./delivery-area-picker";
 
 const inputClass = "min-h-11 w-full rounded-md border border-pos-line bg-white px-3 text-sm text-pos-ink placeholder:text-pos-muted";
 
@@ -18,8 +20,19 @@ const choiceClass = (on: boolean) =>
     on ? "border-pos-green bg-pos-tint-green text-pos-green-ink" : "border-pos-line bg-white text-pos-ink hover:border-pos-muted"
   }`;
 
+/** The delivery price list: the formula and its areas. */
+export type TillDeliveryPrices = { pricing: DeliveryPricing; areas: DeliveryArea[] };
+
 /** The design's "Current sale" panel. */
-export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: boolean; onDone: (sale: CompletedSale & { method: string }) => void }) {
+export function BasketPanel({
+  canGiveDiscounts,
+  deliveryPrices,
+  onDone,
+}: {
+  canGiveDiscounts: boolean;
+  deliveryPrices: TillDeliveryPrices | null;
+  onDone: (sale: CompletedSale & { method: string }) => void;
+}) {
   const router = useRouter();
   const hydrated = useBasketHydrated();
   const state = useBasket();
@@ -33,10 +46,13 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
 
   const lines = hydrated ? state.lines : [];
   const delivering = hydrated && state.fulfilment === "delivery";
-  const deliveryFee = draftDeliveryFee(delivering ? "delivery" : "collect", state.delivery.fee);
   const feeInPrice = delivering && Boolean(state.delivery.included);
   // Wholesale: items with a wholesale price use it (owner and discount staff only).
   const wholesale = hydrated && canGiveDiscounts && Boolean(state.wholesale);
+  // Free delivery looks at the items after any discount.
+  const itemsOnly = basketTotals(lines, canGiveDiscounts ? state.discount : 0, 0, false, wholesale);
+  const feeText = deliveryFeeText(state.delivery, deliveryPrices?.pricing ?? null, itemsOnly.subtotal - itemsOnly.discount);
+  const deliveryFee = draftDeliveryFee(delivering ? "delivery" : "collect", feeText);
   const totals = basketTotals(lines, canGiveDiscounts ? state.discount : 0, deliveryFee ?? 0, feeInPrice, wholesale);
   const options = cashOptions(totals.total);
   const otherCash = parseCedis(state.cashOther);
@@ -248,6 +264,13 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
         </div>
         {delivering && (
           <div className="flex flex-col gap-2.5 rounded-md border border-pos-line bg-pos-row-hover p-3">
+            {deliveryPrices && (
+              <DeliveryAreaPicker
+                areas={deliveryPrices.areas}
+                pricing={deliveryPrices.pricing}
+                itemsTotal={itemsOnly.subtotal - itemsOnly.discount}
+              />
+            )}
             <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-pos-soft">
               <span>Deliver to (area and a landmark)</span>
               <input
@@ -273,8 +296,8 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
               <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-pos-soft">
                 <span>Fee (GH₵)</span>
                 <input
-                  value={state.delivery.fee}
-                  onChange={(e) => state.setDelivery({ fee: e.target.value })}
+                  value={feeText}
+                  onChange={(e) => state.setDelivery({ fee: e.target.value, auto: false })}
                   inputMode="decimal"
                   placeholder="0"
                   className={`${inputClass} text-right font-bold tabular-nums`}

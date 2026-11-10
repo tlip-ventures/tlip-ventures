@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { adjustSchema, countLineSchema, fieldErrors, paymentSchema, posProductSchema, recountSchema, stockChangeSchema } from "./schemas";
+import {
+  adjustSchema,
+  countLineSchema,
+  deliveryAreaUpdateSchema,
+  deliveryPricingSchema,
+  fieldErrors,
+  newDeliveryAreaSchema,
+  paymentSchema,
+  posProductSchema,
+  recountSchema,
+  stockChangeSchema,
+} from "./schemas";
 
 const id = "8b6c1f0e-1a2b-4c3d-8e9f-0a1b2c3d4e5f";
 
@@ -80,5 +91,62 @@ describe("paymentSchema delivery part", () => {
   it("refuses a delivery part bigger than the amount, or not a number", () => {
     expect(paymentSchema.safeParse({ ...base, deliveryAmount: "140" }).success).toBe(false);
     expect(paymentSchema.safeParse({ ...base, deliveryAmount: "abc" }).success).toBe(false);
+  });
+});
+
+describe("delivery price list", () => {
+  const pricing = {
+    baseFee: "20",
+    baseKm: "3",
+    midRate: "3",
+    midEndKm: "10",
+    farRate: "1.50",
+    roundTo: "5",
+    closeKm: "1",
+    closeFee: "10",
+    maxKm: "65",
+    freeFrom: "1,000",
+    freeOff: "40",
+    shopLocation: "",
+  };
+
+  it("reads the formula in pesewas and km", () => {
+    expect(deliveryPricingSchema.parse(pricing)).toEqual({
+      baseFee: 2000,
+      baseKm: 3,
+      midRate: 300,
+      midEndKm: 10,
+      farRate: 150,
+      roundTo: 500,
+      closeKm: 1,
+      closeFee: 1000,
+      maxKm: 65,
+      freeFrom: 100000,
+      freeOff: 4000,
+      shopLocation: "",
+    });
+  });
+
+  it("turns free delivery off when left empty", () => {
+    expect(deliveryPricingSchema.parse({ ...pricing, freeFrom: " " }).freeFrom).toBeNull();
+  });
+
+  it("refuses bad numbers", () => {
+    expect(deliveryPricingSchema.safeParse({ ...pricing, baseKm: "3.25" }).success).toBe(false);
+    expect(deliveryPricingSchema.safeParse({ ...pricing, roundTo: "0" }).success).toBe(false);
+    expect(deliveryPricingSchema.safeParse({ ...pricing, midRate: "three" }).success).toBe(false);
+  });
+
+  it("checks an area", () => {
+    expect(newDeliveryAreaSchema.parse({ name: " Kokrobite ", km: "19", lat: 5.49, lng: -0.36 })).toEqual({
+      name: "Kokrobite",
+      km: 19,
+      lat: 5.49,
+      lng: -0.36,
+    });
+    expect(newDeliveryAreaSchema.safeParse({ name: "X", km: "19", lat: 5.49, lng: null }).success).toBe(false);
+    expect(newDeliveryAreaSchema.safeParse({ name: "", km: "19", lat: null, lng: null }).success).toBe(false);
+    expect(deliveryAreaUpdateSchema.safeParse({ id, name: "Osu", km: "1000", isActive: true }).success).toBe(false);
+    expect(deliveryAreaUpdateSchema.parse({ id, name: "Osu", km: "10.6", isActive: false }).km).toBe(10.6);
   });
 });

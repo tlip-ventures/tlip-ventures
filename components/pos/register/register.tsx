@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import type { CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas } from "@/lib/money";
-import { basketTotals, draftDeliveryFee } from "@/lib/pos/basket";
+import { basketTotals, deliveryFeeText, draftDeliveryFee } from "@/lib/pos/basket";
 import { useBasket, useBasketHydrated } from "@/lib/pos/basket-store";
 import type { SellTile } from "@/lib/server/pos/sell";
-import { BasketPanel } from "./basket-panel";
+import { BasketPanel, type TillDeliveryPrices } from "./basket-panel";
 import { ProductPanel } from "./product-panel";
 import { SaleDone } from "./sale-done";
 
@@ -18,6 +18,7 @@ export function Register({
   query,
   category,
   canGiveDiscounts,
+  deliveryPrices,
 }: {
   tiles: SellTile[];
   total: number;
@@ -25,21 +26,26 @@ export function Register({
   query: string;
   category: string | null;
   canGiveDiscounts: boolean;
+  deliveryPrices: TillDeliveryPrices | null;
 }) {
   const [done, setDone] = useState<(CompletedSale & { method: string }) | null>(null);
   const hydrated = useBasketHydrated();
   const lines = useBasket((s) => s.lines);
   const discount = useBasket((s) => s.discount);
   const fulfilment = useBasket((s) => s.fulfilment);
-  const deliveryFeeText = useBasket((s) => s.delivery.fee);
-  const feeInPrice = useBasket((s) => Boolean(s.delivery.included));
+  const delivery = useBasket((s) => s.delivery);
+  const feeInPrice = Boolean(delivery.included);
   const wholesale = useBasket((s) => Boolean(s.wholesale));
+  const shown = hydrated ? lines : [];
+  const isWholesale = hydrated && canGiveDiscounts && wholesale;
+  const itemsOnly = basketTotals(shown, canGiveDiscounts ? discount : 0, 0, false, isWholesale);
+  const feeText = deliveryFeeText(delivery, deliveryPrices?.pricing ?? null, itemsOnly.subtotal - itemsOnly.discount);
   const totals = basketTotals(
-    hydrated ? lines : [],
+    shown,
     canGiveDiscounts ? discount : 0,
-    hydrated ? (draftDeliveryFee(fulfilment, deliveryFeeText) ?? 0) : 0,
+    hydrated ? (draftDeliveryFee(fulfilment, feeText) ?? 0) : 0,
     hydrated && fulfilment === "delivery" && feeInPrice,
-    hydrated && canGiveDiscounts && wholesale,
+    isWholesale,
   );
 
   // Move focus to "Sale saved." so screen readers announce it.
@@ -59,7 +65,7 @@ export function Register({
         {done ? (
           <SaleDone sale={done} onNext={() => setDone(null)} />
         ) : (
-          <BasketPanel canGiveDiscounts={canGiveDiscounts} onDone={setDone} />
+          <BasketPanel canGiveDiscounts={canGiveDiscounts} deliveryPrices={deliveryPrices} onDone={setDone} />
         )}
       </aside>
 

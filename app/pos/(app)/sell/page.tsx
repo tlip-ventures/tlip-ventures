@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { z } from "zod";
 import { Register } from "@/components/pos/register/register";
 import { requirePosUser } from "@/lib/server/pos/auth";
+import { loadDeliveryPriceList } from "@/lib/server/pos/delivery";
 import { listSellTiles } from "@/lib/server/pos/sell";
 import { listTopCategories } from "@/lib/server/pos/stock";
 
@@ -16,9 +17,10 @@ const paramsSchema = z.object({
 export default async function SellPage({ searchParams }: PageProps<"/pos/sell">) {
   const params = paramsSchema.parse(await searchParams);
   const user = await requirePosUser();
-  const [{ tiles, total }, categories] = await Promise.all([
+  const [{ tiles, total }, categories, prices] = await Promise.all([
     listSellTiles({ search: params.q, topCategoryId: params.cat }),
     listTopCategories(),
+    loadDeliveryPriceList(user.supabase),
   ]);
 
   return (
@@ -29,6 +31,7 @@ export default async function SellPage({ searchParams }: PageProps<"/pos/sell">)
       query={params.q}
       category={params.cat ?? null}
       canGiveDiscounts={user.canGiveDiscounts}
+      deliveryPrices={{ pricing: prices.pricing, areas: prices.areas }}
     />
   );
 }

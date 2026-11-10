@@ -216,6 +216,42 @@ export type Database = {
           },
         ]
       }
+      delivery_areas: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          km: number
+          lat: number | null
+          lng: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          km: number
+          lat?: number | null
+          lng?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          km?: number
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoice_items: {
         Row: {
           id: string
@@ -280,14 +316,13 @@ export type Database = {
       }
       invoices: {
         Row: {
-          wholesale: boolean
           code: string
           created_at: string
           created_by: string | null
           customer_id: string | null
-          delivery_included: boolean
           delivery_address: string | null
           delivery_fee: number
+          delivery_included: boolean
           delivery_name: string | null
           delivery_note: string | null
           delivery_phone: string | null
@@ -300,16 +335,16 @@ export type Database = {
           total: number
           updated_at: string
           valid_until: string
+          wholesale: boolean
         }
         Insert: {
-          wholesale?: boolean
           code?: string
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
-          delivery_included?: boolean
           delivery_address?: string | null
           delivery_fee?: number
+          delivery_included?: boolean
           delivery_name?: string | null
           delivery_note?: string | null
           delivery_phone?: string | null
@@ -322,16 +357,16 @@ export type Database = {
           total: number
           updated_at?: string
           valid_until: string
+          wholesale?: boolean
         }
         Update: {
-          wholesale?: boolean
           code?: string
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
-          delivery_included?: boolean
           delivery_address?: string | null
           delivery_fee?: number
+          delivery_included?: boolean
           delivery_name?: string | null
           delivery_note?: string | null
           delivery_phone?: string | null
@@ -344,6 +379,7 @@ export type Database = {
           total?: number
           updated_at?: string
           valid_until?: string
+          wholesale?: boolean
         }
         Relationships: [
           {
@@ -478,8 +514,8 @@ export type Database = {
           amount: number
           cash_received: number | null
           change_given: number | null
-          delivery_amount: number
           created_by: string | null
+          delivery_amount: number
           id: string
           method: Database["public"]["Enums"]["payment_method"]
           note: string | null
@@ -490,8 +526,8 @@ export type Database = {
           amount: number
           cash_received?: number | null
           change_given?: number | null
-          delivery_amount?: number
           created_by?: string | null
+          delivery_amount: number
           id?: string
           method: Database["public"]["Enums"]["payment_method"]
           note?: string | null
@@ -502,8 +538,8 @@ export type Database = {
           amount?: number
           cash_received?: number | null
           change_given?: number | null
-          delivery_amount?: number
           created_by?: string | null
+          delivery_amount?: number
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
           note?: string | null
@@ -729,7 +765,22 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "product_wholesale_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_wholesale_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
@@ -1149,10 +1200,10 @@ export type Database = {
       }
       sale_items: {
         Row: {
-          list_price: number | null
           id: string
           kind: string
           line_total: number
+          list_price: number | null
           option_values: string | null
           product_name: string
           qty: number
@@ -1161,10 +1212,10 @@ export type Database = {
           variant_id: string | null
         }
         Insert: {
-          list_price?: number | null
           id?: string
           kind?: string
           line_total: number
+          list_price?: number | null
           option_values?: string | null
           product_name: string
           qty: number
@@ -1173,10 +1224,10 @@ export type Database = {
           variant_id?: string | null
         }
         Update: {
-          list_price?: number | null
           id?: string
           kind?: string
           line_total?: number
+          list_price?: number | null
           option_values?: string | null
           product_name?: string
           qty?: number
@@ -1224,7 +1275,6 @@ export type Database = {
       }
       sales: {
         Row: {
-          wholesale: boolean
           code: string
           completed_at: string | null
           created_at: string
@@ -1242,9 +1292,9 @@ export type Database = {
           void_reason: string | null
           voided_at: string | null
           voided_by: string | null
+          wholesale: boolean
         }
         Insert: {
-          wholesale?: boolean
           code?: string
           completed_at?: string | null
           created_at?: string
@@ -1262,9 +1312,9 @@ export type Database = {
           void_reason?: string | null
           voided_at?: string | null
           voided_by?: string | null
+          wholesale?: boolean
         }
         Update: {
-          wholesale?: boolean
           code?: string
           completed_at?: string | null
           created_at?: string
@@ -1282,6 +1332,7 @@ export type Database = {
           void_reason?: string | null
           voided_at?: string | null
           voided_by?: string | null
+          wholesale?: boolean
         }
         Relationships: [
           {
@@ -1304,6 +1355,17 @@ export type Database = {
         Row: {
           announcement: string | null
           contact_email: string | null
+          delivery_base_fee: number
+          delivery_base_km: number
+          delivery_close_fee: number
+          delivery_close_km: number
+          delivery_far_rate: number
+          delivery_free_from: number | null
+          delivery_free_off: number
+          delivery_max_km: number
+          delivery_mid_end_km: number
+          delivery_mid_rate: number
+          delivery_round_to: number
           id: number
           opening_hours: string | null
           receipt_footer: string | null
@@ -1312,6 +1374,8 @@ export type Database = {
           reply_open: string | null
           response_promise: string | null
           shop_address: string | null
+          shop_lat: number | null
+          shop_lng: number | null
           social_links: Json
           store_name: string
           tagline: string | null
@@ -1321,6 +1385,17 @@ export type Database = {
         Insert: {
           announcement?: string | null
           contact_email?: string | null
+          delivery_base_fee?: number
+          delivery_base_km?: number
+          delivery_close_fee?: number
+          delivery_close_km?: number
+          delivery_far_rate?: number
+          delivery_free_from?: number | null
+          delivery_free_off?: number
+          delivery_max_km?: number
+          delivery_mid_end_km?: number
+          delivery_mid_rate?: number
+          delivery_round_to?: number
           id?: number
           opening_hours?: string | null
           receipt_footer?: string | null
@@ -1329,6 +1404,8 @@ export type Database = {
           reply_open?: string | null
           response_promise?: string | null
           shop_address?: string | null
+          shop_lat?: number | null
+          shop_lng?: number | null
           social_links?: Json
           store_name?: string
           tagline?: string | null
@@ -1338,6 +1415,17 @@ export type Database = {
         Update: {
           announcement?: string | null
           contact_email?: string | null
+          delivery_base_fee?: number
+          delivery_base_km?: number
+          delivery_close_fee?: number
+          delivery_close_km?: number
+          delivery_far_rate?: number
+          delivery_free_from?: number | null
+          delivery_free_off?: number
+          delivery_max_km?: number
+          delivery_mid_end_km?: number
+          delivery_mid_rate?: number
+          delivery_round_to?: number
           id?: number
           opening_hours?: string | null
           receipt_footer?: string | null
@@ -1346,6 +1434,8 @@ export type Database = {
           reply_open?: string | null
           response_promise?: string | null
           shop_address?: string | null
+          shop_lat?: number | null
+          shop_lng?: number | null
           social_links?: Json
           store_name?: string
           tagline?: string | null
@@ -1818,7 +1908,6 @@ export type Database = {
       }
       pos_sales_list: {
         Row: {
-          wholesale: boolean | null
           code: string | null
           created_at: string | null
           created_by: string | null
@@ -1839,6 +1928,7 @@ export type Database = {
           source: Database["public"]["Enums"]["sale_source"] | null
           status: Database["public"]["Enums"]["sale_status"] | null
           total: number | null
+          wholesale: boolean | null
         }
         Relationships: [
           {
@@ -1859,7 +1949,6 @@ export type Database = {
       }
       pos_stock_rows: {
         Row: {
-          wholesale_price: number | null
           barcode: string | null
           category_id: string | null
           category_name: string | null
@@ -1880,6 +1969,7 @@ export type Database = {
           top_category_name: string | null
           updated_at: string | null
           variant_id: string | null
+          wholesale_price: number | null
         }
         Relationships: []
       }
@@ -1912,6 +2002,10 @@ export type Database = {
             }[]
           }
       expire_unsent_orders: { Args: never; Returns: number }
+      pos_add_delivery_area: {
+        Args: { p_km: number; p_lat: number; p_lng: number; p_name: string }
+        Returns: string
+      }
       pos_adjust_stock: {
         Args: { p_change: number; p_reason: string; p_variant_id: string }
         Returns: number
@@ -2127,6 +2221,7 @@ export type Database = {
         | {
             Args: {
               p_amount: number
+              p_delivery_amount: number
               p_id: string
               p_kind: string
               p_method: string
@@ -2137,7 +2232,6 @@ export type Database = {
         | {
             Args: {
               p_amount: number
-              p_delivery_amount: number
               p_id: string
               p_kind: string
               p_method: string
@@ -2182,7 +2276,13 @@ export type Database = {
         Returns: Json
       }
       pos_sales_totals: {
-        Args: { p_from: string; p_rider: string; p_search: string; p_to: string; p_wholesale: boolean }
+        Args: {
+          p_from: string
+          p_rider: string
+          p_search: string
+          p_to: string
+          p_wholesale: boolean
+        }
         Returns: Json
       }
       pos_save_count_line: {
@@ -2197,12 +2297,12 @@ export type Database = {
           purchase_id: string
         }[]
       }
-      pos_start_count: { Args: { p_note?: string }; Returns: string }
-      pos_stock_summary: { Args: never; Returns: Json }
       pos_set_wholesale_price: {
         Args: { p_price: number; p_product_id: string }
         Returns: undefined
       }
+      pos_start_count: { Args: { p_note?: string }; Returns: string }
+      pos_stock_summary: { Args: never; Returns: Json }
       pos_sync_website_orders: { Args: never; Returns: number }
       pos_top_products: {
         Args: { p_from: string; p_limit?: number; p_to: string }
@@ -2221,6 +2321,15 @@ export type Database = {
           p_rider?: string
           p_sale_id: string
           p_status: string
+        }
+        Returns: undefined
+      }
+      pos_update_delivery_area: {
+        Args: {
+          p_id: string
+          p_is_active: boolean
+          p_km: number
+          p_name: string
         }
         Returns: undefined
       }
