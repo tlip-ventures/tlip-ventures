@@ -68,7 +68,7 @@ async function loadInvoice(id: string) {
     supabase
       .from("invoices")
       .select(
-        "id, code, status, created_at, created_by, customer_id, subtotal, discount, delivery_fee, delivery_address, delivery_name, delivery_phone, delivery_note, total, valid_until, note, sale_id",
+        "id, code, status, created_at, created_by, customer_id, subtotal, discount, delivery_fee, delivery_address, delivery_name, delivery_phone, delivery_note, delivery_included, total, valid_until, note, sale_id",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -116,10 +116,18 @@ export async function getInvoice(id: string) {
     madeBy: (inv.created_by && people.get(inv.created_by)) || null,
     customer: customer ? { name: customer.name, phone: customer.phone } : null,
     lines,
-    subtotal: inv.subtotal,
+    // The items as listed (a fee "in the price" is stored out of the subtotal).
+    subtotal: inv.delivery_included ? inv.subtotal + inv.delivery_fee : inv.subtotal,
     discount: inv.discount,
     delivery: inv.delivery_address
-      ? { fee: inv.delivery_fee, address: inv.delivery_address, name: inv.delivery_name, phone: inv.delivery_phone, note: inv.delivery_note }
+      ? {
+          fee: inv.delivery_fee,
+          included: inv.delivery_included,
+          address: inv.delivery_address,
+          name: inv.delivery_name,
+          phone: inv.delivery_phone,
+          note: inv.delivery_note,
+        }
       : null,
     total: inv.total,
     note: inv.note,
@@ -142,7 +150,7 @@ export type InvoiceForTill = {
   lines: BasketLine[];
   customer: CustomerChoice | null;
   discount: number;
-  delivery: { address: string; phone: string; fee: string; note: string } | null;
+  delivery: { address: string; phone: string; fee: string; note: string; included: boolean } | null;
 };
 
 export async function getInvoiceForTill(id: string): Promise<InvoiceForTill | { error: string }> {
@@ -186,6 +194,7 @@ export async function getInvoiceForTill(id: string): Promise<InvoiceForTill | { 
           phone: phoneText(inv.delivery_phone) ?? "",
           fee: inv.delivery_fee ? pesewasToInput(inv.delivery_fee) : "",
           note: inv.delivery_note ?? "",
+          included: inv.delivery_included,
         }
       : null,
   };

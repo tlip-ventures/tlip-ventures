@@ -169,6 +169,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
         ? ([
             { label: "Items", width: 14, align: "right" },
             { label: "Delivery", width: 12, align: "right" },
+            { label: "Delivery in price", width: 12 },
             { label: "Rider", width: 16 },
           ] as ExportColumn[])
         : []),
@@ -190,7 +191,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
       r.party,
       ...(kind === "sales" ? [r.deliverTo ?? (r.fromWebsite ? "" : "In the shop")] : []),
       status(r),
-      ...(kind === "sales" ? [money(r.total - (r.delivery ?? 0)), money(r.delivery ?? 0), r.rider ?? ""] : []),
+      ...(kind === "sales" ? [money(r.total - (r.delivery ?? 0)), money(r.delivery ?? 0), r.delivery && r.deliveryIncluded ? "Yes" : "", r.rider ?? ""] : []),
       money(r.total),
       money(r.paid),
       ...(kind === "sales" ? [money(r.paid - (r.deliveryPaid ?? 0)), money(r.deliveryPaid ?? 0)] : []),

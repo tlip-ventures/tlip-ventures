@@ -122,7 +122,7 @@ export function InvoiceView({ inv, today }: { inv: InvoiceDetail; today: string 
         <div className="flex w-full max-w-[300px] flex-col">
           <Total label="Items" value={formatPesewas(inv.subtotal)} />
           {inv.discount > 0 && <Total label="Discount" value={`-${formatPesewas(inv.discount)}`} />}
-          {inv.delivery && <Total label="Delivery" value={formatPesewas(inv.delivery.fee)} />}
+          {inv.delivery && <Total label={inv.delivery.included ? "Delivery (in the price)" : "Delivery"} value={formatPesewas(inv.delivery.fee)} />}
           <Total label="Total" value={formatPesewas(inv.total)} strong />
         </div>
       </div>

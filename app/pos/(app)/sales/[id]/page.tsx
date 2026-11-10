@@ -142,9 +142,9 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
           rows={[
             ...(sale.discount > 0 || sale.delivery
               ? ([
-                  ["Items", sale.subtotal - sale.deliveryFee],
+                  ["Items", sale.deliveryIncluded ? sale.subtotal : sale.subtotal - sale.deliveryFee],
                   ...(sale.discount > 0 ? [["Discount", -sale.discount]] : []),
-                  ...(sale.delivery ? [["Delivery", sale.deliveryFee]] : []),
+                  ...(sale.delivery ? [[sale.deliveryIncluded ? "Delivery (in the price)" : "Delivery", sale.deliveryFee]] : []),
                 ] as [string, number][])
               : []),
             ["Total", sale.total, "bold"],

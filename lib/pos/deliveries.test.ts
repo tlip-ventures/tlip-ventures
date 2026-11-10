@@ -22,9 +22,11 @@ describe("deliveryForDb", () => {
       fee: 3000,
       address: "Dansoman",
       phone: "233241234567",
+      included: false,
       note: "",
     });
     expect(deliveryForDb({ fee: 0, address: "Dansoman", phone: "", note: "" })).toMatchObject({ phone: null });
     expect(deliveryForDb({ fee: 0, address: "Dansoman", phone: "12345", note: "" })).toBe("bad phone");
+    expect(deliveryForDb({ fee: 2000, address: "Osu", phone: "", note: "", included: true })).toMatchObject({ fee: 2000, included: true });
   });
 });

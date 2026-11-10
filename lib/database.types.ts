@@ -284,6 +284,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_id: string | null
+          delivery_included: boolean
           delivery_address: string | null
           delivery_fee: number
           delivery_name: string | null
@@ -304,6 +305,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
+          delivery_included?: boolean
           delivery_address?: string | null
           delivery_fee?: number
           delivery_name?: string | null
@@ -324,6 +326,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
+          delivery_included?: boolean
           delivery_address?: string | null
           delivery_fee?: number
           delivery_name?: string | null
@@ -1199,6 +1202,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_id: string | null
+          delivery_included: boolean
           discount: number
           id: string
           note: string | null
@@ -1217,6 +1221,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
+          delivery_included?: boolean
           discount?: number
           id?: string
           note?: string | null
@@ -1235,6 +1240,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
+          delivery_included?: boolean
           discount?: number
           id?: string
           note?: string | null
@@ -1790,6 +1796,7 @@ export type Database = {
           customer_phone: string | null
           delivery: number | null
           delivery_address: string | null
+          delivery_included: boolean | null
           delivery_paid: number | null
           discount: number | null
           id: string | null

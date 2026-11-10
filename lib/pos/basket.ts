@@ -63,23 +63,44 @@ export function setBasketQty(lines: readonly BasketLine[], key: string, qty: num
   return lines.map((l) => (basketLineKey(l) === key ? { ...l, qty: Math.max(1, Math.min(qty, room(lines, l, l.maxQty))) } : l));
 }
 
-export type BasketTotals = { items: number; subtotal: Pesewas; discount: Pesewas; delivery: Pesewas; total: Pesewas };
+export type BasketTotals = {
+  items: number;
+  subtotal: Pesewas;
+  discount: Pesewas;
+  delivery: Pesewas;
+  /** The delivery fee is already in the price agreed: part of the total, not added. */
+  deliveryIncluded: boolean;
+  total: Pesewas;
+};
 
 /**
  * Item count and money. A discount larger than the items is capped at the
- * items; a delivery fee comes on top and is never discounted.
+ * items; a delivery fee comes on top and is never discounted, unless it is
+ * already in the price, when the total stays and the fee is part of it.
  */
-export function basketTotals(lines: readonly BasketLine[], discount: Pesewas = 0, deliveryFee: Pesewas = 0): BasketTotals {
+export function basketTotals(
+  lines: readonly BasketLine[],
+  discount: Pesewas = 0,
+  deliveryFee: Pesewas = 0,
+  deliveryIncluded = false,
+): BasketTotals {
   const subtotal = sumPesewas(lines.map((l) => lineTotal(l.unitPrice, l.qty)));
   const capped = Math.max(0, Math.min(discount, subtotal));
   const delivery = Math.max(0, deliveryFee);
+  const included = deliveryIncluded && delivery > 0;
   return {
     items: lines.reduce((n, l) => n + l.qty, 0),
     subtotal,
     discount: capped,
     delivery,
-    total: subtotal - capped + delivery,
+    deliveryIncluded: included,
+    total: subtotal - capped + (included ? 0 : delivery),
   };
+}
+
+/** A fee "in the price" can't be more than the total it is part of. */
+export function deliveryTooBig(totals: BasketTotals): boolean {
+  return totals.deliveryIncluded && totals.delivery > totals.total;
 }
 
 /** How the customer gets the goods: takes them from the shop, or the shop delivers. */

@@ -62,6 +62,8 @@ On the shop's phone and the owner's laptop:
       on **Deliveries**. Send it out with a rider's name, mark it Delivered, then Mark paid when the
       money comes back.
 - [ ] Mark the Pay later sale paid from the Sales list.
+- [ ] Ring up a Delivery with the fee **Already in the price** (e.g. GH₵ 70 with GH₵ 20 delivery): the
+      total stays GH₵ 70 and the Sales list shows items GH₵ 50 and delivery GH₵ 20.
 - [ ] Ring up a Delivery on Pay later, then Mark paid part of it and say how much is for delivery: the
       Sales list shows paid and still owed for items and for delivery apart.
 - [ ] On **Sales**, choose Today and a rider under **Deliveries by rider**: the list and the Delivery

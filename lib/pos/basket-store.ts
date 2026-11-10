@@ -51,9 +51,10 @@ export type LoadedInvoice = {
   delivery: DeliveryDraft | null;
 };
 
-export type DeliveryDraft = { address: string; phone: string; fee: string; note: string };
+/** included: the fee is already in the price agreed (part of the total, not added on top). */
+export type DeliveryDraft = { address: string; phone: string; fee: string; note: string; included?: boolean };
 
-const NO_DELIVERY: DeliveryDraft = { address: "", phone: "", fee: "", note: "" };
+const NO_DELIVERY: DeliveryDraft = { address: "", phone: "", fee: "", note: "", included: false };
 
 const EMPTY = { lines: [], customer: null, method: "cash", cash: "exact", cashOther: "", discount: 0, fulfilment: "collect", invoice: null } as const;
 

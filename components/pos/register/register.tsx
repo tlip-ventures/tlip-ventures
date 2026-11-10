@@ -32,10 +32,12 @@ export function Register({
   const discount = useBasket((s) => s.discount);
   const fulfilment = useBasket((s) => s.fulfilment);
   const deliveryFeeText = useBasket((s) => s.delivery.fee);
+  const feeInPrice = useBasket((s) => Boolean(s.delivery.included));
   const totals = basketTotals(
     hydrated ? lines : [],
     canGiveDiscounts ? discount : 0,
     hydrated ? (draftDeliveryFee(fulfilment, deliveryFeeText) ?? 0) : 0,
+    hydrated && fulfilment === "delivery" && feeInPrice,
   );
 
   // Move focus to "Sale saved." so screen readers announce it.

@@ -18,7 +18,7 @@ export type Receipt = {
   owed: Pesewas;
   footer: string | null;
   /** A delivery: its fee (already in total, not in lines) and where it goes. */
-  delivery?: { fee: Pesewas; address: string } | null;
+  delivery?: { fee: Pesewas; address: string; included?: boolean } | null;
 };
 
 const METHOD_NAMES = { cash: "cash", momo: "Mobile Money", bank: "bank transfer" } as const;
@@ -55,7 +55,9 @@ export function buildReceiptMessage(r: Receipt): string {
     out.push(`${line.qty} x ${lineName(line.productName, line.optionValues)} - ${formatPesewas(line.lineTotal)}`);
   }
   if (r.discount > 0) out.push(`Discount: -${formatPesewas(r.discount)}`);
-  if (r.delivery && r.delivery.fee > 0) out.push(`Delivery: ${formatPesewas(r.delivery.fee)}`);
+  if (r.delivery && r.delivery.fee > 0) {
+    out.push(`${r.delivery.included ? "Delivery (in the price)" : "Delivery"}: ${formatPesewas(r.delivery.fee)}`);
+  }
   out.push(`Total: ${formatPesewas(r.total)}`);
   for (const p of r.payments) {
     if (p.method === "cash" && p.cashReceived !== null && (p.changeGiven ?? 0) > 0) {

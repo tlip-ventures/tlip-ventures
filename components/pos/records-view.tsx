@@ -307,6 +307,7 @@ export function RecordsView({
                       {kind === "sales" && (
                         <td className={`whitespace-nowrap px-3 py-3.5 text-right tabular-nums ${r.delivery ? "" : "text-pos-muted"}`}>
                           {r.delivery ? formatPesewas(r.delivery) : "—"}
+                          {r.delivery && r.deliveryIncluded ? <span className="block text-xs text-pos-muted">in the price</span> : null}
                         </td>
                       )}
                       <td className="whitespace-nowrap px-3 py-3.5 text-right font-semibold tabular-nums">{formatPesewas(r.total)}</td>

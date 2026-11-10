@@ -6,7 +6,7 @@ import { createInvoice } from "@/app/pos/(app)/invoices/actions";
 import { completeSale, type CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
 import { phoneText } from "@/lib/pos/format";
-import { basketLineKey, basketLineName, basketQty, basketTotals, cashOptions, changeDue, draftDeliveryFee, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
+import { basketLineKey, basketLineName, basketQty, basketTotals, cashOptions, changeDue, deliveryTooBig, draftDeliveryFee, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
 import { useBasket, useBasketHydrated, type CashChoice } from "@/lib/pos/basket-store";
 import { defaultValidUntil, ghanaToday } from "@/lib/pos/invoices";
 import { CustomerPicker } from "./customer-picker";
@@ -34,7 +34,8 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
   const lines = hydrated ? state.lines : [];
   const delivering = hydrated && state.fulfilment === "delivery";
   const deliveryFee = draftDeliveryFee(delivering ? "delivery" : "collect", state.delivery.fee);
-  const totals = basketTotals(lines, canGiveDiscounts ? state.discount : 0, deliveryFee ?? 0);
+  const feeInPrice = delivering && Boolean(state.delivery.included);
+  const totals = basketTotals(lines, canGiveDiscounts ? state.discount : 0, deliveryFee ?? 0, feeInPrice);
   const options = cashOptions(totals.total);
   const otherCash = parseCedis(state.cashOther);
   const cashReceived: number | null =
@@ -48,7 +49,9 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
       ? "Enter where to deliver: the area and a landmark."
       : delivering && deliveryFee === null
         ? "Enter the delivery fee like 30, or leave it empty."
-        : null;
+        : deliveryTooBig(totals)
+          ? "The delivery fee can't be more than the total when it is in the price."
+          : null;
   const blocker =
     lines.length === 0
       ? null
@@ -79,6 +82,7 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
           // The rider calls this number; the customer's own when none is typed.
           phone: state.delivery.phone.trim() || state.customer?.phone || "",
           note: state.delivery.note,
+          included: totals.deliveryIncluded,
         }
       : null;
 
@@ -222,6 +226,30 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
                 />
               </label>
             </div>
+            <div role="group" aria-label="The delivery fee" className="flex flex-col gap-1.5">
+              <span className="text-[13px] font-semibold text-pos-soft">The fee is</span>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  [false, "Added on top"],
+                  [true, "Already in the price"],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    aria-pressed={Boolean(state.delivery.included) === value}
+                    onClick={() => state.setDelivery({ included: value })}
+                    className={`${choiceClass(Boolean(state.delivery.included) === value)} px-2 text-[13px]`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {state.delivery.included && (
+                <span className="text-xs leading-[18px] text-pos-muted">
+                  The customer pays the total below; the fee is part of it, so the sale shows items and delivery apart.
+                </span>
+              )}
+            </div>
             <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-pos-soft">
               <span>Note for the rider (optional)</span>
               <input
@@ -328,8 +356,14 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
           </div>
           {delivering && (
             <div className="flex justify-between">
-              <span>Delivery</span>
+              <span>{totals.deliveryIncluded ? "Delivery (in the price)" : "Delivery"}</span>
               <span>{formatPesewas(totals.delivery)}</span>
+            </div>
+          )}
+          {totals.deliveryIncluded && (
+            <div className="flex justify-between">
+              <span>Items</span>
+              <span>{formatPesewas(totals.total - totals.delivery)}</span>
             </div>
           )}
           <div className="flex items-baseline justify-between border-t border-pos-card-line pt-2 text-pos-ink">

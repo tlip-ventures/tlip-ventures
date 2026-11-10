@@ -139,6 +139,8 @@ const deliveryInputSchema = z.object({
   address: z.string().trim().min(1, "Enter where to deliver: the area and a landmark.").max(300, "At most 300 characters."),
   phone: z.string().trim().max(30),
   note: z.string().trim().max(300, "At most 300 characters."),
+  // The fee is already in the price agreed: the total stays and the fee is part of it.
+  included: z.boolean().default(false),
 });
 
 /** A basket line: the item, how many, and the colour picked (checked against the product by the database). */
@@ -229,6 +231,8 @@ export const markOrderPaidSchema = z.object({
   deliver: z.boolean(),
   deliveryFee: optionalCedis("Delivery fee like 30, or leave it empty."),
   deliveryAddress: z.string().trim().max(300, "At most 300 characters."),
+  // Ticked: the fee is already in what the customer paid, not added on top.
+  deliveryIncluded: z.boolean(),
 });
 
 /** What the purchase form sends. Costs are typed in cedis. */

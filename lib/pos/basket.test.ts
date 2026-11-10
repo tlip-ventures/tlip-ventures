@@ -7,6 +7,7 @@ import {
   basketTotals,
   cashOptions,
   changeDue,
+  deliveryTooBig,
   draftDeliveryFee,
   setBasketQty,
   tileStock,
@@ -57,11 +58,11 @@ describe("basket", () => {
 
   it("totals in pesewas and caps the discount", () => {
     const lines = addToBasket(addToBasket(addToBasket([], kettle), pan), pan);
-    expect(basketTotals(lines)).toEqual({ items: 3, subtotal: 60000, discount: 0, delivery: 0, total: 60000 });
+    expect(basketTotals(lines)).toEqual({ items: 3, subtotal: 60000, discount: 0, delivery: 0, deliveryIncluded: false, total: 60000 });
     expect(basketTotals(lines, 2050).total).toBe(57950);
     expect(basketTotals(lines, 999999).total).toBe(0);
     // A delivery fee comes on top and the discount never eats into it.
-    expect(basketTotals(lines, 2050, 3000)).toEqual({ items: 3, subtotal: 60000, discount: 2050, delivery: 3000, total: 60950 });
+    expect(basketTotals(lines, 2050, 3000)).toEqual({ items: 3, subtotal: 60000, discount: 2050, delivery: 3000, deliveryIncluded: false, total: 60950 });
     expect(basketTotals(lines, 999999, 3000).total).toBe(3000);
   });
 });
@@ -99,5 +100,20 @@ describe("draftDeliveryFee", () => {
     expect(draftDeliveryFee("delivery", "30")).toBe(3000);
     expect(draftDeliveryFee("delivery", "12.50")).toBe(1250);
     expect(draftDeliveryFee("delivery", "abc")).toBeNull();
+  });
+});
+
+describe("delivery already in the price", () => {
+  const lines = [{ variantId: "a", name: "Hanger", sku: null, unitPrice: 7000, qty: 1, maxQty: 5 }];
+  it("keeps the total and makes the fee part of it", () => {
+    const t = basketTotals(lines as never, 0, 2000, true);
+    expect(t).toMatchObject({ subtotal: 7000, delivery: 2000, deliveryIncluded: true, total: 7000 });
+    expect(deliveryTooBig(t)).toBe(false);
+  });
+  it("says when the fee is more than the total", () => {
+    expect(deliveryTooBig(basketTotals(lines as never, 6000, 2000, true))).toBe(true);
+  });
+  it("ignores the switch when there is no fee", () => {
+    expect(basketTotals(lines as never, 0, 0, true).deliveryIncluded).toBe(false);
   });
 });
