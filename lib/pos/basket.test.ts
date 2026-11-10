@@ -8,6 +8,7 @@ import {
   cashOptions,
   changeDue,
   deliveryTooBig,
+  linePrice,
   momoSplit,
   draftDeliveryFee,
   setBasketQty,
@@ -143,5 +144,19 @@ describe("momoSplit", () => {
     expect(momoSplit(7000, "abc", "cash").kind).toBe("error");
     expect(momoSplit(7000, "0", "cash").kind).toBe("error");
     expect(momoSplit(7000, "71", "cash")).toEqual({ kind: "error", message: "The MoMo amount is more than the total." });
+  });
+});
+
+describe("wholesale prices", () => {
+  const lines = [
+    { variantId: "a", name: "Hanger", choice: null, sku: null, unitPrice: 7000, wholesalePrice: 5500, qty: 2, maxQty: 9 },
+    { variantId: "b", name: "Mat", choice: null, sku: null, unitPrice: 3000, wholesalePrice: null, qty: 1, maxQty: 9 },
+  ];
+  it("uses the wholesale price only on a wholesale sale, and only where there is one", () => {
+    expect(linePrice(lines[0], false)).toBe(7000);
+    expect(linePrice(lines[0], true)).toBe(5500);
+    expect(linePrice(lines[1], true)).toBe(3000);
+    expect(basketTotals(lines, 0, 0, false, false).total).toBe(17000);
+    expect(basketTotals(lines, 0, 0, false, true).total).toBe(14000);
   });
 });

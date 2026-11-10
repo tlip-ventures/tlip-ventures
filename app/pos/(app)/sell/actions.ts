@@ -46,6 +46,8 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
     p_cash_received: (s.method === "cash" || s.method === "split") && s.cashReceived !== null ? s.cashReceived : undefined,
     // Always sent (null unless split): it picks the version of the function that takes split payments.
     p_payments: s.method === "split" ? (s.payments ?? []) : null,
+    // Always sent: it picks the version of the function that knows wholesale.
+    p_wholesale: s.wholesale,
     // Always sent (null when the customer takes the goods): it picks the version of the function with deliveries.
     p_delivery: delivery,
   });
@@ -72,6 +74,7 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
         payments: receipt.payments,
         owed: receipt.owed,
         footer: receipt.shop.footer,
+        wholesale: receipt.wholesale,
         delivery: receipt.delivery,
       })
     : `Tlip Ventures receipt\nSale ${saved.code}`;

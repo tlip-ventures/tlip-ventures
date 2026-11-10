@@ -28,6 +28,8 @@ export type StockRow = {
   imageUrl: string | null;
   /** Owner only; null for staff or when no cost is recorded. */
   cost: number | null;
+  /** The wholesale price, or null when the product has none (sold at the normal price). */
+  wholesalePrice: number | null;
 };
 
 /** Characters that would break a PostgREST filter, or act as wildcards. */
@@ -51,6 +53,7 @@ type ViewRow = {
   category_name: string | null;
   top_category_name: string | null;
   image_url: string | null;
+  wholesale_price: number | null;
 };
 
 function toStockRow(r: ViewRow, costs: Map<string, number>): StockRow {
@@ -63,6 +66,7 @@ function toStockRow(r: ViewRow, costs: Map<string, number>): StockRow {
     sku: r.sku,
     barcode: r.barcode,
     price: r.price ?? 0,
+    wholesalePrice: r.wholesale_price,
     onWebsite: r.on_website ?? false,
     reorderLevel: r.reorder_level ?? 0,
     onHand: r.on_hand ?? 0,
@@ -75,7 +79,7 @@ function toStockRow(r: ViewRow, costs: Map<string, number>): StockRow {
 }
 
 const ROW_COLUMNS =
-  "variant_id, product_id, product_name, choice_name, choices, sku, barcode, price, on_website, reorder_level, on_hand, stock_state, category_name, top_category_name, image_url";
+  "variant_id, product_id, product_name, choice_name, choices, sku, barcode, price, on_website, reorder_level, on_hand, stock_state, category_name, top_category_name, image_url, wholesale_price";
 
 export async function listStockRows(options: {
   search?: string;
@@ -85,6 +89,8 @@ export async function listStockRows(options: {
   pageSize?: number;
   /** "attention": recount, out and low first (the stock list); "name": A–Z (the till). */
   order?: "attention" | "name";
+  /** The Wholesale screen: only products with (or without) a wholesale price. */
+  wholesale?: "with" | "without";
 }) {
   const { supabase, isOwner } = await requirePosUser();
   const { from, to } = pageRange(options.page ?? 1, options.pageSize ?? STOCK_PAGE_SIZE);
@@ -95,6 +101,8 @@ export async function listStockRows(options: {
 
   if (options.filter && options.filter !== "all") query = query.in("stock_state", statesForFilter(options.filter));
   if (options.topCategoryId) query = query.eq("top_category_id", options.topCategoryId);
+  if (options.wholesale === "with") query = query.not("wholesale_price", "is", null);
+  if (options.wholesale === "without") query = query.is("wholesale_price", null);
   const term = searchTerm(options.search);
   if (term) {
     // Name contains it; code starts with it; barcode is exactly it (a scan).
@@ -287,4 +295,15 @@ export async function getPeopleNames(): Promise<Map<string, string>> {
   const { data, error } = await supabase.rpc("pos_people");
   if (error) throw new Error(`Could not load people: ${error.message}`);
   return new Map(data.map((p) => [p.user_id, p.display_name?.trim() || (p.role === "owner" ? "Owner" : "Staff")]));
+}
+
+/** The Wholesale screen's counts: products with a wholesale price, and without. */
+export async function countWholesalePrices(): Promise<{ with: number; without: number }> {
+  const { supabase } = await requirePosUser();
+  const [withPrice, without] = await Promise.all([
+    supabase.from("pos_stock_rows").select("variant_id", { count: "exact", head: true }).not("wholesale_price", "is", null),
+    supabase.from("pos_stock_rows").select("variant_id", { count: "exact", head: true }).is("wholesale_price", null),
+  ]);
+  if (withPrice.error || without.error) throw new Error(`Could not count wholesale prices: ${(withPrice.error ?? without.error)!.message}`);
+  return { with: withPrice.count ?? 0, without: without.count ?? 0 };
 }

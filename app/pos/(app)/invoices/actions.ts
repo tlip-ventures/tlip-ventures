@@ -30,6 +30,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<CreateIn
     p_discount: s.discount,
     p_delivery: delivery,
     p_valid_until: s.validUntil,
+    p_wholesale: s.wholesale,
   });
   if (error || !data?.[0]) return { ok: false, message: friendlyDbError(error, "The invoice wasn't saved. Please try again.") };
   return { ok: true, id: data[0].invoice_id, code: data[0].code };

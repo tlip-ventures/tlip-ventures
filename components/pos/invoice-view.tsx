@@ -46,6 +46,7 @@ export function InvoiceView({ inv, today }: { inv: InvoiceDetail; today: string 
         </div>
         <div className="flex flex-col gap-0.5 sm:text-right">
           <span className="text-[26px] font-bold uppercase leading-tight tracking-[0.18em]">Invoice</span>
+          {inv.wholesale && <span className="font-bold">Wholesale prices</span>}
           <span>
             No. <strong>{inv.code}</strong>
           </span>

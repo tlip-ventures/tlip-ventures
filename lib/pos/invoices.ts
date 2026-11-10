@@ -57,6 +57,8 @@ export type InvoiceText = {
   deliveryAddress: string | null;
   /** The fee is already in the price (part of the total). */
   deliveryIncluded?: boolean;
+  /** At wholesale prices. */
+  wholesale?: boolean;
   total: Pesewas;
 };
 
@@ -74,6 +76,7 @@ export type InvoiceText = {
  */
 export function buildInvoiceMessage(inv: InvoiceText): string {
   const out = [`${inv.storeName} invoice`, `Invoice ${inv.code} · ${formatDay(inv.createdAt)}`];
+  if (inv.wholesale) out.push("Wholesale prices");
   for (const l of inv.lines) out.push(`${l.qty} x ${lineName(l.productName, l.optionValues)} - ${formatPesewas(l.lineTotal)}`);
   if (inv.discount > 0) out.push(`Discount: -${formatPesewas(inv.discount)}`);
   if (inv.deliveryAddress) out.push(`${inv.deliveryIncluded ? "Delivery (in the price)" : "Delivery"}: ${formatPesewas(inv.deliveryFee)}`);

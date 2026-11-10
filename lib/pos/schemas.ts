@@ -178,6 +178,8 @@ export const completeSaleSchema = z
     delivery: deliveryInputSchema.nullable(),
     // The invoice this sale sells, if any: marked sold once the sale is saved.
     invoiceId: z.uuid().nullable().optional(),
+    // Wholesale: items with a wholesale price are sold at it (the database checks who may).
+    wholesale: z.boolean().default(false),
   })
   .superRefine((s, ctx) => {
     if (s.method === "later" && !s.customerId) {
@@ -200,6 +202,7 @@ export const createInvoiceSchema = z.object({
   discount: z.number().int().min(0).max(100_000_000),
   delivery: deliveryInputSchema.nullable(),
   validUntil: z.iso.date("Choose the date the prices hold until."),
+  wholesale: z.boolean().default(false),
 });
 
 export type CreateInvoiceInput = z.input<typeof createInvoiceSchema>;

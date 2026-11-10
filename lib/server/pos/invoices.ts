@@ -68,7 +68,7 @@ async function loadInvoice(id: string) {
     supabase
       .from("invoices")
       .select(
-        "id, code, status, created_at, created_by, customer_id, subtotal, discount, delivery_fee, delivery_address, delivery_name, delivery_phone, delivery_note, delivery_included, total, valid_until, note, sale_id",
+        "id, code, status, created_at, created_by, customer_id, subtotal, discount, delivery_fee, delivery_address, delivery_name, delivery_phone, delivery_note, delivery_included, wholesale, total, valid_until, note, sale_id",
       )
       .eq("id", id)
       .maybeSingle(),
@@ -130,6 +130,7 @@ export async function getInvoice(id: string) {
         }
       : null,
     total: inv.total,
+    wholesale: inv.wholesale,
     note: inv.note,
     sale: inv.sale_id ? { id: inv.sale_id, code: sale.data?.code ?? "the sale" } : null,
     shop: {
@@ -151,6 +152,8 @@ export type InvoiceForTill = {
   customer: CustomerChoice | null;
   discount: number;
   delivery: { address: string; phone: string; fee: string; note: string; included: boolean } | null;
+  /** The invoice was at wholesale prices: the till switches to Wholesale. */
+  wholesale: boolean;
 };
 
 export async function getInvoiceForTill(id: string): Promise<InvoiceForTill | { error: string }> {
@@ -162,7 +165,7 @@ export async function getInvoiceForTill(id: string): Promise<InvoiceForTill | { 
 
   const ids = items.map((i) => i.variant_id).filter((v): v is string => v !== null);
   const { data: rows, error } = ids.length
-    ? await supabase.from("pos_stock_rows").select("variant_id, product_name, choices, sku, price, on_hand").in("variant_id", ids)
+    ? await supabase.from("pos_stock_rows").select("variant_id, product_name, choices, sku, price, wholesale_price, on_hand").in("variant_id", ids)
     : { data: [], error: null };
   if (error) throw new Error(`Could not load the shelf: ${error.message}`);
   const now = new Map(rows.map((r) => [r.variant_id!, r]));
@@ -176,11 +179,21 @@ export async function getInvoiceForTill(id: string): Promise<InvoiceForTill | { 
       const choice = matchChoice(row.choices ?? [], i.option_values, { required: false }) ?? null;
       lines = addToBasket(
         lines,
-        { variantId: row.variant_id!, name: row.product_name ?? i.product_name, choice, sku: row.sku, unitPrice: row.price ?? 0, maxQty: onHand },
+        {
+          variantId: row.variant_id!,
+          name: row.product_name ?? i.product_name,
+          choice,
+          sku: row.sku,
+          unitPrice: row.price ?? 0,
+          wholesalePrice: row.wholesale_price,
+          maxQty: onHand,
+        },
         i.qty,
       );
     }
-    return { name: lineName(i.product_name, i.option_values), invoicePrice: i.unit_price, price: row ? (row.price ?? 0) : null, qty: i.qty, onHand };
+    // Today's price as the invoice was made: wholesale when it was a wholesale invoice.
+    const today = row ? (inv.wholesale && row.wholesale_price != null ? row.wholesale_price : (row.price ?? 0)) : null;
+    return { name: lineName(i.product_name, i.option_values), invoicePrice: i.unit_price, price: today, qty: i.qty, onHand };
   });
 
   return {
@@ -188,6 +201,7 @@ export async function getInvoiceForTill(id: string): Promise<InvoiceForTill | { 
     lines,
     customer: customer ? { id: customer.id, name: customer.name, phone: customer.phone } : null,
     discount: inv.discount,
+    wholesale: inv.wholesale,
     delivery: inv.delivery_address
       ? {
           address: inv.delivery_address,

@@ -280,6 +280,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          wholesale: boolean
           code: string
           created_at: string
           created_by: string | null
@@ -301,6 +302,7 @@ export type Database = {
           valid_until: string
         }
         Insert: {
+          wholesale?: boolean
           code?: string
           created_at?: string
           created_by?: string | null
@@ -322,6 +324,7 @@ export type Database = {
           valid_until: string
         }
         Update: {
+          wholesale?: boolean
           code?: string
           created_at?: string
           created_by?: string | null
@@ -706,6 +709,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      product_wholesale_prices: {
+        Row: {
+          price: number | null
+          product_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          price?: number | null
+          product_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          price?: number | null
+          product_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       products: {
         Row: {
@@ -1125,6 +1149,7 @@ export type Database = {
       }
       sale_items: {
         Row: {
+          list_price: number | null
           id: string
           kind: string
           line_total: number
@@ -1136,6 +1161,7 @@ export type Database = {
           variant_id: string | null
         }
         Insert: {
+          list_price?: number | null
           id?: string
           kind?: string
           line_total: number
@@ -1147,6 +1173,7 @@ export type Database = {
           variant_id?: string | null
         }
         Update: {
+          list_price?: number | null
           id?: string
           kind?: string
           line_total?: number
@@ -1197,6 +1224,7 @@ export type Database = {
       }
       sales: {
         Row: {
+          wholesale: boolean
           code: string
           completed_at: string | null
           created_at: string
@@ -1216,6 +1244,7 @@ export type Database = {
           voided_by: string | null
         }
         Insert: {
+          wholesale?: boolean
           code?: string
           completed_at?: string | null
           created_at?: string
@@ -1235,6 +1264,7 @@ export type Database = {
           voided_by?: string | null
         }
         Update: {
+          wholesale?: boolean
           code?: string
           completed_at?: string | null
           created_at?: string
@@ -1788,6 +1818,7 @@ export type Database = {
       }
       pos_sales_list: {
         Row: {
+          wholesale: boolean | null
           code: string | null
           created_at: string | null
           created_by: string | null
@@ -1828,6 +1859,7 @@ export type Database = {
       }
       pos_stock_rows: {
         Row: {
+          wholesale_price: number | null
           barcode: string | null
           category_id: string | null
           category_name: string | null
@@ -1946,25 +1978,61 @@ export type Database = {
               total: number
             }[]
           }
+        | {
+            Args: {
+              p_cash_received?: number
+              p_customer_id: string
+              p_delivery: Json
+              p_discount: number
+              p_items: Json
+              p_method: string
+              p_note?: string
+              p_payments: Json
+              p_wholesale: boolean
+            }
+            Returns: {
+              change_given: number
+              code: string
+              sale_id: string
+              total: number
+            }[]
+          }
       pos_create_customer: {
         Args: { p_name: string; p_phone?: string }
         Returns: string
       }
-      pos_create_invoice: {
-        Args: {
-          p_customer_id: string
-          p_delivery: Json
-          p_discount: number
-          p_items: Json
-          p_note?: string
-          p_valid_until: string
-        }
-        Returns: {
-          code: string
-          invoice_id: string
-          total: number
-        }[]
-      }
+      pos_create_invoice:
+        | {
+            Args: {
+              p_customer_id: string
+              p_delivery: Json
+              p_discount: number
+              p_items: Json
+              p_note?: string
+              p_valid_until: string
+            }
+            Returns: {
+              code: string
+              invoice_id: string
+              total: number
+            }[]
+          }
+        | {
+            Args: {
+              p_customer_id: string
+              p_delivery: Json
+              p_discount: number
+              p_items: Json
+              p_note?: string
+              p_valid_until: string
+              p_wholesale: boolean
+            }
+            Returns: {
+              code: string
+              invoice_id: string
+              total: number
+            }[]
+          }
       pos_create_return: {
         Args: { p: Json }
         Returns: {
@@ -2113,6 +2181,10 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: Json
       }
+      pos_sales_totals: {
+        Args: { p_from: string; p_rider: string; p_search: string; p_to: string; p_wholesale: boolean }
+        Returns: Json
+      }
       pos_save_count_line: {
         Args: { p_count_id: string; p_counted: number; p_variant_id: string }
         Returns: undefined
@@ -2127,6 +2199,10 @@ export type Database = {
       }
       pos_start_count: { Args: { p_note?: string }; Returns: string }
       pos_stock_summary: { Args: never; Returns: Json }
+      pos_set_wholesale_price: {
+        Args: { p_price: number; p_product_id: string }
+        Returns: undefined
+      }
       pos_sync_website_orders: { Args: never; Returns: number }
       pos_top_products: {
         Args: { p_from: string; p_limit?: number; p_to: string }

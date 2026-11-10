@@ -37,6 +37,7 @@ export function ProductPanel({
   const hydrated = useBasketHydrated();
   const lines = useBasket((s) => s.lines);
   const add = useBasket((s) => s.add);
+  const wholesale = useBasket((s) => Boolean(s.wholesale)) && hydrated;
   const [text, setText] = useState(query);
   const [status, setStatus] = useState<string | null>(null);
   const [searching, startSearch] = useTransition();
@@ -59,7 +60,15 @@ export function ProductPanel({
   }, []);
 
   const addLine = (tile: SellTile, choice: string | null) => {
-    add({ variantId: tile.variantId, name: tile.name, choice, sku: tile.sku, unitPrice: tile.price, maxQty: tile.onHand });
+    add({
+      variantId: tile.variantId,
+      name: tile.name,
+      choice,
+      sku: tile.sku,
+      unitPrice: tile.price,
+      wholesalePrice: tile.wholesalePrice,
+      maxQty: tile.onHand,
+    });
   };
 
   /** Adds it, or first asks which colour when the product has colours. True when added straight away. */
@@ -225,7 +234,14 @@ export function ProductPanel({
                 </span>
                 <span className="line-clamp-2 min-h-[38px] text-sm font-semibold leading-[19px]">{tile.name}</span>
                 <span className="flex w-full flex-wrap items-center justify-between gap-x-1.5 gap-y-0.5">
-                  <span className="whitespace-nowrap text-[15px] font-bold tabular-nums">{formatPesewas(tile.price)}</span>
+                  {wholesale && tile.wholesalePrice != null ? (
+                    <span className="flex flex-col whitespace-nowrap tabular-nums">
+                      <span className="text-[15px] font-bold text-pos-green-ink">{formatPesewas(tile.wholesalePrice)}</span>
+                      <s className="text-xs text-pos-muted">{formatPesewas(tile.price)}</s>
+                    </span>
+                  ) : (
+                    <span className="whitespace-nowrap text-[15px] font-bold tabular-nums">{formatPesewas(tile.price)}</span>
+                  )}
                   <span className={`whitespace-nowrap text-xs font-semibold ${STOCK_TONE[stock.tone]}`}>{stock.text}</span>
                 </span>
               </button>

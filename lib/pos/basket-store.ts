@@ -32,6 +32,8 @@ type BasketState = {
   /** Mobile Money for part of the total: the MoMo amount in cedis as typed ("" = all of it), and how the rest is paid. */
   momoPart: string;
   restMethod: RestMethod;
+  /** A wholesale sale: items with a wholesale price are sold at it. */
+  wholesale: boolean;
   fulfilment: Fulfilment;
   /** Delivery: where to, a phone for the rider and the fee in cedis as typed. */
   delivery: DeliveryDraft;
@@ -44,6 +46,7 @@ type BasketState = {
   setMethod: (method: PaymentChoice) => void;
   setCash: (cash: CashChoice, other?: string) => void;
   setMomoSplit: (changes: { momoPart?: string; restMethod?: RestMethod }) => void;
+  setWholesale: (wholesale: boolean) => void;
   setDiscount: (discount: number) => void;
   setFulfilment: (fulfilment: Fulfilment) => void;
   setDelivery: (changes: Partial<DeliveryDraft>) => void;
@@ -62,6 +65,8 @@ export type LoadedInvoice = {
   customer: CustomerChoice | null;
   discount: number;
   delivery: DeliveryDraft | null;
+  /** The invoice was at wholesale prices. */
+  wholesale?: boolean;
 };
 
 /** included: the fee is already in the price agreed (part of the total, not added on top). */
@@ -78,6 +83,7 @@ const EMPTY = {
   discount: 0,
   momoPart: "",
   restMethod: "cash",
+  wholesale: false,
   fulfilment: "collect",
   invoice: null,
 } as const;
@@ -98,6 +104,7 @@ export const useBasket = create<BasketState>()(
       setMethod: (method) => set({ method }),
       setCash: (cash, other) => set((s) => ({ cash, cashOther: other ?? s.cashOther })),
       setMomoSplit: (changes) => set(changes),
+      setWholesale: (wholesale) => set({ wholesale }),
       setDiscount: (discount) => set({ discount }),
       setFulfilment: (fulfilment) => set({ fulfilment }),
       setDelivery: (changes) => set((s) => ({ delivery: { ...s.delivery, ...changes } })),
@@ -110,6 +117,7 @@ export const useBasket = create<BasketState>()(
           fulfilment: data.delivery ? "delivery" : "collect",
           delivery: data.delivery ?? NO_DELIVERY,
           invoice: data.invoice,
+          wholesale: data.wholesale ?? false,
         }),
       dropInvoice: () => set({ invoice: null }),
       clear: () => set({ ...EMPTY, lines: [], delivery: NO_DELIVERY }),
@@ -130,6 +138,7 @@ export const useBasket = create<BasketState>()(
         discount: s.discount,
         momoPart: s.momoPart,
         restMethod: s.restMethod,
+        wholesale: s.wholesale,
         fulfilment: s.fulfilment,
         delivery: s.delivery,
         invoice: s.invoice,
