@@ -45,6 +45,7 @@ export function PaymentButton({
   label,
   buttonKind = "green",
   size = "sm",
+  deliveryOwed = 0,
 }: {
   kind: "sale" | "purchase" | "refund";
   id: string;
@@ -53,7 +54,10 @@ export function PaymentButton({
   label?: string;
   buttonKind?: ButtonKind;
   size?: "md" | "sm";
+  /** Sales: of what is owed, the part for the delivery fee. Shows the "for delivery" box. */
+  deliveryOwed?: number;
 }) {
+  const splitDelivery = kind === "sale" && deliveryOwed > 0;
   return (
     <ActionDialog
       label={label ?? TITLES[kind]}
@@ -66,13 +70,23 @@ export function PaymentButton({
       <input type="hidden" name="kind" value={kind} />
       <input type="hidden" name="id" value={id} />
       <p className="m-0 text-sm leading-[22px] text-pos-soft">
-        {kind === "refund" ? "Still to refund" : "Still owed"}: <strong className="text-pos-ink">{formatPesewas(owed)}</strong>. Part
+        {kind === "refund" ? "Still to refund" : "Still owed"}: <strong className="text-pos-ink">{formatPesewas(owed)}</strong>
+        {splitDelivery && ` (${formatPesewas(owed - deliveryOwed)} for items, ${formatPesewas(deliveryOwed)} for delivery)`}. Part
         payments are fine.
       </p>
       <label className={dialogLabelClass}>
         <span>Amount (GH₵)</span>
         <input name="amount" defaultValue={pesewasToInput(owed)} inputMode="decimal" required className={dialogInputClass} />
       </label>
+      {splitDelivery && (
+        <label className={dialogLabelClass}>
+          <span>Of this, for delivery (GH₵)</span>
+          <input name="deliveryAmount" defaultValue={pesewasToInput(deliveryOwed)} inputMode="decimal" className={dialogInputClass} />
+          <span className="text-xs font-normal leading-[18px] text-pos-muted">
+            The rest of the amount counts for the items. Put 0 if none of it is for delivery.
+          </span>
+        </label>
+      )}
       <MethodChoice />
       <label className={dialogLabelClass}>
         <span>Note (optional)</span>

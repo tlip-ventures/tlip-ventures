@@ -472,6 +472,7 @@ export type Database = {
           amount: number
           cash_received: number | null
           change_given: number | null
+          delivery_amount: number
           created_by: string | null
           id: string
           method: Database["public"]["Enums"]["payment_method"]
@@ -483,6 +484,7 @@ export type Database = {
           amount: number
           cash_received?: number | null
           change_given?: number | null
+          delivery_amount?: number
           created_by?: string | null
           id?: string
           method: Database["public"]["Enums"]["payment_method"]
@@ -494,6 +496,7 @@ export type Database = {
           amount?: number
           cash_received?: number | null
           change_given?: number | null
+          delivery_amount?: number
           created_by?: string | null
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
@@ -1787,6 +1790,7 @@ export type Database = {
           customer_phone: string | null
           delivery: number | null
           delivery_address: string | null
+          delivery_paid: number | null
           discount: number | null
           id: string | null
           order_id: string | null
@@ -2026,16 +2030,28 @@ export type Database = {
         Args: { p_purchase_id: string }
         Returns: undefined
       }
-      pos_record_payment: {
-        Args: {
-          p_amount: number
-          p_id: string
-          p_kind: string
-          p_method: string
-          p_note?: string
-        }
-        Returns: number
-      }
+      pos_record_payment:
+        | {
+            Args: {
+              p_amount: number
+              p_id: string
+              p_kind: string
+              p_method: string
+              p_note?: string
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_delivery_amount: number
+              p_id: string
+              p_kind: string
+              p_method: string
+              p_note?: string
+            }
+            Returns: number
+          }
       pos_records_summary: {
         Args: { p_kind: string; p_search?: string }
         Returns: Json

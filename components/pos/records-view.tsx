@@ -74,6 +74,7 @@ export function RecordsView({
     return `${base}${s ? `?${s}` : ""}`;
   };
   const exportQuery = query({ page: 1 });
+  const deliveryPaid = summary.delivery_paid ?? 0;
   const tabs = (["sales", "purchases", "returns"] as const).filter((t) => isOwner || t !== "purchases");
 
   return (
@@ -130,6 +131,11 @@ export function RecordsView({
         <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
           <span className="text-[13px] font-semibold text-pos-muted">{m.paidLabel}</span>
           <span className="font-pos-display text-[28px] leading-none tabular-nums text-pos-green-ink">{formatPesewas(summary.paid)}</span>
+          {kind === "sales" && (
+            <span className="text-[13px] tabular-nums text-pos-soft">
+              Items {formatPesewas(summary.paid - deliveryPaid)} · Delivery {formatPesewas(deliveryPaid)}
+            </span>
+          )}
         </div>
         <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
           <span className="text-[13px] font-semibold text-pos-muted">{m.dueLabel}</span>
@@ -140,6 +146,10 @@ export function RecordsView({
           <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
             <span className="text-[13px] font-semibold text-pos-muted">Delivery fees</span>
             <span className="font-pos-display text-[28px] leading-none tabular-nums">{formatPesewas(summary.delivery)}</span>
+            <span className="text-[13px] tabular-nums text-pos-soft">
+              Collected {formatPesewas(deliveryPaid)}
+              {summary.delivery - deliveryPaid > 0 ? ` · still owed ${formatPesewas(summary.delivery - deliveryPaid)}` : ""}
+            </span>
           </div>
         )}
       </StatGrid>
@@ -256,6 +266,10 @@ export function RecordsView({
                   const status = statusFor(r);
                   const pay = paymentPill(r.paid, r.owed, r.cancelled);
                   const detail = `${base}/${r.id}`;
+                  // Sales with a delivery fee: money paid and owed, items and delivery apart.
+                  const split = kind === "sales" && (r.delivery ?? 0) > 0;
+                  const deliveryPaidRow = r.deliveryPaid ?? 0;
+                  const deliveryOwed = split && !r.cancelled ? Math.max(0, (r.delivery ?? 0) - deliveryPaidRow) : 0;
                   return (
                     <tr key={r.id} className="pos-row border-t border-pos-paper-deep">
                       <td className="whitespace-nowrap py-3.5 pl-[18px] pr-3 text-pos-soft">{formatDay(r.createdAt)}</td>
@@ -296,9 +310,24 @@ export function RecordsView({
                         </td>
                       )}
                       <td className="whitespace-nowrap px-3 py-3.5 text-right font-semibold tabular-nums">{formatPesewas(r.total)}</td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums">{formatPesewas(r.paid)}</td>
+                      <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums">
+                        {formatPesewas(r.paid)}
+                        {/* Delivery sales: what was paid for items and for delivery. */}
+                        {split && r.paid > 0 && (
+                          <span className="mt-0.5 flex flex-col text-xs text-pos-soft">
+                            <span>Items {formatPesewas(r.paid - deliveryPaidRow)}</span>
+                            <span>Delivery {formatPesewas(deliveryPaidRow)}</span>
+                          </span>
+                        )}
+                      </td>
                       <td className={`whitespace-nowrap px-3 py-3.5 text-right tabular-nums ${r.owed ? "font-bold text-pos-rust" : "text-pos-muted"}`}>
                         {r.owed ? formatPesewas(r.owed) : "—"}
+                        {split && r.owed > 0 && (
+                          <span className="mt-0.5 flex flex-col text-xs font-normal">
+                            <span>Items {formatPesewas(r.owed - deliveryOwed)}</span>
+                            <span>Delivery {formatPesewas(deliveryOwed)}</span>
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3.5">
                         <span className="flex flex-col items-start gap-1">
@@ -314,7 +343,7 @@ export function RecordsView({
                           {r.saleStatus === "ordered" || r.saleStatus === "pending" ? (
                             <MarkOrderPaidButton saleId={r.id} code={r.code} total={r.total} />
                           ) : (
-                            r.owed > 0 && <PaymentButton kind={SETTLE_KIND[kind]} id={r.id} owed={r.owed} code={r.code} />
+                            r.owed > 0 && <PaymentButton kind={SETTLE_KIND[kind]} id={r.id} owed={r.owed} code={r.code} deliveryOwed={deliveryOwed} />
                           )}
                           <Link
                             href={detail}

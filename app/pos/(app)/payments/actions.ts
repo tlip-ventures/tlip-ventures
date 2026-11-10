@@ -21,17 +21,30 @@ export async function recordPayment(_prev: ActionResult | null, formData: FormDa
     method: formData.get("method"),
     amount: formData.get("amount") ?? "",
     note: formData.get("note") ?? "",
+    deliveryAmount: formData.get("deliveryAmount"),
   });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const p = parsed.data;
 
-  const { data: left, error } = await supabase.rpc("pos_record_payment", {
-    p_kind: p.kind,
-    p_id: p.id,
-    p_method: p.method,
-    p_amount: p.amount,
-    p_note: p.note || undefined,
-  });
+  // Sales say how much is for delivery (null: the database splits it, items first).
+  const { data: left, error } =
+    p.kind === "sale"
+      ? await supabase.rpc("pos_record_payment", {
+          p_kind: p.kind,
+          p_id: p.id,
+          p_method: p.method,
+          p_amount: p.amount,
+          // The function treats null as "items first"; the generated type doesn't know it accepts null.
+          p_delivery_amount: p.deliveryAmount as number,
+          p_note: p.note || undefined,
+        })
+      : await supabase.rpc("pos_record_payment", {
+          p_kind: p.kind,
+          p_id: p.id,
+          p_method: p.method,
+          p_amount: p.amount,
+          p_note: p.note || undefined,
+        });
   if (error) {
     // The function says "more than the 18500 still owed": show it in cedis.
     const owed = /more than the (\d+) still/.exec(error.message);

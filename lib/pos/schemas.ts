@@ -205,6 +205,14 @@ export const paymentSchema = z.object({
   method: z.enum(["cash", "momo", "bank"], { message: "Choose how the money was paid." }),
   amount: cedis("Enter the amount like 450 or 1250.50.").refine((v) => v > 0, "Enter the amount paid."),
   note: z.string().trim().max(300, "At most 300 characters."),
+  // Sales with a delivery fee still owed: how much of the amount is for delivery
+  // (null when the box isn't on the form). The database checks it against what is owed.
+  deliveryAmount: z
+    .union([z.null(), z.literal("").transform(() => 0), cedis("Enter the part for delivery like 30, or 0.")])
+    .default(null),
+}).refine((p) => p.deliveryAmount === null || p.deliveryAmount <= p.amount, {
+  path: ["deliveryAmount"],
+  message: "The part for delivery can't be more than the amount paid.",
 });
 
 export const voidSaleSchema = z.object({

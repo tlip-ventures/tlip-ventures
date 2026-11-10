@@ -51,7 +51,7 @@ export function ActionDialog({
       )}
       <dialog
         ref={dialog}
-        className="m-auto w-[min(400px,calc(100vw-32px))] rounded-[10px] border border-pos-card-line bg-white p-0 text-left text-pos-ink shadow-[0_24px_48px_rgba(17,17,17,0.12)] backdrop:bg-pos-ink/40"
+        className="m-auto w-[min(400px,calc(100vw-32px))] whitespace-normal rounded-[10px] border border-pos-card-line bg-white p-0 text-left text-pos-ink shadow-[0_24px_48px_rgba(17,17,17,0.12)] backdrop:bg-pos-ink/40"
       >
         <form action={formAction} className="flex flex-col gap-4 p-5">
           <h2 className="m-0 text-lg font-bold leading-6">{title}</h2>

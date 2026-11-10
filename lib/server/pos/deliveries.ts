@@ -20,6 +20,8 @@ export type DeliveryRow = {
   fee: number;
   total: number;
   owed: number;
+  /** Of what is owed, the part for the delivery fee. */
+  deliveryOwed: number;
   customer: string | null;
   cancelled: boolean;
 };
@@ -57,6 +59,14 @@ export async function listDeliveries(options: { filter: DeliveryFilter; search?:
   const { data, count, error } = await query.range(from, to);
   if (error?.code === "PGRST103") return { rows: [] as DeliveryRow[], total: count ?? 0 };
   if (error) throw new Error(`Could not load deliveries: ${error.message}`);
+  // How much of each delivery fee is paid already, for Mark paid's split.
+  const ids = data.map((d) => d.sale_id!).filter(Boolean);
+  const deliveryPaid = new Map<string, number>();
+  if (ids.length) {
+    const { data: paid, error: paidError } = await supabase.from("pos_sales_list").select("id, delivery_paid").in("id", ids);
+    if (paidError) throw new Error(`Could not load deliveries: ${paidError.message}`);
+    for (const p of paid) deliveryPaid.set(p.id!, p.delivery_paid ?? 0);
+  }
   const rows: DeliveryRow[] = data.map((d) => ({
     saleId: d.sale_id!,
     code: d.code!,
@@ -72,6 +82,7 @@ export async function listDeliveries(options: { filter: DeliveryFilter; search?:
     fee: d.fee ?? 0,
     total: d.total ?? 0,
     owed: d.owed ?? 0,
+    deliveryOwed: d.sale_status === "voided" || d.sale_status === "cancelled" ? 0 : Math.max(0, (d.fee ?? 0) - (deliveryPaid.get(d.sale_id!) ?? 0)),
     customer: d.customer_name,
     cancelled: d.sale_status === "voided" || d.sale_status === "cancelled",
   }));

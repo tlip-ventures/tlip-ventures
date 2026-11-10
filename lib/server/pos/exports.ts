@@ -174,6 +174,12 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
         : []),
       { label: "Total", width: 14, align: "right" },
       { label: kind === "returns" ? "Refunded" : "Paid", width: 14, align: "right" },
+      ...(kind === "sales"
+        ? ([
+            { label: "Items paid", width: 14, align: "right" },
+            { label: "Delivery paid", width: 14, align: "right" },
+          ] as ExportColumn[])
+        : []),
       { label: "Still owed", width: 14, align: "right" },
       { label: "Payment", width: 12 },
       ...(kind === "sales" ? ([{ label: "Paid by", width: 16 }] as ExportColumn[]) : []),
@@ -187,6 +193,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
       ...(kind === "sales" ? [money(r.total - (r.delivery ?? 0)), money(r.delivery ?? 0), r.rider ?? ""] : []),
       money(r.total),
       money(r.paid),
+      ...(kind === "sales" ? [money(r.paid - (r.deliveryPaid ?? 0)), money(r.deliveryPaid ?? 0)] : []),
       money(r.owed),
       paymentPill(r.paid, r.owed, r.cancelled).label,
       ...(kind === "sales" ? [r.paidBy ? paidByText(r.paidBy) : r.owed > 0 && !r.cancelled ? "Pay later" : ""] : []),
@@ -195,7 +202,13 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
       ["Total value", sum((r) => r.total)],
       [meta.paidLabel, sum((r) => r.paid)],
       [meta.dueLabel, sum((r) => r.owed)],
-      ...(kind === "sales" ? ([["Delivery fees", sum((r) => r.delivery ?? 0)]] as [string, number][]) : []),
+      ...(kind === "sales"
+        ? ([
+            ["Delivery fees", sum((r) => r.delivery ?? 0)],
+            ["Paid for items", sum((r) => r.paid - (r.deliveryPaid ?? 0))],
+            ["Paid for delivery", sum((r) => r.deliveryPaid ?? 0)],
+          ] as [string, number][])
+        : []),
     ],
     cut,
   };
