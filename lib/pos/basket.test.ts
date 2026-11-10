@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_DELIVERY_PRICING } from "@/lib/delivery";
 import {
   addToBasket,
   basketLineKey,
@@ -7,6 +8,7 @@ import {
   basketTotals,
   cashOptions,
   changeDue,
+  deliveryFeeText,
   deliveryTooBig,
   linePrice,
   momoSplit,
@@ -158,5 +160,30 @@ describe("wholesale prices", () => {
     expect(linePrice(lines[1], true)).toBe(3000);
     expect(basketTotals(lines, 0, 0, false, false).total).toBe(17000);
     expect(basketTotals(lines, 0, 0, false, true).total).toBe(14000);
+  });
+});
+
+describe("deliveryFeeText", () => {
+  const area = { name: "East Legon", km: 17.3 };
+  const circle = { name: "Circle", km: 6 };
+  const akosombo = { name: "Akosombo", km: 90 };
+
+  it("follows the price list for the area picked", () => {
+    expect(deliveryFeeText({ fee: "", area, auto: true }, DEFAULT_DELIVERY_PRICING, 20000)).toBe("55");
+  });
+
+  it("takes free delivery off for big orders", () => {
+    expect(deliveryFeeText({ fee: "", area, auto: true }, DEFAULT_DELIVERY_PRICING, 100000)).toBe("15");
+    expect(deliveryFeeText({ fee: "", area: circle, auto: true }, DEFAULT_DELIVERY_PRICING, 100000)).toBe("0");
+  });
+
+  it("keeps a fee typed by hand", () => {
+    expect(deliveryFeeText({ fee: "60", area, auto: false }, DEFAULT_DELIVERY_PRICING, 20000)).toBe("60");
+    expect(deliveryFeeText({ fee: "45", area: null, auto: true }, DEFAULT_DELIVERY_PRICING, 20000)).toBe("45");
+    expect(deliveryFeeText({ fee: "45", area, auto: true }, null, 20000)).toBe("45");
+  });
+
+  it("leaves the typed fee beyond the price list", () => {
+    expect(deliveryFeeText({ fee: "150", area: akosombo, auto: true }, DEFAULT_DELIVERY_PRICING, 20000)).toBe("150");
   });
 });

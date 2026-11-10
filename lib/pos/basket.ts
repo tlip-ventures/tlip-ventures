@@ -1,4 +1,5 @@
-import { lineTotal, parseCedis, sumPesewas, type Pesewas } from "@/lib/money";
+import { deliveryQuote, type DeliveryPricing } from "@/lib/delivery";
+import { lineTotal, parseCedis, pesewasToInput, sumPesewas, type Pesewas } from "@/lib/money";
 
 // The till's basket. Prices here are for display only: the database works
 // every price out again when the sale is saved (pos_complete_sale).
@@ -120,6 +121,22 @@ export const FULFILMENT_LABELS: Record<Fulfilment, string> = { collect: "Collect
 export function draftDeliveryFee(fulfilment: Fulfilment, feeText: string): Pesewas | null {
   if (fulfilment !== "delivery" || feeText.trim() === "") return 0;
   return parseCedis(feeText);
+}
+
+/**
+ * The delivery fee as the till uses it, in cedis as typed: while the fee
+ * follows the price list (auto) for a picked area, the list's fee for its
+ * distance less free delivery for this order (items after any discount);
+ * otherwise what was typed. Beyond the furthest distance the typed fee stands.
+ */
+export function deliveryFeeText(
+  draft: { fee: string; area?: { km: number } | null; auto?: boolean },
+  pricing: DeliveryPricing | null,
+  itemsTotal: Pesewas,
+): string {
+  if (!draft.auto || !draft.area || !pricing) return draft.fee;
+  const quote = deliveryQuote(draft.area.km, itemsTotal, pricing);
+  return quote.kind === "fee" ? pesewasToInput(quote.fee) : draft.fee;
 }
 
 /** What a product tile says about the shelf, as in the design. */

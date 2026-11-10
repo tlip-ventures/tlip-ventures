@@ -69,10 +69,24 @@ export type LoadedInvoice = {
   wholesale?: boolean;
 };
 
-/** included: the fee is already in the price agreed (part of the total, not added on top). */
-export type DeliveryDraft = { address: string; phone: string; fee: string; note: string; included?: boolean };
+/**
+ * included: the fee is already in the price agreed (part of the total, not added on top).
+ * area: the place picked from the price list (or found on the map), with its road distance.
+ * auto: the fee follows the price list for that area (free delivery included); typing a fee turns it off.
+ */
+export type DeliveryDraft = {
+  address: string;
+  phone: string;
+  fee: string;
+  note: string;
+  included?: boolean;
+  area?: DeliveryAreaPick | null;
+  auto?: boolean;
+};
 
-const NO_DELIVERY: DeliveryDraft = { address: "", phone: "", fee: "", note: "", included: false };
+export type DeliveryAreaPick = { name: string; km: number };
+
+const NO_DELIVERY: DeliveryDraft = { address: "", phone: "", fee: "", note: "", included: false, area: null, auto: false };
 
 const EMPTY = {
   lines: [],

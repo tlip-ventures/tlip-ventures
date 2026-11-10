@@ -76,6 +76,20 @@ export default async function SettingsPage() {
         </div>
       </Card>
 
+      <Card label="Delivery prices">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+          <div className="flex max-w-[640px] flex-col gap-1">
+            <h2 className="m-0 text-lg font-bold leading-6">Delivery prices</h2>
+            <span className="text-[13px] leading-[19px] text-pos-muted">
+              The fee by road distance from the shop, free delivery, and the areas the till picks from.
+            </span>
+          </div>
+          <ButtonLink href="/pos/settings/delivery" kind="outline">
+            Delivery prices
+          </ButtonLink>
+        </div>
+      </Card>
+
       <Card label="Receipts">
         <div className="flex flex-col gap-1 border-b border-pos-paper-deep px-5 py-4">
           <h2 className="m-0 text-lg font-bold leading-6">Receipts</h2>
