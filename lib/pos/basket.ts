@@ -151,3 +151,32 @@ export const PAYMENT_LABELS: Record<PaymentChoice, string> = {
   bank: "Bank transfer",
   later: "Pay later",
 };
+
+/** Mobile Money for part of the total: how the rest is paid. Pay later leaves it owed. */
+export const REST_METHODS = ["cash", "bank", "later"] as const;
+export type RestMethod = (typeof REST_METHODS)[number];
+export const REST_LABELS: Record<RestMethod, string> = { cash: "Cash", bank: "Bank transfer", later: "Pay later" };
+
+export type SplitPayment = { method: "cash" | "momo" | "bank"; amount: Pesewas };
+
+export type MomoSplit =
+  | { kind: "full" }
+  | { kind: "split"; momo: Pesewas; rest: Pesewas; restMethod: RestMethod; payments: SplitPayment[]; owed: Pesewas }
+  | { kind: "error"; message: string };
+
+/**
+ * The MoMo amount typed at the till: empty or the whole total is a plain
+ * Mobile Money sale; less splits it, the rest paid by cash or bank, or owed.
+ */
+export function momoSplit(total: Pesewas, momoText: string, restMethod: RestMethod): MomoSplit {
+  if (momoText.trim() === "") return { kind: "full" };
+  const momo = parseCedis(momoText);
+  if (momo === null) return { kind: "error", message: "Enter the MoMo amount like 50 or 12.50, or leave it empty." };
+  if (momo <= 0) return { kind: "error", message: "Enter a MoMo amount above GH₵ 0, or leave it empty." };
+  if (momo > total) return { kind: "error", message: "The MoMo amount is more than the total." };
+  if (momo === total) return { kind: "full" };
+  const rest = total - momo;
+  const payments: SplitPayment[] = [{ method: "momo", amount: momo }];
+  if (restMethod !== "later") payments.push({ method: restMethod, amount: rest });
+  return { kind: "split", momo, rest, restMethod, payments, owed: restMethod === "later" ? rest : 0 };
+}

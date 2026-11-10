@@ -164,9 +164,16 @@ export const completeSaleSchema = z
       .max(200, "At most 200 lines in one sale."),
     customerId: z.uuid().nullable(),
     discount: z.number().int().min(0).max(100_000_000),
-    method: z.enum(["cash", "momo", "bank", "later"]),
-    // Cash only, in pesewas; null means the exact amount.
+    method: z.enum(["cash", "momo", "bank", "later", "split"]),
+    // Cash (or the cash part of a split), in pesewas; null means the exact amount.
     cashReceived: z.number().int().min(0).max(100_000_000).nullable(),
+    // Split only: how much each way (e.g. part Mobile Money, the rest cash). The database checks the sum.
+    payments: z
+      .array(z.object({ method: z.enum(["cash", "momo", "bank"]), amount: z.number().int().min(1).max(100_000_000) }))
+      .min(1)
+      .max(3)
+      .nullable()
+      .optional(),
     // null: the customer takes the goods. Fee in pesewas; phone as typed (checked by the action).
     delivery: deliveryInputSchema.nullable(),
     // The invoice this sale sells, if any: marked sold once the sale is saved.
@@ -175,6 +182,9 @@ export const completeSaleSchema = z
   .superRefine((s, ctx) => {
     if (s.method === "later" && !s.customerId) {
       ctx.addIssue({ code: "custom", path: ["customerId"], message: "Choose the customer who will pay later." });
+    }
+    if (s.method === "split" && !s.payments?.length) {
+      ctx.addIssue({ code: "custom", path: ["payments"], message: "Say how much is paid each way." });
     }
   });
 

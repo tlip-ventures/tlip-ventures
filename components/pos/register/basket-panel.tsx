@@ -6,7 +6,7 @@ import { createInvoice } from "@/app/pos/(app)/invoices/actions";
 import { completeSale, type CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
 import { phoneText } from "@/lib/pos/format";
-import { basketLineKey, basketLineName, basketQty, basketTotals, cashOptions, changeDue, deliveryTooBig, draftDeliveryFee, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
+import { basketLineKey, basketLineName, basketQty, basketTotals, cashOptions, changeDue, deliveryTooBig, draftDeliveryFee, momoSplit, REST_LABELS, REST_METHODS, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
 import { useBasket, useBasketHydrated, type CashChoice } from "@/lib/pos/basket-store";
 import { defaultValidUntil, ghanaToday } from "@/lib/pos/invoices";
 import { CustomerPicker } from "./customer-picker";
@@ -44,6 +44,20 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
   const change =
     state.method !== "cash" ? 0 : state.cash === "other" && otherCash === null ? null : changeDue(totals.total, cashReceived);
 
+  // Mobile Money for part of the total, the rest by cash or bank, or owed.
+  const split = state.method === "momo" ? momoSplit(totals.total, state.momoPart ?? "", state.restMethod ?? "cash") : null;
+  const isSplit = split?.kind === "split";
+  const restCash = split?.kind === "split" && split.restMethod === "cash" ? split.rest : 0;
+  const splitCashReceived = restCash && state.cashOther.trim() ? parseCedis(state.cashOther) : null;
+  // null: the cash typed doesn't cover the cash part yet.
+  const splitChange = !restCash
+    ? 0
+    : state.cashOther.trim() === ""
+      ? 0
+      : splitCashReceived === null
+        ? null
+        : changeDue(restCash, splitCashReceived);
+
   const deliveryBlocker =
     delivering && !state.delivery.address.trim()
       ? "Enter where to deliver: the area and a landmark."
@@ -57,6 +71,12 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
       ? null
       : deliveryBlocker
         ? deliveryBlocker
+      : split?.kind === "error"
+        ? split.message
+      : split?.kind === "split" && split.restMethod === "later" && !state.customer
+        ? "Choose the customer who will pay the rest later."
+      : split?.kind === "split" && split.restMethod === "cash" && splitChange === null
+        ? `Enter the cash received: at least ${formatPesewas(restCash)}, or leave it empty.`
       : state.method === "later" && !state.customer
         ? "Choose the customer who will pay later."
         : state.method === "cash" && state.cash === "other" && (otherCash === null || change === null)
@@ -116,8 +136,9 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
         items: lines.map((l) => ({ variantId: l.variantId, qty: l.qty, choice: l.choice ?? null })),
         customerId: state.customer?.id ?? null,
         discount: totals.discount,
-        method: state.method,
-        cashReceived: state.method === "cash" ? cashReceived : null,
+        method: split?.kind === "split" ? "split" : state.method,
+        cashReceived: state.method === "cash" ? cashReceived : restCash ? splitCashReceived : null,
+        payments: split?.kind === "split" ? split.payments : null,
         delivery: deliveryInput(),
         invoiceId: state.invoice?.id ?? null,
       });
@@ -127,7 +148,14 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
         router.refresh();
         return;
       }
-      const method = state.method === "later" ? "Unpaid" : PAYMENT_LABELS[state.method];
+      const method =
+        split?.kind === "split"
+          ? split.restMethod === "later"
+            ? "Mobile Money, the rest owed"
+            : `Mobile Money + ${REST_LABELS[split.restMethod]}`
+          : state.method === "later"
+            ? "Unpaid"
+            : PAYMENT_LABELS[state.method];
       state.clear();
       setDiscountText("");
       onDone({ ...result.sale, method });
@@ -415,6 +443,70 @@ export function BasketPanel({ canGiveDiscounts, onDone }: { canGiveDiscounts: bo
               <span className="text-pos-soft">Change to give</span>
               <span className="font-bold tabular-nums text-pos-green-ink">{change === null ? "—" : formatPesewas(change)}</span>
             </div>
+          </div>
+        )}
+
+        {state.method === "momo" && (
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center justify-between gap-3 text-sm text-pos-soft">
+              <span>MoMo amount</span>
+              <input
+                value={state.momoPart ?? ""}
+                onChange={(e) => state.setMomoSplit({ momoPart: e.target.value })}
+                inputMode="decimal"
+                placeholder={formatPesewas(totals.total)}
+                aria-describedby="pos-momo-help"
+                className={`min-h-11 w-32 rounded-md border px-3 text-right text-sm font-bold tabular-nums text-pos-ink md:min-h-10 ${
+                  isSplit ? "border-pos-green bg-pos-tint-green" : "border-pos-line bg-white"
+                }`}
+              />
+            </label>
+            <span id="pos-momo-help" className="text-xs leading-[18px] text-pos-muted">
+              Leave it empty when the whole total is paid by MoMo. A smaller amount splits the payment.
+            </span>
+            {split?.kind === "split" && (
+              <div className="flex flex-col gap-2 rounded-md border border-pos-line bg-white p-3">
+                <span id="pos-rest" className="text-[13px] font-semibold text-pos-soft">
+                  The rest, <strong className="tabular-nums text-pos-ink">{formatPesewas(split.rest)}</strong>, is paid by
+                </span>
+                <div role="group" aria-labelledby="pos-rest" className="grid grid-cols-3 gap-2">
+                  {REST_METHODS.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      aria-pressed={split.restMethod === m}
+                      onClick={() => state.setMomoSplit({ restMethod: m })}
+                      className={`${choiceClass(split.restMethod === m)} px-1 text-[13px]`}
+                    >
+                      {REST_LABELS[m]}
+                    </button>
+                  ))}
+                </div>
+                {split.restMethod === "cash" && (
+                  <>
+                    <label className="flex items-center justify-between gap-3 text-sm text-pos-soft">
+                      <span>Cash received</span>
+                      <input
+                        value={state.cashOther}
+                        onChange={(e) => state.setCash(state.cash, e.target.value)}
+                        inputMode="decimal"
+                        placeholder={formatPesewas(split.rest)}
+                        className="min-h-11 w-32 rounded-md border border-pos-line bg-white px-3 text-right text-sm font-bold tabular-nums text-pos-ink md:min-h-10"
+                      />
+                    </label>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-pos-soft">Change to give</span>
+                      <span className="font-bold tabular-nums text-pos-green-ink">{splitChange === null ? "—" : formatPesewas(splitChange)}</span>
+                    </div>
+                  </>
+                )}
+                {split.restMethod === "later" && (
+                  <span className="text-[13px] font-semibold leading-[19px] text-pos-rust">
+                    {formatPesewas(split.rest)} stays owed by the customer until it is paid (Mark paid on the sale).
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
 

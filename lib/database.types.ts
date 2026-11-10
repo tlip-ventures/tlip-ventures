@@ -1928,6 +1928,24 @@ export type Database = {
               total: number
             }[]
           }
+        | {
+            Args: {
+              p_cash_received?: number
+              p_customer_id: string
+              p_delivery: Json
+              p_discount: number
+              p_items: Json
+              p_method: string
+              p_note?: string
+              p_payments: Json
+            }
+            Returns: {
+              change_given: number
+              code: string
+              sale_id: string
+              total: number
+            }[]
+          }
       pos_create_customer: {
         Args: { p_name: string; p_phone?: string }
         Returns: string
