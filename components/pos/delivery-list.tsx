@@ -57,7 +57,7 @@ export function DeliveryList({ rows, riders = [] }: { rows: DeliveryRow[]; rider
                   )}
                   {d.status === "to_deliver" && <SendOutButton saleId={d.saleId} code={d.code} rider={d.rider} riders={riders} />}
                   {d.status === "out" && <DeliveredButton saleId={d.saleId} code={d.code} owed={d.owed} />}
-                  {d.owed > 0 && <PaymentButton kind="sale" id={d.saleId} owed={d.owed} code={d.code} />}
+                  {d.owed > 0 && <PaymentButton kind="sale" id={d.saleId} owed={d.owed} code={d.code} deliveryOwed={d.deliveryOwed} />}
                   {d.status !== "to_deliver" && <BackToListButton saleId={d.saleId} code={d.code} />}
                 </span>
               )}

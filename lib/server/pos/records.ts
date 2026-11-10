@@ -28,6 +28,8 @@ export type RecordRow = {
   restocked?: number;
   /** Sales: the delivery fee, part of total. */
   delivery?: number;
+  /** Sales: of what was paid, how much was for delivery (paid - deliveryPaid = paid for items). */
+  deliveryPaid?: number;
   /** Sales: who took the delivery, if anyone yet. */
   rider?: string | null;
   /** Sales: a website order (no shop counter involved). */
@@ -62,7 +64,7 @@ export async function listRecords(
   if (kind === "sales") {
     let query = supabase
       .from("pos_sales_list")
-      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery, rider, delivery_address, payment_methods", { count: "exact" })
+      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery, rider, delivery_address, payment_methods, delivery_paid", { count: "exact" })
       .order("created_at", { ascending: false })
       .order("code", { ascending: false });
     if (q) query = query.or(`code.ilike.*${q}*,customer_name.ilike.*${q}*`);
@@ -89,6 +91,7 @@ export async function listRecords(
             : `Sold by ${by(r.created_by)} · Accra shop`,
       saleStatus: r.status!,
       delivery: r.delivery ?? 0,
+      deliveryPaid: r.delivery_paid ?? 0,
       rider: r.rider,
       fromWebsite: r.source === "website",
       deliverTo: r.delivery_address,
@@ -165,6 +168,8 @@ export type RecordsSummary = {
   owed: number;
   /** Sales: delivery fees in the list (part of total). */
   delivery: number;
+  /** Sales: of the money paid, how much was for delivery. */
+  delivery_paid?: number;
   counts: Record<RecordKind, number>;
 };
 
@@ -184,7 +189,7 @@ export async function getRecordsSummary(kind: RecordKind, search?: string, perio
   return data as unknown as RecordsSummary;
 }
 
-type PaymentLine = ReceiptPayment & { paidAt: string; by: string; note: string | null };
+type PaymentLine = ReceiptPayment & { paidAt: string; by: string; note: string | null; deliveryAmount: number };
 
 /** A sale with its lines, payments, returns and stock moves. */
 export async function getSaleDetail(id: string) {
@@ -192,7 +197,7 @@ export async function getSaleDetail(id: string) {
   const { data: s, error } = await supabase
     .from("sales")
     .select(
-      "id, code, source, status, subtotal, discount, total, note, created_at, created_by, completed_at, voided_at, voided_by, void_reason, order_id, customers(id, name, phone), sale_items(id, variant_id, product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at, created_by, note), returns(id, code, created_at, refund_total), deliveries(address, contact_name, contact_phone, note, status, rider, out_at, delivered_at)",
+      "id, code, source, status, subtotal, discount, total, note, created_at, created_by, completed_at, voided_at, voided_by, void_reason, order_id, customers(id, name, phone), sale_items(id, variant_id, product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at, created_by, note, delivery_amount), returns(id, code, created_at, refund_total), deliveries(address, contact_name, contact_phone, note, status, rider, out_at, delivered_at)",
     )
     .eq("id", id)
     .order("paid_at", { referencedTable: "payments" })
@@ -210,8 +215,10 @@ export async function getSaleDetail(id: string) {
     paidAt: p.paid_at,
     by: by(p.created_by),
     note: p.note,
+    deliveryAmount: p.delivery_amount,
   }));
   const paid = payments.reduce((n, p) => n + p.amount, 0);
+  const deliveryPaid = payments.reduce((n, p) => n + p.deliveryAmount, 0);
   const cancelled = s.status === "voided" || s.status === "cancelled";
 
   // What is left to return on each line.
@@ -238,6 +245,7 @@ export async function getSaleDetail(id: string) {
     total: s.total,
     payments,
     paid,
+    deliveryPaid,
     owed: cancelled ? 0 : Math.max(0, s.total - paid),
     cancelled,
     voided: s.voided_at ? { at: s.voided_at, by: by(s.voided_by), reason: s.void_reason } : null,

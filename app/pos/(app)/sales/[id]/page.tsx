@@ -30,6 +30,8 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
   const pay = paymentPill(sale.paid, sale.owed, sale.cancelled);
   // A basket sent from the website that hasn't been paid yet.
   const waiting = sale.source === "website" && (sale.status === "ordered" || sale.status === "pending");
+  // Of what is still owed, the part for the delivery fee.
+  const deliveryOwed = sale.cancelled ? 0 : Math.min(sale.owed, Math.max(0, sale.deliveryFee - sale.deliveryPaid));
   const canReturn = sale.status === "completed" && sale.lines.some((l) => l.kind === "item" && l.qty > l.returned);
   const whatsapp = receiptWhatsappUrl(
     receipt.customer?.phone ?? null,
@@ -59,7 +61,7 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
             Open chat
           </a>
         )}
-        {!waiting && sale.owed > 0 && <PaymentButton kind="sale" id={sale.id} owed={sale.owed} code={sale.code} buttonKind="primary" size="md" />}
+        {!waiting && sale.owed > 0 && <PaymentButton kind="sale" id={sale.id} owed={sale.owed} code={sale.code} buttonKind="primary" size="md" deliveryOwed={deliveryOwed} />}
         <a href={`/pos/receipt/${sale.id}`} target="_blank" rel="noopener" className={buttonClass("outline")}>
           Print receipt
         </a>
@@ -147,7 +149,19 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
               : []),
             ["Total", sale.total, "bold"],
             ["Paid", sale.paid],
+            ...(sale.deliveryFee > 0
+              ? ([
+                  ["Paid for items", sale.paid - sale.deliveryPaid, "sub"],
+                  ["Paid for delivery", sale.deliveryPaid, "sub"],
+                ] as [string, number, "sub"][])
+              : []),
             ["Still owed", sale.owed, "owed"],
+            ...(sale.deliveryFee > 0 && sale.owed > 0
+              ? ([
+                  ["Still owed for items", sale.owed - deliveryOwed, "sub"],
+                  ["Still owed for delivery", deliveryOwed, "sub"],
+                ] as [string, number, "sub"][])
+              : []),
           ]}
         />
         {sale.note && <p className="m-0 border-t border-pos-paper-deep px-5 py-3 text-sm text-pos-soft">Note: {sale.note}</p>}

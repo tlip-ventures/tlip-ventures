@@ -32,13 +32,14 @@ export function Facts({ items }: { items: [string, ReactNode][] }) {
 }
 
 /** Total / paid / still owed at the bottom of a record. */
-export function MoneySummary({ rows }: { rows: [string, number, ("bold" | "owed" | "plain")?][] }) {
+/** Total / paid / still owed; "sub" rows are smaller and indented under the one above. */
+export function MoneySummary({ rows }: { rows: [string, number, ("bold" | "owed" | "plain" | "sub")?][] }) {
   return (
     <div className="flex flex-col gap-1 border-t border-pos-paper-deep bg-pos-row-hover px-5 py-4 text-sm tabular-nums">
       {rows.map(([label, amount, style = "plain"]) => (
         <div
           key={label}
-          className={`flex justify-between gap-3 ${style === "bold" ? "text-base font-bold" : ""} ${style === "owed" && amount > 0 ? "font-bold text-pos-rust" : ""}`}
+          className={`flex justify-between gap-3 ${style === "bold" ? "text-base font-bold" : ""} ${style === "owed" && amount > 0 ? "font-bold text-pos-rust" : ""} ${style === "sub" ? "pl-4 text-[13px] text-pos-soft" : ""}`}
         >
           <span>{label}</span>
           <span>{formatPesewas(amount)}</span>
@@ -48,7 +49,15 @@ export function MoneySummary({ rows }: { rows: [string, number, ("bold" | "owed"
   );
 }
 
-export type PaymentRow = { method: "cash" | "momo" | "bank"; amount: number; paidAt: string; by: string; note: string | null };
+export type PaymentRow = {
+  method: "cash" | "momo" | "bank";
+  amount: number;
+  paidAt: string;
+  by: string;
+  note: string | null;
+  /** Sales: the part of the amount for the delivery fee. */
+  deliveryAmount?: number;
+};
 
 export function PaymentsCard({ title, payments, empty }: { title: string; payments: PaymentRow[]; empty: string }) {
   return (
@@ -72,7 +81,14 @@ export function PaymentsCard({ title, payments, empty }: { title: string; paymen
               <tr key={i} className="border-t border-pos-paper-deep">
                 <td className="whitespace-nowrap py-3 pl-[18px] pr-3 text-pos-soft">{formatDayTime(p.paidAt)}</td>
                 <td className="px-3 py-3">{METHOD_LABELS[p.method]}</td>
-                <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{formatPesewas(p.amount)}</td>
+                <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">
+                  {formatPesewas(p.amount)}
+                  {p.deliveryAmount ? (
+                    <span className="block text-xs font-normal text-pos-soft">
+                      Items {formatPesewas(p.amount - p.deliveryAmount)} · Delivery {formatPesewas(p.deliveryAmount)}
+                    </span>
+                  ) : null}
+                </td>
                 <td className="px-3 py-3 text-pos-soft">{p.note ?? "—"}</td>
                 <td className="py-3 pl-3 pr-[18px] text-pos-soft">{p.by}</td>
               </tr>
