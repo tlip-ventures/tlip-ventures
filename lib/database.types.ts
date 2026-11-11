@@ -220,6 +220,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          fixed_fee: number | null
           id: string
           is_active: boolean
           km: number
@@ -231,6 +232,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          fixed_fee?: number | null
           id?: string
           is_active?: boolean
           km: number
@@ -242,6 +244,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          fixed_fee?: number | null
           id?: string
           is_active?: boolean
           km?: number
@@ -1359,6 +1362,7 @@ export type Database = {
           delivery_base_km: number
           delivery_close_fee: number
           delivery_close_km: number
+          delivery_discounts: Json
           delivery_far_rate: number
           delivery_free_from: number | null
           delivery_free_off: number
@@ -1389,6 +1393,7 @@ export type Database = {
           delivery_base_km?: number
           delivery_close_fee?: number
           delivery_close_km?: number
+          delivery_discounts?: Json
           delivery_far_rate?: number
           delivery_free_from?: number | null
           delivery_free_off?: number
@@ -1419,6 +1424,7 @@ export type Database = {
           delivery_base_km?: number
           delivery_close_fee?: number
           delivery_close_km?: number
+          delivery_discounts?: Json
           delivery_far_rate?: number
           delivery_free_from?: number | null
           delivery_free_off?: number
@@ -2324,15 +2330,26 @@ export type Database = {
         }
         Returns: undefined
       }
-      pos_update_delivery_area: {
-        Args: {
-          p_id: string
-          p_is_active: boolean
-          p_km: number
-          p_name: string
-        }
-        Returns: undefined
-      }
+      pos_update_delivery_area:
+        | {
+            Args: {
+              p_id: string
+              p_is_active: boolean
+              p_km: number
+              p_name: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_fixed_fee: number
+              p_id: string
+              p_is_active: boolean
+              p_km: number
+              p_name: string
+            }
+            Returns: undefined
+          }
       pos_update_user: {
         Args: {
           p_can_adjust_stock: boolean

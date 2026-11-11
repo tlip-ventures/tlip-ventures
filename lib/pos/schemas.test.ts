@@ -3,6 +3,7 @@ import {
   adjustSchema,
   countLineSchema,
   deliveryAreaUpdateSchema,
+  deliveryDiscountsSchema,
   deliveryPricingSchema,
   fieldErrors,
   newDeliveryAreaSchema,
@@ -105,8 +106,6 @@ describe("delivery price list", () => {
     closeKm: "1",
     closeFee: "10",
     maxKm: "65",
-    freeFrom: "1,000",
-    freeOff: "40",
     shopLocation: "",
   };
 
@@ -121,14 +120,34 @@ describe("delivery price list", () => {
       closeKm: 1,
       closeFee: 1000,
       maxKm: 65,
-      freeFrom: 100000,
-      freeOff: 4000,
       shopLocation: "",
     });
   });
 
-  it("turns free delivery off when left empty", () => {
-    expect(deliveryPricingSchema.parse({ ...pricing, freeFrom: " " }).freeFrom).toBeNull();
+  it("reads delivery discount levels, lowest first, empty rows dropped", () => {
+    expect(
+      deliveryDiscountsSchema.parse([
+        { from: "2,000", off: "", free: true },
+        { from: "", off: "", free: false },
+        { from: "1000", off: "40", free: false },
+      ]),
+    ).toEqual([
+      { from: 100000, off: 4000 },
+      { from: 200000, off: null },
+    ]);
+    expect(deliveryDiscountsSchema.parse([])).toEqual([]);
+  });
+
+  it("refuses bad delivery discount levels", () => {
+    expect(deliveryDiscountsSchema.safeParse([{ from: "1000", off: "", free: false }]).success).toBe(false);
+    expect(deliveryDiscountsSchema.safeParse([{ from: "lots", off: "40", free: false }]).success).toBe(false);
+    expect(
+      deliveryDiscountsSchema.safeParse([
+        { from: "1000", off: "40", free: false },
+        { from: "1,000", off: "", free: true },
+      ]).success,
+    ).toBe(false);
+    expect(deliveryDiscountsSchema.safeParse(Array.from({ length: 6 }, (_, i) => ({ from: String(i + 1), off: "1", free: false }))).success).toBe(false);
   });
 
   it("refuses bad numbers", () => {
@@ -146,7 +165,15 @@ describe("delivery price list", () => {
     });
     expect(newDeliveryAreaSchema.safeParse({ name: "X", km: "19", lat: 5.49, lng: null }).success).toBe(false);
     expect(newDeliveryAreaSchema.safeParse({ name: "", km: "19", lat: null, lng: null }).success).toBe(false);
-    expect(deliveryAreaUpdateSchema.safeParse({ id, name: "Osu", km: "1000", isActive: true }).success).toBe(false);
-    expect(deliveryAreaUpdateSchema.parse({ id, name: "Osu", km: "10.6", isActive: false }).km).toBe(10.6);
+    expect(deliveryAreaUpdateSchema.safeParse({ id, name: "Osu", km: "1000", isActive: true, fixedFee: "" }).success).toBe(false);
+    expect(deliveryAreaUpdateSchema.parse({ id, name: "Osu", km: "10.6", isActive: false, fixedFee: "" })).toEqual({
+      id,
+      name: "Osu",
+      km: 10.6,
+      isActive: false,
+      fixedFee: null,
+    });
+    expect(deliveryAreaUpdateSchema.parse({ id, name: "Airport", km: "12.6", isActive: true, fixedFee: "50" }).fixedFee).toBe(5000);
+    expect(deliveryAreaUpdateSchema.safeParse({ id, name: "Airport", km: "12.6", isActive: true, fixedFee: "fifty" }).success).toBe(false);
   });
 });

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { friendlyDbError } from "@/lib/pos/errors";
-import { deliveryAreaUpdateSchema, deliveryPricingSchema, newDeliveryAreaSchema, placeSearchSchema } from "@/lib/pos/schemas";
+import { deliveryAreaUpdateSchema, deliveryDiscountsSchema, deliveryPricingSchema, newDeliveryAreaSchema, placeSearchSchema } from "@/lib/pos/schemas";
 import { findDeliveryPlaces, resolveMapPosition } from "@/lib/server/delivery-distance";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { loadDeliveryPriceList } from "@/lib/server/pos/delivery";
@@ -15,7 +15,7 @@ const refresh = () => {
   revalidatePath("/pos/sell");
 };
 
-/** Owner: the price formula, free delivery and where the shop is. */
+/** Owner: the price formula and where the shop is. */
 export async function saveDeliveryPricing(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const { supabase, isOwner } = await requirePosUser();
   if (!isOwner) return OWNER_ONLY;
@@ -30,8 +30,6 @@ export async function saveDeliveryPricing(_prev: ActionResult | null, formData: 
     closeKm: field("closeKm"),
     closeFee: field("closeFee"),
     maxKm: field("maxKm"),
-    freeFrom: field("freeFrom"),
-    freeOff: field("freeOff"),
     shopLocation: field("shopLocation"),
   });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
@@ -57,8 +55,6 @@ export async function saveDeliveryPricing(_prev: ActionResult | null, formData: 
       delivery_close_km: p.closeKm,
       delivery_close_fee: p.closeFee,
       delivery_max_km: p.maxKm,
-      delivery_free_from: p.freeFrom,
-      delivery_free_off: p.freeOff,
       ...shop,
     })
     .eq("id", 1);
@@ -67,7 +63,22 @@ export async function saveDeliveryPricing(_prev: ActionResult | null, formData: 
   return { ok: true, message: "Saved. The till uses the new prices now." };
 }
 
-/** Owner: rename an area, change its km, or take it off the list. */
+/** Owner: delivery discounts by order size (up to 5 levels). */
+export async function saveDeliveryDiscounts(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const { supabase, isOwner } = await requirePosUser();
+  if (!isOwner) return OWNER_ONLY;
+  const froms = formData.getAll("from").map(String);
+  const offs = formData.getAll("off").map(String);
+  const free = new Set(formData.getAll("free").map(String));
+  const parsed = deliveryDiscountsSchema.safeParse(froms.map((from, i) => ({ from, off: offs[i] ?? "", free: free.has(String(i)) })));
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const { error } = await supabase.from("settings").update({ delivery_discounts: parsed.data }).eq("id", 1);
+  if (error) return { ok: false, message: friendlyDbError(error) };
+  refresh();
+  return { ok: true, message: parsed.data.length ? "Saved. The till uses these discounts now." : "Saved: no delivery discounts." };
+}
+
+/** Owner: rename an area, change its km or set price, or take it off the list. */
 export async function updateDeliveryArea(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const { supabase, isOwner } = await requirePosUser();
   if (!isOwner) return OWNER_ONLY;
@@ -76,10 +87,18 @@ export async function updateDeliveryArea(_prev: ActionResult | null, formData: F
     name: String(formData.get("name") ?? ""),
     km: String(formData.get("km") ?? ""),
     isActive: formData.get("isActive") === "on",
+    fixedFee: String(formData.get("fixedFee") ?? ""),
   });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const a = parsed.data;
-  const { error } = await supabase.rpc("pos_update_delivery_area", { p_id: a.id, p_name: a.name, p_km: a.km, p_is_active: a.isActive });
+  const { error } = await supabase.rpc("pos_update_delivery_area", {
+    p_id: a.id,
+    p_name: a.name,
+    p_km: a.km,
+    p_is_active: a.isActive,
+    // Null: the formula prices it.
+    p_fixed_fee: a.fixedFee as number,
+  });
   if (error) return { ok: false, message: friendlyDbError(error) };
   refresh();
   return { ok: true, message: "Saved." };

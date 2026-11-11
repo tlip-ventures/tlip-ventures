@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { AddDeliveryAreaForm, DeliveryAreaList, DeliveryPricingForm } from "@/components/pos/delivery-settings";
+import { AddDeliveryAreaForm, DeliveryAreaList, DeliveryDiscountsForm, DeliveryPricingForm } from "@/components/pos/delivery-settings";
 import { ButtonLink, Card, PageHeader, PageShell } from "@/components/pos/ui";
-import { deliveryFeeForKm, describePricing, formatKm } from "@/lib/delivery";
+import { deliveryFeeForKm, describeDiscount, describePricing, formatKm } from "@/lib/delivery";
 import { formatPesewas } from "@/lib/money";
 import { plural } from "@/lib/pos/format";
 import { requireOwner } from "@/lib/server/pos/auth";
@@ -28,9 +28,7 @@ export default async function DeliveryPricesPage() {
         <div className="flex flex-col gap-1 border-b border-pos-paper-deep px-5 py-4">
           <h2 className="m-0 text-lg font-bold leading-6">The formula</h2>
           <span className="max-w-[720px] text-[13px] leading-[19px] text-pos-muted">
-            The fee depends only on the road distance from the shop. {describePricing(pricing)}
-            {pricing.freeFrom !== null &&
-              ` Orders of ${formatPesewas(pricing.freeFrom)} or more get ${formatPesewas(pricing.freeOff)} off delivery.`}{" "}
+            The fee depends on the road distance from the shop. {describePricing(pricing)} An area with a set price (below) uses it instead.
             At the till the fee fills itself in when an area is picked; staff can still type a different one.
           </span>
           <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[13px] tabular-nums text-pos-soft">
@@ -46,6 +44,20 @@ export default async function DeliveryPricesPage() {
         </div>
         <div className="p-5">
           <DeliveryPricingForm pricing={pricing} shop={shop} />
+        </div>
+      </Card>
+
+      <Card label="Delivery discounts">
+        <div className="flex flex-col gap-1 border-b border-pos-paper-deep px-5 py-4">
+          <h2 className="m-0 text-lg font-bold leading-6">Delivery discounts</h2>
+          <span className="text-[13px] text-pos-muted">
+            {pricing.discounts.length
+              ? `${pricing.discounts.map(describeDiscount).join(". ")}.`
+              : "None: every order pays the full delivery fee."}
+          </span>
+        </div>
+        <div className="p-5">
+          <DeliveryDiscountsForm discounts={pricing.discounts} />
         </div>
       </Card>
 
@@ -65,7 +77,8 @@ export default async function DeliveryPricesPage() {
         <div className="flex flex-col gap-1 border-b border-pos-paper-deep px-5 py-4">
           <h2 className="m-0 text-lg font-bold leading-6">Areas</h2>
           <span className="text-[13px] text-pos-muted">
-            {plural(inUse, "area")} on the list, nearest first, with the road km from the shop and today&apos;s fee. Untick “On the list” to hide one at the till.
+            {plural(inUse, "area")} on the list, nearest first, with the road km from the shop. Leave the price empty to use the formula, or type a
+            price to set the area&apos;s own. Untick “On the list” to hide one at the till.
           </span>
         </div>
         <DeliveryAreaList areas={areas} pricing={pricing} />

@@ -2,43 +2,48 @@ import { describe, expect, it } from "vitest";
 import {
   coordinatesFromText,
   DEFAULT_DELIVERY_PRICING as P,
+  areaFee,
+  deliveryDiscountOff,
   deliveryFeeForKm,
   deliveryQuote,
+  describeDiscount,
+  discountLevel,
   formatKm,
-  freeDeliveryOff,
   isShortMapsLink,
   matchAreas,
   pricingFromSettings,
+  readDiscounts,
   roundKm,
   straightLineKm,
 } from "./delivery";
 
 describe("deliveryFeeForKm", () => {
   it.each([
-    // The worked examples the owner approved, in pesewas.
-    [0.3, 1000], // very close: flat GH₵ 10
-    [1, 1000],
-    [1.1, 2000], // base fee
-    [1.8, 2000],
-    [3, 2000],
-    [3.6, 2500], // 20 + 3 × 0.6 = 21.80 → 25
-    [6, 3000], // 20 + 3 × 3 = 29 → 30
-    [6.9, 3500], // 31.70 → 35
-    [9.4, 4000], // 39.20 → 40
-    [10, 4500], // 41 → 45
-    [17.3, 5500], // 20 + 21 + 1.5 × 7.3 = 51.95 → 55
-    [22.7, 6500], // 60.05 → 65
-    [28.1, 7000], // 68.15 → 70
-    [37.9, 8500], // 82.85 → 85
-    [62.1, 12000], // 119.15 → 120
-    [65, 12500],
+    // The prices the owner approved on 11 November, in pesewas, at the areas' road km.
+    [0.3, 2000], // very close (Blue gate): flat GH₵ 20
+    [1, 2000],
+    [1.8, 2000], // Dansoman Roundabout: base fee covers the first 2 km
+    [2, 2000],
+    [2.3, 2500], // Odorkor: 20 + 4 × 0.3 = 21.20 → 25
+    [3.6, 3000], // Kaneshie: 26.40 → 30
+    [6, 4000], // Circle: 20 + 4 × 4 = 36 → 40
+    [6.6, 4000], // Lapaz: 38.40 → 40 (her figure: about 40)
+    [6.7, 4000], // Tabora: 38.80 → 40 (her figure: about 40)
+    [7, 4000], // 20 + 4 × 5 = 40 exactly
+    [9.4, 4500], // Kanda: 40 + 1.5 × 2.4 = 43.60 → 45
+    [12.6, 5000], // Airport Residential: 48.40 → 50 (her figure: about 50)
+    [17.3, 6000], // East Legon: 55.45 → 60
+    [22.7, 6500], // Madina: 63.55 → 65
+    [28.1, 7500], // Oyarifa: 71.65 → 75
+    [37.9, 9000], // Tema Community 1: 86.35 → 90
+    [62.1, 12500], // Dodowa: 122.65 → 125
   ])("%s km costs %s pesewas", (km, fee) => {
     expect(deliveryFeeForKm(km, P)).toBe(fee);
   });
 
   it("charges exactly on a round amount without going up a step", () => {
-    // 20 + 3 × 5 = 35 exactly.
-    expect(deliveryFeeForKm(8, P)).toBe(3500);
+    expect(deliveryFeeForKm(7, P)).toBe(4000);
+    expect(deliveryFeeForKm(65, P)).toBe(13000); // 40 + 1.5 × 58 = 127 → 130
   });
 
   it("has no price beyond the furthest distance", () => {
@@ -54,12 +59,12 @@ describe("deliveryFeeForKm", () => {
   it("follows changed settings", () => {
     const p = { ...P, baseFee: 2500, roundTo: 100, closeKm: 0 };
     expect(deliveryFeeForKm(0.5, p)).toBe(2500);
-    expect(deliveryFeeForKm(3.6, p)).toBe(2700); // 25 + 1.80 → 26.80 → 27
+    expect(deliveryFeeForKm(3.6, p)).toBe(3200); // 25 + 4 × 1.6 = 31.40 → 32
   });
 
   it("copes with the middle band ending before the base", () => {
-    const p = { ...P, midEndKm: 2 };
-    expect(deliveryFeeForKm(10, p)).toBe(3500); // 20 + 1.5 × 7 = 30.50 → 35
+    const p = { ...P, midEndKm: 1 };
+    expect(deliveryFeeForKm(10, p)).toBe(3500); // 20 + 1.5 × 8 = 32 → 35
   });
 
   it("always gives whole pesewas", () => {
@@ -70,26 +75,73 @@ describe("deliveryFeeForKm", () => {
   });
 });
 
-describe("free delivery", () => {
-  it("takes GH₵ 40 off orders of GH₵ 1,000 or more", () => {
-    expect(freeDeliveryOff(5500, 100000, P)).toBe(4000);
-    expect(freeDeliveryOff(5500, 99999, P)).toBe(0);
+describe("set prices", () => {
+  it("uses an area's set price instead of the formula", () => {
+    expect(areaFee({ km: 12.6, fixedFee: 4500 }, P)).toBe(4500);
+    expect(areaFee({ km: 12.6, fixedFee: null }, P)).toBe(5000);
+    expect(areaFee({ km: 12.6 }, P)).toBe(5000);
+  });
+
+  it("prices a far area that has a set price", () => {
+    expect(areaFee({ km: 90 }, P)).toBeNull();
+    expect(areaFee({ km: 90, fixedFee: 15000 }, P)).toBe(15000);
+  });
+
+  it("allows a set price of nothing", () => {
+    expect(areaFee({ km: 3, fixedFee: 0 }, P)).toBe(0);
+  });
+});
+
+describe("delivery discounts", () => {
+  const levels = { ...P, discounts: [{ from: 50000, off: 1000 }, { from: 100000, off: 2000 }, { from: 200000, off: null }] };
+
+  it("takes GH₵ 40 off orders of GH₵ 1,000 or more by default", () => {
+    expect(deliveryDiscountOff(6000, 100000, P)).toBe(4000);
+    expect(deliveryDiscountOff(6000, 99999, P)).toBe(0);
+  });
+
+  it("uses the highest level the order reaches", () => {
+    expect(deliveryDiscountOff(6000, 49999, levels)).toBe(0);
+    expect(deliveryDiscountOff(6000, 50000, levels)).toBe(1000);
+    expect(deliveryDiscountOff(6000, 150000, levels)).toBe(2000);
+    expect(deliveryDiscountOff(6000, 200000, levels)).toBe(6000); // free delivery
+  });
+
+  it("finds the level whatever order the levels are in", () => {
+    const shuffled = { ...levels, discounts: [levels.discounts[2], levels.discounts[0], levels.discounts[1]] };
+    expect(deliveryDiscountOff(6000, 150000, shuffled)).toBe(2000);
+    expect(discountLevel(150000, shuffled.discounts)).toEqual({ from: 100000, off: 2000 });
   });
 
   it("never takes off more than the fee", () => {
-    expect(freeDeliveryOff(3000, 150000, P)).toBe(3000);
+    expect(deliveryDiscountOff(3000, 150000, P)).toBe(3000);
   });
 
-  it("is off when there is no free delivery", () => {
-    expect(freeDeliveryOff(5500, 500000, { ...P, freeFrom: null })).toBe(0);
-    expect(freeDeliveryOff(5500, 500000, { ...P, freeOff: 0 })).toBe(0);
+  it("is off when there are no levels", () => {
+    expect(deliveryDiscountOff(6000, 500000, { ...P, discounts: [] })).toBe(0);
   });
 
-  it("quotes a fee with free delivery taken off", () => {
-    expect(deliveryQuote(17.3, 120000, P)).toEqual({ kind: "fee", listFee: 5500, freeOff: 4000, fee: 1500 });
-    expect(deliveryQuote(6, 120000, P)).toEqual({ kind: "fee", listFee: 3000, freeOff: 3000, fee: 0 });
-    expect(deliveryQuote(17.3, 20000, P)).toEqual({ kind: "fee", listFee: 5500, freeOff: 0, fee: 5500 });
-    expect(deliveryQuote(80, 120000, P)).toEqual({ kind: "too_far" });
+  it("quotes a fee with the discount taken off", () => {
+    const level = { from: 100000, off: 4000 };
+    expect(deliveryQuote({ km: 17.3 }, 120000, P)).toEqual({ kind: "fee", listFee: 6000, fixed: false, discount: 4000, level, fee: 2000 });
+    expect(deliveryQuote({ km: 6 }, 120000, P)).toEqual({ kind: "fee", listFee: 4000, fixed: false, discount: 4000, level, fee: 0 });
+    expect(deliveryQuote({ km: 17.3 }, 20000, P)).toEqual({ kind: "fee", listFee: 6000, fixed: false, discount: 0, level: null, fee: 6000 });
+    expect(deliveryQuote({ km: 12.6, fixedFee: 4500 }, 20000, P)).toEqual({ kind: "fee", listFee: 4500, fixed: true, discount: 0, level: null, fee: 4500 });
+    expect(deliveryQuote({ km: 80 }, 120000, P)).toEqual({ kind: "too_far" });
+  });
+
+  it("describes a level", () => {
+    expect(describeDiscount({ from: 100000, off: 4000 })).toBe("Orders of GH₵ 1,000 or more: GH₵ 40 off delivery");
+    expect(describeDiscount({ from: 200000, off: null })).toBe("Orders of GH₵ 2,000 or more: free delivery");
+  });
+
+  it("reads saved levels, dropping bad ones, lowest first", () => {
+    expect(readDiscounts([{ from: 200000, off: null }, { from: 100000, off: 4000 }, { from: "x", off: 1 }, { from: 5, off: -1 }, null])).toEqual([
+      { from: 100000, off: 4000 },
+      { from: 200000, off: null },
+    ]);
+    expect(readDiscounts({ from: 1 })).toEqual([]);
+    expect(readDiscounts(null)).toEqual([]);
   });
 });
 
@@ -155,18 +207,17 @@ describe("pricingFromSettings", () => {
   it("reads the settings row, numeric columns as numbers", () => {
     const row = {
       delivery_base_fee: 2000,
-      delivery_base_km: "3.0",
-      delivery_mid_rate: 300,
-      delivery_mid_end_km: "10.0",
+      delivery_base_km: "2.0",
+      delivery_mid_rate: 400,
+      delivery_mid_end_km: "7.0",
       delivery_far_rate: 150,
       delivery_round_to: 500,
       delivery_close_km: "1.0",
-      delivery_close_fee: 1000,
+      delivery_close_fee: 2000,
       delivery_max_km: "65.0",
-      delivery_free_from: 100000,
-      delivery_free_off: 4000,
+      delivery_discounts: [{ from: 100000, off: 4000 }],
     } as unknown as Parameters<typeof pricingFromSettings>[0];
     expect(pricingFromSettings(row)).toEqual(P);
-    expect(pricingFromSettings({ ...row, delivery_free_from: null }).freeFrom).toBeNull();
+    expect(pricingFromSettings({ ...row, delivery_discounts: "bad" }).discounts).toEqual([]);
   });
 });
