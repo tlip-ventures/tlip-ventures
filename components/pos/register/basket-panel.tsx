@@ -3,13 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createInvoice } from "@/app/pos/(app)/invoices/actions";
-import { completeSale, type CompletedSale } from "@/app/pos/(app)/sell/actions";
+import { completeSale, holdSale, type CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
 import { phoneText } from "@/lib/pos/format";
-import { basketLineKey, basketLineName, basketTotals, linePrice, cashOptions, changeDue, deliveryFeeText, deliveryTooBig, draftDeliveryFee, lineRoom, momoSplit, REST_LABELS, REST_METHODS, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
+import { basketLineKey, basketLineName, basketTotals, linePrice, cashOptions, changeDue, deliveryFeeText, deliveryTooBig, draftDeliveryFee, lineRoom, momoSplit, NO_PAID_NOW, paidNowParts, type PaidNow, REST_LABELS, REST_METHODS, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
 import { useBasket, useBasketHydrated, type CashChoice } from "@/lib/pos/basket-store";
 import { defaultValidUntil, ghanaToday } from "@/lib/pos/invoices";
 import type { DeliveryArea, DeliveryPricing } from "@/lib/delivery";
+import { PaidNowFields } from "../paid-now-fields";
 import { CustomerPicker } from "./customer-picker";
 import { QtyInput } from "./qty-input";
 import { DeliveryAreaPicker } from "./delivery-area-picker";
@@ -44,6 +45,10 @@ export function BasketPanel({
   // "Make invoice": open while the cashier picks the date the prices hold until.
   const [invoicing, setInvoicing] = useState(false);
   const [validUntil, setValidUntil] = useState(() => defaultValidUntil(new Date()));
+  // "Put on hold": open while the cashier types what the customer pays now.
+  const [holding, setHolding] = useState(false);
+  const [paidNow, setPaidNow] = useState<PaidNow>(NO_PAID_NOW);
+  const [holdCash, setHoldCash] = useState("");
 
   const lines = hydrated ? state.lines : [];
   const delivering = hydrated && state.fulfilment === "delivery";
@@ -145,6 +150,54 @@ export function BasketPanel({
       setDiscountText("");
       setInvoicing(false);
       router.push(`/pos/invoice/${result.id}`);
+    });
+  };
+
+  // Put on hold: what is paid now must leave something to pay, for a chosen customer.
+  const holdParts = paidNowParts(paidNow, totals.total);
+  const holdPaid = holdParts.kind === "ok" ? holdParts.paid : 0;
+  const holdCashPart = holdParts.kind === "ok" ? holdParts.cash : 0;
+  const holdReceived = holdCash.trim() ? parseCedis(holdCash) : null;
+  const holdChange = holdReceived === null || holdCashPart === 0 ? null : holdReceived - holdCashPart;
+  const holdBlocker = !state.customer
+    ? "Choose the customer the sale is held for (Customer, above)."
+    : deliveryBlocker
+      ? deliveryBlocker
+      : holdParts.kind === "error"
+        ? holdParts.message
+        : holdPaid >= totals.total
+          ? "That pays it all: use Complete sale instead."
+          : holdCash.trim() && (holdReceived === null || (holdChange !== null && holdChange < 0))
+            ? `Enter the cash received: at least ${formatPesewas(holdCashPart)}, or leave it empty.`
+            : null;
+
+  const hold = () => {
+    if (lines.length === 0 || holdBlocker || holdParts.kind !== "ok" || !state.customer) return;
+    setError(null);
+    const payments = holdParts.payments;
+    startTransition(async () => {
+      const result = await holdSale({
+        items: lines.map((l) => ({ variantId: l.variantId, qty: l.qty, choice: l.choice ?? null })),
+        customerId: state.customer!.id,
+        discount: totals.discount,
+        payments,
+        cashReceived: holdCashPart > 0 ? holdReceived : null,
+        delivery: deliveryInput(),
+        invoiceId: state.invoice?.id ?? null,
+        wholesale,
+      });
+      if (!result.ok) {
+        setError(result.message);
+        router.refresh();
+        return;
+      }
+      const ways = payments.map((x) => (x.method === "momo" ? "Mobile Money" : PAYMENT_LABELS[x.method])).join(" + ");
+      state.clear();
+      setDiscountText("");
+      setHolding(false);
+      setPaidNow(NO_PAID_NOW);
+      setHoldCash("");
+      onDone({ ...result.sale, method: payments.length ? `${formatPesewas(holdPaid)} paid by ${ways}` : "Nothing paid yet" });
     });
   };
 
@@ -568,7 +621,59 @@ export function BasketPanel({
         >
           {pending ? "Saving…" : `Complete sale · ${formatPesewas(totals.total)}`}
         </button>
-        {hydrated && !state.invoice && lines.length > 0 && !invoicing && (
+        {lines.length > 0 && !invoicing && !holding && (
+          <button type="button" onClick={() => setHolding(true)} className="min-h-11 rounded-md border border-pos-line bg-white text-sm font-bold text-pos-ink hover:border-pos-muted">
+            Put on hold (part paid)
+          </button>
+        )}
+        {holding && lines.length > 0 && (
+          <div className="flex flex-col gap-2.5 rounded-md border border-pos-line bg-white p-3">
+            <span className="text-[13px] leading-[19px] text-pos-soft">
+              The customer pays part now and the rest later. The items come off the shelf now; the sale shows On hold until it is all paid,
+              then completes itself.
+            </span>
+            <PaidNowFields value={paidNow} onChange={setPaidNow} due={totals.total} legend="Paid now (leave empty if nothing yet)" />
+            {holdCashPart > 0 && (
+              <label className="flex items-center justify-between gap-3 text-sm text-pos-soft">
+                <span>Cash received (for change)</span>
+                <input
+                  value={holdCash}
+                  onChange={(e) => setHoldCash(e.target.value)}
+                  inputMode="decimal"
+                  placeholder={formatPesewas(holdCashPart)}
+                  className="min-h-11 w-32 rounded-md border border-pos-line bg-white px-3 text-right text-sm font-bold tabular-nums text-pos-ink md:min-h-10"
+                />
+              </label>
+            )}
+            {holdChange !== null && holdChange > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-pos-soft">Change to give</span>
+                <span className="font-bold tabular-nums text-pos-green-ink">{formatPesewas(holdChange)}</span>
+              </div>
+            )}
+            {holdBlocker ? (
+              <span className="text-[13px] font-semibold text-pos-rust">{holdBlocker}</span>
+            ) : (
+              <span className="text-[13px] font-semibold text-pos-ink">
+                {formatPesewas(holdPaid)} paid now · {formatPesewas(totals.total - holdPaid)} to pay later by {state.customer?.name}
+              </span>
+            )}
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+              <button type="button" onClick={() => setHolding(false)} className="min-h-11 px-3 text-[13px] font-semibold text-pos-muted hover:text-pos-ink">
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={hold}
+                disabled={pending || Boolean(holdBlocker)}
+                className="min-h-11 rounded-md bg-pos-forest px-3 text-sm font-bold text-white hover:bg-pos-ink disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pending ? "Saving…" : `Put on hold · ${formatPesewas(Math.max(0, totals.total - holdPaid))} to pay`}
+              </button>
+            </div>
+          </div>
+        )}
+        {hydrated && !state.invoice && lines.length > 0 && !invoicing && !holding && (
           <button type="button" onClick={() => setInvoicing(true)} className="min-h-11 rounded-md border border-pos-line bg-white text-sm font-bold text-pos-ink hover:border-pos-muted">
             Make invoice instead
           </button>
@@ -612,6 +717,9 @@ export function BasketPanel({
             setError(null);
             setEditingDiscount(false);
             setInvoicing(false);
+            setHolding(false);
+            setPaidNow(NO_PAID_NOW);
+            setHoldCash("");
           }}
           disabled={lines.length === 0 && !state.customer && state.fulfilment === "collect"}
           className="min-h-11 text-[13px] font-semibold text-pos-muted hover:text-pos-ink disabled:opacity-60 md:min-h-10"

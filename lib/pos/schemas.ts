@@ -192,6 +192,28 @@ export const completeSaleSchema = z
 
 export type CompleteSaleInput = z.input<typeof completeSaleSchema>;
 
+/**
+ * "Put on hold" at the till: the basket for a customer with what they pay now
+ * (any mix of MoMo, cash and bank, or nothing); the rest is owed. The
+ * database refuses it when that pays it all.
+ */
+export const holdSaleSchema = z.object({
+  items: z
+    .array(basketItemSchema)
+    .min(1, "The basket is empty.")
+    .max(200, "At most 200 lines in one sale."),
+  customerId: z.uuid({ message: "Choose the customer the sale is held for." }),
+  discount: z.number().int().min(0).max(100_000_000),
+  payments: z.array(z.object({ method: z.enum(["cash", "momo", "bank"]), amount: z.number().int().min(1).max(100_000_000) })).max(3),
+  // The cash handed over for the cash part (for change); null: exact.
+  cashReceived: z.number().int().min(0).max(100_000_000).nullable(),
+  delivery: deliveryInputSchema.nullable(),
+  invoiceId: z.uuid().nullable().optional(),
+  wholesale: z.boolean().default(false),
+});
+
+export type HoldSaleInput = z.input<typeof holdSaleSchema>;
+
 /** "Make invoice" at the till: the basket, priced by the database, nothing taken off the shelf. */
 export const createInvoiceSchema = z.object({
   items: z
@@ -235,10 +257,15 @@ export const voidSaleSchema = z.object({
   reason: z.string().trim().min(1, "Say why the sale is cancelled.").max(300, "At most 300 characters."),
 });
 
-/** "Mark as paid" on a website order: paid in full; cash received only for change. */
+/**
+ * "Mark as paid" on a website order: what the customer paid each way (any
+ * mix; less than the total puts the order On hold); cash received only for change.
+ */
 export const markOrderPaidSchema = z.object({
   saleId: z.uuid(),
-  method: z.enum(["cash", "momo", "bank"], { message: "Choose how the customer paid." }),
+  momo: optionalCedis("Enter the MoMo amount like 200, or leave it empty."),
+  cash: optionalCedis("Enter the cash amount like 200, or leave it empty."),
+  bank: optionalCedis("Enter the bank amount like 200, or leave it empty."),
   cashReceived: optionalCedis("Cash like 500 or 1250.50, or leave it empty."),
   // Ticked: the shop delivers it, for the fee agreed in WhatsApp; no address: the order's location.
   deliver: z.boolean(),

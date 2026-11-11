@@ -13,6 +13,8 @@ import {
   linePrice,
   lineRoom,
   momoSplit,
+  NO_PAID_NOW,
+  paidNowParts,
   parseQty,
   draftDeliveryFee,
   setBasketQty,
@@ -229,5 +231,37 @@ describe("typing a quantity", () => {
     expect(setBasketQty([chair], basketLineKey(chair), 200)[0].qty).toBe(200);
     expect(setBasketQty([chair], basketLineKey(chair), 300)[0].qty).toBe(250);
     expect(setBasketQty([chair], basketLineKey(chair), 0)).toEqual([]);
+  });
+});
+
+describe("paidNowParts", () => {
+  it("turns the amounts typed per way into payments, empty ones left out", () => {
+    expect(paidNowParts({ momo: "200", cash: "150.50", bank: "" }, 50000)).toEqual({
+      kind: "ok",
+      payments: [
+        { method: "momo", amount: 20000 },
+        { method: "cash", amount: 15050 },
+      ],
+      paid: 35050,
+      cash: 15050,
+    });
+  });
+
+  it("is nothing paid when every box is empty or 0", () => {
+    expect(paidNowParts(NO_PAID_NOW, 50000)).toEqual({ kind: "ok", payments: [], paid: 0, cash: 0 });
+    expect(paidNowParts({ momo: "0", cash: "", bank: "" }, 50000)).toEqual({ kind: "ok", payments: [], paid: 0, cash: 0 });
+  });
+
+  it("can pay the whole amount", () => {
+    const parts = paidNowParts({ momo: "300", cash: "200", bank: "" }, 50000);
+    expect(parts.kind === "ok" && parts.paid).toBe(50000);
+  });
+
+  it("refuses more than is due, and amounts that aren't amounts", () => {
+    expect(paidNowParts({ momo: "300", cash: "300", bank: "" }, 50000)).toEqual({
+      kind: "error",
+      message: "That is GH₵ 100 more than the GH₵ 500 to pay.",
+    });
+    expect(paidNowParts({ momo: "lots", cash: "", bank: "" }, 50000).kind).toBe("error");
   });
 });

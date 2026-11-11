@@ -75,7 +75,7 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
             Return items
           </ButtonLink>
         )}
-        {user.isOwner && sale.status === "completed" && sale.returns.length === 0 && (
+        {user.isOwner && (sale.status === "completed" || sale.status === "on_hold") && sale.returns.length === 0 && (
           <VoidSaleButton saleId={sale.id} code={sale.code} paid={sale.paid} />
         )}
         {waiting && <CancelWebsiteOrderButton saleId={sale.id} code={sale.code} />}
@@ -85,6 +85,13 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
         <Notice tone="good">
           Website order waiting on WhatsApp. Its items stay on the shelf count until you mark it paid; confirm the price and delivery with the
           customer first.
+        </Notice>
+      )}
+
+      {sale.status === "on_hold" && (
+        <Notice tone="good">
+          On hold{sale.customer ? ` for ${sale.customer.name}` : ""}: its items are off the shelf count, {formatPesewas(sale.paid)} paid,{" "}
+          {formatPesewas(sale.owed)} still to pay. Use Mark paid as the money comes in; the sale completes itself when nothing is left to pay.
         </Notice>
       )}
 
@@ -189,7 +196,7 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
                 </span>
               )}
             </div>
-            {sale.status === "completed" && (
+            {(sale.status === "completed" || sale.status === "on_hold") && (
               <span className="flex flex-wrap gap-1.5">
                 {sale.delivery.status === "to_deliver" && <SendOutButton saleId={sale.id} code={sale.code} rider={sale.delivery.rider} riders={riders} />}
                 {sale.delivery.status === "out" && <DeliveredButton saleId={sale.id} code={sale.code} owed={sale.owed} />}

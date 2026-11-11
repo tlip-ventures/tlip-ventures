@@ -6,6 +6,8 @@ import {
   deliveryDiscountsSchema,
   deliveryPricingSchema,
   fieldErrors,
+  holdSaleSchema,
+  markOrderPaidSchema,
   newDeliveryAreaSchema,
   paymentSchema,
   posProductSchema,
@@ -175,5 +177,47 @@ describe("delivery price list", () => {
     });
     expect(deliveryAreaUpdateSchema.parse({ id, name: "Airport", km: "12.6", isActive: true, fixedFee: "50" }).fixedFee).toBe(5000);
     expect(deliveryAreaUpdateSchema.safeParse({ id, name: "Airport", km: "12.6", isActive: true, fixedFee: "fifty" }).success).toBe(false);
+  });
+});
+
+describe("holding and part payments", () => {
+  const item = { variantId: id, qty: 2, choice: null };
+
+  it("holds a basket for a customer with what is paid now", () => {
+    const hold = holdSaleSchema.parse({
+      items: [item],
+      customerId: id,
+      discount: 0,
+      payments: [
+        { method: "momo", amount: 10000 },
+        { method: "cash", amount: 5000 },
+      ],
+      cashReceived: null,
+      delivery: null,
+    });
+    expect(hold.payments).toHaveLength(2);
+    expect(hold.wholesale).toBe(false);
+  });
+
+  it("holds with nothing paid yet, but never without a customer", () => {
+    expect(holdSaleSchema.safeParse({ items: [item], customerId: id, discount: 0, payments: [], cashReceived: null, delivery: null }).success).toBe(true);
+    const noCustomer = holdSaleSchema.safeParse({ items: [item], customerId: null, discount: 0, payments: [], cashReceived: null, delivery: null });
+    expect(noCustomer.success).toBe(false);
+  });
+
+  it("reads Mark as paid with amounts per way", () => {
+    const paid = markOrderPaidSchema.parse({
+      saleId: id,
+      momo: "200",
+      cash: "",
+      bank: "50",
+      cashReceived: "",
+      deliver: false,
+      deliveryFee: "",
+      deliveryAddress: "",
+      deliveryIncluded: false,
+    });
+    expect(paid).toMatchObject({ momo: 20000, cash: null, bank: 5000, cashReceived: null });
+    expect(markOrderPaidSchema.safeParse({ ...paid, saleId: id, momo: "two", cash: "", bank: "", cashReceived: "", deliveryFee: "" }).success).toBe(false);
   });
 });

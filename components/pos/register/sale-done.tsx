@@ -14,8 +14,17 @@ export function SaleDone({ sale, onNext }: { sale: CompletedSale & { method: str
       </span>
       <div className="flex flex-col gap-1.5">
         <h2 className="m-0 font-pos-display text-[30px] font-normal leading-[1.1]" tabIndex={-1} id="pos-done">
-          Sale saved.
+          {sale.onHold ? "Sale on hold." : "Sale saved."}
         </h2>
+        {sale.onHold && (
+          <p className="m-0 rounded-md bg-pos-tint-orange px-3 py-2.5 text-sm font-semibold leading-[22px] text-pos-rust">
+            {formatPesewas(sale.onHold.owed)} still to pay. Use Mark paid on{" "}
+            <Link href={`/pos/sales/${sale.saleId}`} className="font-bold text-pos-rust">
+              {sale.code}
+            </Link>{" "}
+            as the money comes in; the last payment completes the sale.
+          </p>
+        )}
         <p className="m-0 text-sm leading-[22px] text-pos-soft">
           {sale.code} · {formatPesewas(sale.total)} · {sale.method}. Stock for {sale.items} {sale.items === 1 ? "item" : "items"} has been
           taken off the shelf count.

@@ -1,5 +1,5 @@
 import { deliveryQuote, type DeliveryPricing } from "@/lib/delivery";
-import { lineTotal, parseCedis, pesewasToInput, sumPesewas, type Pesewas } from "@/lib/money";
+import { formatPesewas, lineTotal, parseCedis, pesewasToInput, sumPesewas, type Pesewas } from "@/lib/money";
 
 // The till's basket. Prices here are for display only: the database works
 // every price out again when the sale is saved (pos_complete_sale).
@@ -217,3 +217,31 @@ export function momoSplit(total: Pesewas, momoText: string, restMethod: RestMeth
   if (restMethod !== "later") payments.push({ method: restMethod, amount: rest });
   return { kind: "split", momo, rest, restMethod, payments, owed: restMethod === "later" ? rest : 0 };
 }
+
+/** What the customer pays now, typed per way of paying (cedis; empty = nothing that way). */
+export type PaidNow = { momo: string; cash: string; bank: string };
+
+export const NO_PAID_NOW: PaidNow = { momo: "", cash: "", bank: "" };
+
+export type PaidNowParts =
+  | { kind: "ok"; payments: SplitPayment[]; paid: Pesewas; cash: Pesewas }
+  | { kind: "error"; message: string };
+
+/**
+ * The amounts typed per way of paying as payments (MoMo, cash, bank; empty
+ * ones left out), checked against what is due: never more than it in all.
+ */
+export function paidNowParts(p: PaidNow, due: Pesewas): PaidNowParts {
+  const payments: SplitPayment[] = [];
+  for (const method of ["momo", "cash", "bank"] as const) {
+    const text = p[method].trim();
+    if (text === "") continue;
+    const amount = parseCedis(text);
+    if (amount === null) return { kind: "error", message: `Enter the ${method === "momo" ? "MoMo" : method} amount like 50 or 12.50.` };
+    if (amount > 0) payments.push({ method, amount });
+  }
+  const paid = sumPesewas(payments.map((x) => x.amount));
+  if (paid > due) return { kind: "error", message: `That is ${formatPesewas(paid - due)} more than the ${formatPesewas(due)} to pay.` };
+  return { kind: "ok", payments, paid, cash: payments.find((x) => x.method === "cash")?.amount ?? 0 };
+}
+
