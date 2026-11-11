@@ -1,11 +1,18 @@
 import { formatPesewas, type Pesewas } from "@/lib/money";
 
-// Delivery prices by distance (motorbike). The fee depends only on the road
+// Delivery prices by distance (motorbike). The fee depends on the road
 // distance from the shop: a base fee for the first few km, a rate per km up to
 // a middle point, a lower rate after that, rounded up. Very close drops pay a
-// flat fee. Used by the till now and by the website checkout later, so both
-// always agree. Distances are kept in tenths of a km and money in pesewas, so
-// no floats are rounded along the way.
+// flat fee. An area on the list can have its own set price instead. Bigger
+// orders get a delivery discount (levels by order size). Used by the till now
+// and by the website checkout later, so both always agree. Distances are kept
+// in tenths of a km and money in pesewas, so no floats are rounded along the way.
+
+/** A delivery discount level: orders (items after any discount) of at least `from` get `off` taken off the fee; off null = free delivery. */
+export type DeliveryDiscount = { from: Pesewas; off: Pesewas | null };
+
+/** At most this many discount levels. */
+export const MAX_DELIVERY_DISCOUNTS = 5;
 
 export type DeliveryPricing = {
   /** Pesewas: covers the first baseKm. */
@@ -23,30 +30,32 @@ export type DeliveryPricing = {
   closeFee: Pesewas;
   /** Further than this: no price, agree it on WhatsApp. */
   maxKm: number;
-  /** Free delivery: orders (items after any discount) of at least freeFrom get freeOff taken off the fee. Null: no free delivery. */
-  freeFrom: Pesewas | null;
-  freeOff: Pesewas;
+  /** Discount levels by order size, lowest first. Empty: no delivery discount. */
+  discounts: DeliveryDiscount[];
 };
 
-/** The prices the owner approved (November 2026). The database holds the live ones (settings.delivery_*). */
+/**
+ * The prices the owner approved (11 November 2026): GH₵ 20 for the first 2 km,
+ * GH₵ 4 per km to 7 km, GH₵ 1.50 per km after, rounded up to GH₵ 5; GH₵ 20
+ * within 1 km. The database holds the live ones (settings.delivery_*).
+ */
 export const DEFAULT_DELIVERY_PRICING: DeliveryPricing = {
   baseFee: 2000,
-  baseKm: 3,
-  midRate: 300,
-  midEndKm: 10,
+  baseKm: 2,
+  midRate: 400,
+  midEndKm: 7,
   farRate: 150,
   roundTo: 500,
   closeKm: 1,
-  closeFee: 1000,
+  closeFee: 2000,
   maxKm: 65,
-  freeFrom: 100000,
-  freeOff: 4000,
+  discounts: [{ from: 100000, off: 4000 }],
 };
 
 /** The settings columns the pricing comes from. */
 export const DELIVERY_SETTINGS_COLUMNS =
   "delivery_base_fee, delivery_base_km, delivery_mid_rate, delivery_mid_end_km, delivery_far_rate, delivery_round_to, " +
-  "delivery_close_km, delivery_close_fee, delivery_max_km, delivery_free_from, delivery_free_off, shop_lat, shop_lng";
+  "delivery_close_km, delivery_close_fee, delivery_max_km, delivery_discounts, shop_lat, shop_lng";
 
 export type DeliverySettingsRow = {
   delivery_base_fee: number;
@@ -58,9 +67,24 @@ export type DeliverySettingsRow = {
   delivery_close_km: number;
   delivery_close_fee: number;
   delivery_max_km: number;
-  delivery_free_from: number | null;
-  delivery_free_off: number;
+  /** [{ from, off }] as saved; checked by readDiscounts. */
+  delivery_discounts: unknown;
 };
+
+/** Discount levels as saved in the database, keeping only well-formed ones, lowest first. */
+export function readDiscounts(value: unknown): DeliveryDiscount[] {
+  if (!Array.isArray(value)) return [];
+  const whole = (v: unknown) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
+  return value
+    .filter((d): d is { from: number; off: number | null } => {
+      if (!d || typeof d !== "object") return false;
+      const { from, off } = d as { from?: unknown; off?: unknown };
+      return whole(from) && (off === null || whole(off));
+    })
+    .map((d) => ({ from: d.from, off: d.off }))
+    .sort((a, b) => a.from - b.from)
+    .slice(0, MAX_DELIVERY_DISCOUNTS);
+}
 
 /** The pricing as the settings row holds it (numeric columns may arrive as strings). */
 export function pricingFromSettings(row: DeliverySettingsRow): DeliveryPricing {
@@ -75,13 +99,12 @@ export function pricingFromSettings(row: DeliverySettingsRow): DeliveryPricing {
     closeKm: n(row.delivery_close_km),
     closeFee: n(row.delivery_close_fee),
     maxKm: n(row.delivery_max_km),
-    freeFrom: row.delivery_free_from === null ? null : n(row.delivery_free_from),
-    freeOff: n(row.delivery_free_off),
+    discounts: readDiscounts(row.delivery_discounts),
   };
 }
 
-/** An area on the price list, with its road distance from the shop. */
-export type DeliveryArea = { id: string; name: string; km: number; isActive: boolean };
+/** An area on the price list, with its road distance from the shop and, when the owner set one, its own price (pesewas). */
+export type DeliveryArea = { id: string; name: string; km: number; isActive: boolean; fixedFee: Pesewas | null };
 
 /** Areas whose name has every word typed, best matches (name starts with it) first. */
 export function matchAreas<T extends { name: string }>(areas: readonly T[], text: string, limit = 8): T[] {
@@ -134,22 +157,45 @@ export function deliveryFeeForKm(km: number, p: DeliveryPricing): Pesewas | null
   return (Math.ceil(raw / step) * step) / 10;
 }
 
-/** How much free delivery takes off the fee for an order of this many pesewas of items (after any discount). */
-export function freeDeliveryOff(fee: Pesewas, itemsTotal: Pesewas, p: DeliveryPricing): Pesewas {
-  if (p.freeFrom === null || p.freeOff <= 0 || itemsTotal < p.freeFrom) return 0;
-  return Math.min(fee, p.freeOff);
+/** An area's price: its set price when the owner gave it one, else the formula for its distance (null: too far). */
+export function areaFee(area: { km: number; fixedFee?: Pesewas | null }, p: DeliveryPricing): Pesewas | null {
+  return area.fixedFee != null ? area.fixedFee : deliveryFeeForKm(area.km, p);
+}
+
+/** The discount level an order of this many pesewas of items (after any discount) reaches, or null. */
+export function discountLevel(itemsTotal: Pesewas, discounts: readonly DeliveryDiscount[]): DeliveryDiscount | null {
+  let best: DeliveryDiscount | null = null;
+  for (const d of discounts) if (itemsTotal >= d.from && (best === null || d.from >= best.from)) best = d;
+  return best;
+}
+
+/** How much the order's discount level takes off the fee: the whole fee for free delivery, never more than the fee. */
+export function deliveryDiscountOff(fee: Pesewas, itemsTotal: Pesewas, p: DeliveryPricing): Pesewas {
+  const level = discountLevel(itemsTotal, p.discounts);
+  if (!level) return 0;
+  return level.off === null ? fee : Math.min(fee, level.off);
 }
 
 export type DeliveryQuote =
-  | { kind: "fee"; listFee: Pesewas; freeOff: Pesewas; fee: Pesewas }
+  | { kind: "fee"; listFee: Pesewas; fixed: boolean; discount: Pesewas; level: DeliveryDiscount | null; fee: Pesewas }
   | { kind: "too_far" };
 
-/** The fee for a distance and an order: the price list, less free delivery when the order qualifies. */
-export function deliveryQuote(km: number, itemsTotal: Pesewas, p: DeliveryPricing): DeliveryQuote {
-  const listFee = deliveryFeeForKm(km, p);
+/** The fee for an area (or a place found on the map) and an order: its price, less the order's delivery discount. */
+export function deliveryQuote(
+  area: { km: number; fixedFee?: Pesewas | null },
+  itemsTotal: Pesewas,
+  p: DeliveryPricing,
+): DeliveryQuote {
+  const listFee = areaFee(area, p);
   if (listFee === null) return { kind: "too_far" };
-  const off = freeDeliveryOff(listFee, itemsTotal, p);
-  return { kind: "fee", listFee, freeOff: off, fee: listFee - off };
+  const discount = deliveryDiscountOff(listFee, itemsTotal, p);
+  const level = discount > 0 ? discountLevel(itemsTotal, p.discounts) : null;
+  return { kind: "fee", listFee, fixed: area.fixedFee != null, discount, level, fee: listFee - discount };
+}
+
+/** "Orders of GH₵ 1,000 or more: GH₵ 40 off delivery" / "…: free delivery". */
+export function describeDiscount(d: DeliveryDiscount): string {
+  return `Orders of ${formatPesewas(d.from)} or more: ${d.off === null ? "free delivery" : `${formatPesewas(d.off)} off delivery`}`;
 }
 
 /** One line explaining the formula, for the settings page. */

@@ -11,7 +11,7 @@ export type DeliveryPriceList = {
 
 /** The delivery pricing and the areas (in use only, unless all), by distance. */
 export async function loadDeliveryPriceList(supabase: PosUser["supabase"], { all = false } = {}): Promise<DeliveryPriceList> {
-  let areasQuery = supabase.from("delivery_areas").select("id, name, km, is_active").order("km").order("name");
+  let areasQuery = supabase.from("delivery_areas").select("id, name, km, is_active, fixed_fee").order("km").order("name");
   if (!all) areasQuery = areasQuery.eq("is_active", true);
   const [settings, areas] = await Promise.all([
     supabase.from("settings").select(DELIVERY_SETTINGS_COLUMNS).eq("id", 1).single(),
@@ -23,6 +23,6 @@ export async function loadDeliveryPriceList(supabase: PosUser["supabase"], { all
   return {
     pricing: pricingFromSettings(row),
     shop: row.shop_lat === null || row.shop_lng === null ? null : { lat: Number(row.shop_lat), lng: Number(row.shop_lng) },
-    areas: areas.data.map((a) => ({ id: a.id, name: a.name, km: Number(a.km), isActive: a.is_active })),
+    areas: areas.data.map((a) => ({ id: a.id, name: a.name, km: Number(a.km), isActive: a.is_active, fixedFee: a.fixed_fee })),
   };
 }

@@ -84,7 +84,8 @@ export type DeliveryDraft = {
   auto?: boolean;
 };
 
-export type DeliveryAreaPick = { name: string; km: number };
+/** fixedFee: the area's own price (pesewas) when the owner set one; otherwise the formula for km. */
+export type DeliveryAreaPick = { name: string; km: number; fixedFee?: number | null };
 
 const NO_DELIVERY: DeliveryDraft = { address: "", phone: "", fee: "", note: "", included: false, area: null, auto: false };
 

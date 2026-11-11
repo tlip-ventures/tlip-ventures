@@ -125,17 +125,18 @@ export function draftDeliveryFee(fulfilment: Fulfilment, feeText: string): Pesew
 
 /**
  * The delivery fee as the till uses it, in cedis as typed: while the fee
- * follows the price list (auto) for a picked area, the list's fee for its
- * distance less free delivery for this order (items after any discount);
+ * follows the price list (auto) for a picked area, the area's price (its set
+ * price, or the formula for its distance) less the delivery discount for this
+ * order (items after any discount);
  * otherwise what was typed. Beyond the furthest distance the typed fee stands.
  */
 export function deliveryFeeText(
-  draft: { fee: string; area?: { km: number } | null; auto?: boolean },
+  draft: { fee: string; area?: { km: number; fixedFee?: Pesewas | null } | null; auto?: boolean },
   pricing: DeliveryPricing | null,
   itemsTotal: Pesewas,
 ): string {
   if (!draft.auto || !draft.area || !pricing) return draft.fee;
-  const quote = deliveryQuote(draft.area.km, itemsTotal, pricing);
+  const quote = deliveryQuote(draft.area, itemsTotal, pricing);
   return quote.kind === "fee" ? pesewasToInput(quote.fee) : draft.fee;
 }
 

@@ -2,9 +2,9 @@
 
 import { useActionState, useState, useTransition } from "react";
 import type { ActionResult } from "@/app/pos/(app)/products/actions";
-import { addDeliveryAreaByHand, measurePlace, saveDeliveryPricing, updateDeliveryArea } from "@/app/pos/(app)/settings/delivery/actions";
-import { deliveryFeeForKm, formatKm, type DeliveryArea, type DeliveryPricing } from "@/lib/delivery";
-import { formatPesewas, pesewasToInput } from "@/lib/money";
+import { addDeliveryAreaByHand, measurePlace, saveDeliveryDiscounts, saveDeliveryPricing, updateDeliveryArea } from "@/app/pos/(app)/settings/delivery/actions";
+import { deliveryFeeForKm, formatKm, MAX_DELIVERY_DISCOUNTS, type DeliveryArea, type DeliveryDiscount, type DeliveryPricing } from "@/lib/delivery";
+import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
 import { dialogInputClass, dialogLabelClass } from "./action-dialog";
 import { buttonClass, Notice } from "./ui";
 
@@ -37,7 +37,7 @@ function Field({
   );
 }
 
-/** Owner: the formula, free delivery and the shop's position. */
+/** Owner: the formula and the shop's position. */
 export function DeliveryPricingForm({ pricing, shop }: { pricing: DeliveryPricing; shop: { lat: number; lng: number } | null }) {
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(saveDeliveryPricing, null);
   const cedi = (p: number) => pesewasToInput(p);
@@ -54,17 +54,6 @@ export function DeliveryPricingForm({ pricing, shop }: { pricing: DeliveryPricin
         <Field name="closeKm" label="Very close: up to" unit="km" value={String(pricing.closeKm)} />
         <Field name="closeFee" label="Very close fee" unit="GH₵" value={cedi(pricing.closeFee)} />
         <Field name="maxKm" label="Furthest by motorbike" unit="km" value={String(pricing.maxKm)} help="Further: agree the fee on WhatsApp." />
-      </fieldset>
-      <fieldset className="m-0 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4 border-0 p-0">
-        <legend className="mb-3 text-sm font-bold text-pos-ink">Free delivery</legend>
-        <Field
-          name="freeFrom"
-          label="Orders of at least"
-          unit="GH₵"
-          value={pricing.freeFrom === null ? "" : cedi(pricing.freeFrom)}
-          help="Items after any discount. Empty: no free delivery."
-        />
-        <Field name="freeOff" label="Take this off the fee" unit="GH₵" value={cedi(pricing.freeOff)} help="You pay this part to the rider." />
       </fieldset>
       <label className={`${dialogLabelClass} max-w-[640px]`}>
         <span>Where the shop is</span>
@@ -101,7 +90,10 @@ export function DeliveryPricingForm({ pricing, shop }: { pricing: DeliveryPricin
 function AreaRow({ area, pricing }: { area: DeliveryArea; pricing: DeliveryPricing }) {
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(updateDeliveryArea, null);
   const [km, setKm] = useState(String(area.km));
+  const [setPrice, setSetPrice] = useState(area.fixedFee === null ? "" : pesewasToInput(area.fixedFee));
   const kmValue = /^\d{1,3}(\.\d)?$/.test(km.trim()) ? Number(km) : null;
+  const formula = kmValue === null ? "—" : fee(kmValue, pricing);
+  const typedPrice = setPrice.trim() === "" ? null : parseCedis(setPrice);
   return (
     <li className={`border-b border-pos-paper-deep px-5 py-3 last:border-b-0 ${area.isActive ? "" : "bg-pos-row-hover"}`}>
       <form action={action} className="flex flex-wrap items-end gap-3">
@@ -123,8 +115,20 @@ function AreaRow({ area, pricing }: { area: DeliveryArea; pricing: DeliveryPrici
             <span aria-hidden="true">km</span>
           </span>
         </label>
-        <span className="flex min-h-11 w-24 items-center justify-end text-sm font-bold tabular-nums text-pos-ink">
-          {kmValue === null ? "—" : fee(kmValue, pricing)}
+        <label className={`${dialogLabelClass} w-28`}>
+          <span className="sr-only">Set price for {area.name} in cedis (empty: the formula)</span>
+          <input
+            name="fixedFee"
+            value={setPrice}
+            onChange={(e) => setSetPrice(e.target.value)}
+            inputMode="decimal"
+            placeholder={formula}
+            title="Empty: the formula's price. Type a price to use it instead."
+            className={`${dialogInputClass} text-right font-bold tabular-nums ${typedPrice !== null ? "border-pos-green bg-pos-tint-green" : ""}`}
+          />
+        </label>
+        <span className="flex min-h-11 w-28 items-center text-xs leading-4 text-pos-muted">
+          {typedPrice !== null ? `Set price (formula ${formula})` : "Formula price"}
         </span>
         <label className="flex min-h-11 items-center gap-2 text-[13px] text-pos-soft">
           <input type="checkbox" name="isActive" defaultChecked={area.isActive} className="size-4 accent-pos-green" />
@@ -143,8 +147,13 @@ function AreaRow({ area, pricing }: { area: DeliveryArea; pricing: DeliveryPrici
 export function DeliveryAreaList({ areas, pricing }: { areas: DeliveryArea[]; pricing: DeliveryPricing }) {
   return (
     <ul className="m-0 list-none p-0">
+      <li aria-hidden="true" className="hidden flex-wrap gap-3 border-b border-pos-paper-deep px-5 py-2 text-xs font-semibold text-pos-muted md:flex">
+        <span className="min-w-48 flex-[2_1_200px]">Area</span>
+        <span className="w-24">Road km</span>
+        <span className="w-28">Price (GH₵)</span>
+      </li>
       {areas.map((a) => (
-        <AreaRow key={`${a.id}:${a.name}:${a.km}:${a.isActive}`} area={a} pricing={pricing} />
+        <AreaRow key={`${a.id}:${a.name}:${a.km}:${a.isActive}:${a.fixedFee}`} area={a} pricing={pricing} />
       ))}
     </ul>
   );
@@ -207,6 +216,92 @@ export function AddDeliveryAreaForm({ pricing }: { pricing: DeliveryPricing }) {
       </div>
       {note && <span className="text-[13px] leading-[19px] text-pos-soft">{note}</span>}
       {state && <Notice tone={state.ok ? "good" : "bad"}>{state.message}</Notice>}
+    </form>
+  );
+}
+
+type DiscountRow = { from: string; off: string; free: boolean };
+
+const toRow = (d: DeliveryDiscount): DiscountRow => ({
+  from: pesewasToInput(d.from),
+  off: d.off === null ? "" : pesewasToInput(d.off),
+  free: d.off === null,
+});
+
+/** Owner: delivery discounts by order size, up to MAX_DELIVERY_DISCOUNTS levels. */
+export function DeliveryDiscountsForm({ discounts }: { discounts: DeliveryDiscount[] }) {
+  const [state, action, pending] = useActionState<ActionResult | null, FormData>(saveDeliveryDiscounts, null);
+  const [rows, setRows] = useState<DiscountRow[]>(() => (discounts.length ? discounts.map(toRow) : [{ from: "", off: "", free: false }]));
+  const change = (i: number, changes: Partial<DiscountRow>) => setRows((r) => r.map((row, j) => (j === i ? { ...row, ...changes } : row)));
+
+  return (
+    <form action={action} className="flex flex-col gap-3">
+      <ul className="m-0 flex list-none flex-col gap-3 p-0">
+        {rows.map((row, i) => (
+          <li key={i} className="flex flex-wrap items-end gap-3">
+            <label className={`${dialogLabelClass} w-40`}>
+              <span>Orders from (GH₵)</span>
+              <input
+                name="from"
+                value={row.from}
+                onChange={(e) => change(i, { from: e.target.value })}
+                inputMode="decimal"
+                placeholder="1000"
+                className={`${dialogInputClass} text-right tabular-nums`}
+              />
+            </label>
+            <label className={`${dialogLabelClass} w-40`}>
+              <span>Take off delivery (GH₵)</span>
+              <input
+                name="off"
+                value={row.free ? "" : row.off}
+                onChange={(e) => change(i, { off: e.target.value })}
+                disabled={row.free}
+                inputMode="decimal"
+                placeholder={row.free ? "All of it" : "40"}
+                className={`${dialogInputClass} text-right tabular-nums disabled:bg-pos-row-hover`}
+              />
+              {/* A disabled input isn't sent: keep the rows lined up. */}
+              {row.free && <input type="hidden" name="off" value="" />}
+            </label>
+            <label className="flex min-h-11 items-center gap-2 text-[13px] text-pos-soft">
+              <input
+                type="checkbox"
+                name="free"
+                value={String(i)}
+                checked={row.free}
+                onChange={(e) => change(i, { free: e.target.checked })}
+                className="size-4 accent-pos-green"
+              />
+              Free delivery
+            </label>
+            <button
+              type="button"
+              onClick={() => setRows((r) => (r.length > 1 ? r.filter((_, j) => j !== i) : [{ from: "", off: "", free: false }]))}
+              className={buttonClass("quiet", "sm")}
+            >
+              Remove
+            </button>
+          </li>
+        ))}
+      </ul>
+      {rows.length < MAX_DELIVERY_DISCOUNTS && (
+        <div>
+          <button type="button" onClick={() => setRows((r) => [...r, { from: "", off: "", free: false }])} className={buttonClass("outline", "sm")}>
+            Add a level
+          </button>
+        </div>
+      )}
+      <span className="text-xs text-pos-muted">
+        Items after any discount. The highest level an order reaches counts. You pay the part taken off to the rider. Remove every level for no
+        delivery discount.
+      </span>
+      {state && <Notice tone={state.ok ? "good" : "bad"}>{state.message}</Notice>}
+      <div>
+        <button type="submit" disabled={pending} className={buttonClass("primary")}>
+          {pending ? "Saving…" : "Save discounts"}
+        </button>
+      </div>
     </form>
   );
 }

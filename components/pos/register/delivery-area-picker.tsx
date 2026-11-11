@@ -2,7 +2,7 @@
 
 import { useId, useState, useTransition } from "react";
 import { addDeliveryArea, searchDeliveryPlace, type FoundPlace } from "@/app/pos/(app)/sell/delivery-actions";
-import { deliveryFeeForKm, deliveryQuote, formatKm, matchAreas, type DeliveryArea, type DeliveryPricing } from "@/lib/delivery";
+import { areaFee, deliveryQuote, describeDiscount, formatKm, matchAreas, type DeliveryArea, type DeliveryPricing } from "@/lib/delivery";
 import { formatPesewas, type Pesewas } from "@/lib/money";
 import { useBasket } from "@/lib/pos/basket-store";
 
@@ -10,15 +10,17 @@ const inputClass = "min-h-11 w-full rounded-md border border-pos-line bg-white p
 const rowClass =
   "flex min-h-11 w-full items-center justify-between gap-3 border-b border-pos-paper-deep px-3 py-2 text-left text-sm last:border-b-0 hover:bg-pos-tint-green focus-visible:bg-pos-tint-green";
 
-const listFee = (km: number, pricing: DeliveryPricing) => {
-  const fee = deliveryFeeForKm(km, pricing);
+const listFee = (area: { km: number; fixedFee?: number | null }, pricing: DeliveryPricing) => {
+  const fee = areaFee(area, pricing);
   return fee === null ? "Agree on WhatsApp" : formatPesewas(fee);
 };
 
 /**
  * The till's delivery area: pick it from the price list, or search the map
  * for a place (or paste a Google Maps link the customer sent) and measure it
- * from the shop. The fee then follows the price list until it is typed over.
+ * from the shop. The fee then follows the price list (the area's set price,
+ * or the formula for its distance, less the order's delivery discount) until
+ * it is typed over.
  */
 export function DeliveryAreaPicker({ areas, pricing, itemsTotal }: { areas: DeliveryArea[]; pricing: DeliveryPricing; itemsTotal: Pesewas }) {
   const id = useId();
@@ -33,11 +35,11 @@ export function DeliveryAreaPicker({ areas, pricing, itemsTotal }: { areas: Deli
   const area = delivery.area ?? null;
   const matches = matchAreas(areas, text);
 
-  const pick = (name: string, km: number) => {
+  const pick = (name: string, km: number, fixedFee: number | null = null) => {
     // The address starts as the area's name; a landmark typed after it stays.
     const prev = delivery.area?.name ?? "";
     const address = !delivery.address.trim() || delivery.address.trim() === prev ? name : delivery.address;
-    setDelivery({ area: { name, km }, auto: deliveryFeeForKm(km, pricing) !== null, address });
+    setDelivery({ area: { name, km, fixedFee }, auto: areaFee({ km, fixedFee }, pricing) !== null, address });
     setText("");
     setFound(null);
     setMessage(null);
@@ -71,7 +73,7 @@ export function DeliveryAreaPicker({ areas, pricing, itemsTotal }: { areas: Deli
   };
 
   if (area) {
-    const quote = deliveryQuote(area.km, itemsTotal, pricing);
+    const quote = deliveryQuote(area, itemsTotal, pricing);
     return (
       <div className="flex flex-col gap-1.5 rounded-md border border-pos-green bg-pos-tint-green px-3 py-2.5 text-[13px] leading-[19px] text-pos-green-ink">
         <span className="flex items-start justify-between gap-2">
@@ -90,13 +92,13 @@ export function DeliveryAreaPicker({ areas, pricing, itemsTotal }: { areas: Deli
           <span className="font-semibold text-pos-rust">Further than the price list goes: agree the fee with the customer and type it below.</span>
         ) : delivery.auto ? (
           <span>
-            Price list: <strong className="tabular-nums">{formatPesewas(quote.listFee)}</strong>
-            {quote.freeOff > 0 && (
+            {quote.fixed ? "Set price" : "Price list"}: <strong className="tabular-nums">{formatPesewas(quote.listFee)}</strong>
+            {quote.discount > 0 && (
               <>
                 {" "}
-                less {formatPesewas(quote.freeOff)} free delivery
-                {pricing.freeFrom !== null && ` (orders of ${formatPesewas(pricing.freeFrom)} or more)`} ={" "}
+                less {formatPesewas(quote.discount)} ={" "}
                 <strong className="tabular-nums">{formatPesewas(quote.fee)}</strong>
+                {quote.level && <span className="block text-xs">{describeDiscount(quote.level)}.</span>}
               </>
             )}
           </span>
@@ -133,7 +135,7 @@ export function DeliveryAreaPicker({ areas, pricing, itemsTotal }: { areas: Deli
           onKeyDown={(e) => {
             if (e.key !== "Enter") return;
             e.preventDefault();
-            if (matches.length === 1) pick(matches[0].name, matches[0].km);
+            if (matches.length === 1) pick(matches[0].name, matches[0].km, matches[0].fixedFee);
             else if (matches.length === 0) search();
           }}
           maxLength={500}
@@ -151,12 +153,12 @@ export function DeliveryAreaPicker({ areas, pricing, itemsTotal }: { areas: Deli
         <ul aria-label="Areas" className="m-0 flex list-none flex-col overflow-hidden rounded-md border border-pos-line bg-white p-0">
           {matches.map((a) => (
             <li key={a.id}>
-              <button type="button" onClick={() => pick(a.name, a.km)} className={rowClass}>
+              <button type="button" onClick={() => pick(a.name, a.km, a.fixedFee)} className={rowClass}>
                 <span className="min-w-0">
                   <span className="font-semibold text-pos-ink">{a.name}</span>{" "}
                   <span className="text-xs text-pos-muted">{formatKm(a.km)}</span>
                 </span>
-                <span className="shrink-0 font-bold tabular-nums">{listFee(a.km, pricing)}</span>
+                <span className="shrink-0 font-bold tabular-nums">{listFee(a, pricing)}</span>
               </button>
             </li>
           ))}
@@ -178,7 +180,7 @@ export function DeliveryAreaPicker({ areas, pricing, itemsTotal }: { areas: Deli
                     {p.approximate ? " (straight-line guess)" : " by road"}
                   </span>
                 </span>
-                <span className="shrink-0 font-bold tabular-nums">{listFee(p.km, pricing)}</span>
+                <span className="shrink-0 font-bold tabular-nums">{listFee(p, pricing)}</span>
               </button>
             </li>
           ))}

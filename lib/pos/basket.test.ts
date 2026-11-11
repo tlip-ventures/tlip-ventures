@@ -166,15 +166,21 @@ describe("wholesale prices", () => {
 describe("deliveryFeeText", () => {
   const area = { name: "East Legon", km: 17.3 };
   const circle = { name: "Circle", km: 6 };
+  const airport = { name: "Airport Residential", km: 12.6, fixedFee: 4500 };
   const akosombo = { name: "Akosombo", km: 90 };
 
   it("follows the price list for the area picked", () => {
-    expect(deliveryFeeText({ fee: "", area, auto: true }, DEFAULT_DELIVERY_PRICING, 20000)).toBe("55");
+    expect(deliveryFeeText({ fee: "", area, auto: true }, DEFAULT_DELIVERY_PRICING, 20000)).toBe("60");
   });
 
-  it("takes free delivery off for big orders", () => {
-    expect(deliveryFeeText({ fee: "", area, auto: true }, DEFAULT_DELIVERY_PRICING, 100000)).toBe("15");
+  it("uses the area's set price", () => {
+    expect(deliveryFeeText({ fee: "", area: airport, auto: true }, DEFAULT_DELIVERY_PRICING, 20000)).toBe("45");
+  });
+
+  it("takes the delivery discount off for big orders", () => {
+    expect(deliveryFeeText({ fee: "", area, auto: true }, DEFAULT_DELIVERY_PRICING, 100000)).toBe("20");
     expect(deliveryFeeText({ fee: "", area: circle, auto: true }, DEFAULT_DELIVERY_PRICING, 100000)).toBe("0");
+    expect(deliveryFeeText({ fee: "", area: airport, auto: true }, DEFAULT_DELIVERY_PRICING, 100000)).toBe("5");
   });
 
   it("keeps a fee typed by hand", () => {

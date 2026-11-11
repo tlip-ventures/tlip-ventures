@@ -392,6 +392,8 @@ export const deliveryAreaUpdateSchema = z.object({
   name: z.string().trim().min(1, "Give the area a name.").max(80, "At most 80 characters."),
   km: km("Enter the distance in km, like 12.5."),
   isActive: z.boolean(),
+  // Empty: the formula prices it.
+  fixedFee: optionalCedis("Enter the area's price like 50, or leave it empty to use the formula."),
 });
 
 /** Owner: the delivery price formula, typed in cedis and km. */
@@ -405,7 +407,49 @@ export const deliveryPricingSchema = z.object({
   closeKm: km("Enter the very-close distance in km, like 1."),
   closeFee: cedis("Enter the very-close fee like 10."),
   maxKm: km("Enter the furthest distance in km, like 65."),
-  freeFrom: optionalCedis("Enter the order amount like 1000, or leave it empty for no free delivery."),
-  freeOff: cedis("Enter the amount free delivery takes off, like 40."),
   shopLocation: z.string().trim().max(500, "That is too long."),
 });
+
+/**
+ * Owner: delivery discounts by order size, as typed: each level an order
+ * amount and either an amount off the fee or free delivery. Empty rows are
+ * dropped; levels come out lowest first.
+ */
+export const deliveryDiscountsSchema = z
+  .array(
+    z.object({
+      from: z.string(),
+      off: z.string(),
+      free: z.boolean(),
+    }),
+  )
+  .transform((rows, ctx) => {
+    const levels: { from: number; off: number | null }[] = [];
+    for (const r of rows) {
+      if (r.from.trim() === "" && r.off.trim() === "" && !r.free) continue;
+      const from = parseCedis(r.from);
+      if (from === null) {
+        ctx.addIssue({ code: "custom", message: "Enter each order amount like 1000." });
+        return z.NEVER;
+      }
+      if (r.free) {
+        levels.push({ from, off: null });
+        continue;
+      }
+      const off = parseCedis(r.off);
+      if (off === null || off <= 0) {
+        ctx.addIssue({ code: "custom", message: "Enter how much comes off delivery, like 20, or tick Free delivery." });
+        return z.NEVER;
+      }
+      levels.push({ from, off });
+    }
+    if (levels.length > 5) {
+      ctx.addIssue({ code: "custom", message: "At most 5 discount levels." });
+      return z.NEVER;
+    }
+    if (new Set(levels.map((l) => l.from)).size !== levels.length) {
+      ctx.addIssue({ code: "custom", message: "Two levels have the same order amount." });
+      return z.NEVER;
+    }
+    return levels.sort((a, b) => a.from - b.from);
+  });
