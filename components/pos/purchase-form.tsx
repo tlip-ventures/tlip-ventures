@@ -6,6 +6,7 @@ import { addSupplier, findPurchaseProducts, findSuppliers, savePurchase, type Su
 import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
 import { phoneText } from "@/lib/pos/format";
 import type { PurchaseProduct } from "@/lib/server/pos/records";
+import type { Place } from "@/lib/server/pos/stock";
 import { dialogInputClass, dialogLabelClass } from "./action-dialog";
 import { CloseIcon, SearchIcon } from "./icons";
 import { MethodChoice } from "./record-actions";
@@ -38,7 +39,7 @@ const toLine = (p: PurchaseProduct): Line => ({
 });
 
 /** New purchase: supplier, items with what each cost, received now or later, what was paid. */
-export function PurchaseForm({ start }: { start: PurchaseProduct | null }) {
+export function PurchaseForm({ start, places }: { start: PurchaseProduct | null; places: readonly Place[] }) {
   const router = useRouter();
   const [supplier, setSupplier] = useState<SupplierChoice | null>(null);
   const [supplierQuery, setSupplierQuery] = useState("");
@@ -49,6 +50,9 @@ export function PurchaseForm({ start }: { start: PurchaseProduct | null }) {
   const [productQuery, setProductQuery] = useState("");
   const products = useDebounced(findPurchaseProducts);
   const [received, setReceived] = useState(true);
+  // Deliveries arrive at the warehouse unless the owner picks the shop.
+  const [placeId, setPlaceId] = useState<number>((places.find((p) => !p.sells) ?? places[0])?.id ?? 1);
+  const placeName = (places.find((p) => p.id === placeId)?.name ?? "shop").toLowerCase();
   const [paidNow, setPaidNow] = useState("");
   const [method, setMethod] = useState<Method>("cash");
   const [note, setNote] = useState("");
@@ -89,6 +93,7 @@ export function PurchaseForm({ start }: { start: PurchaseProduct | null }) {
       const r = await savePurchase({
         supplierId: supplier?.id ?? "",
         received,
+        placeId,
         note,
         lines: lines.map((l) => ({ variantId: l.variantId, qty: l.qty, unitCost: l.unitCost })),
         paidNow,
@@ -275,10 +280,29 @@ export function PurchaseForm({ start }: { start: PurchaseProduct | null }) {
           <span className="flex flex-col">
             <span className="font-semibold">Received now</span>
             <span className="text-[13px] text-pos-muted">
-              {received ? "The items go on the shelf count when you save." : "Saved as ordered. Press Received when the delivery comes."}
+              {received ? `The items go into the ${placeName} count when you save.` : "Saved as ordered. Press Received when the delivery comes."}
             </span>
           </span>
         </label>
+        {places.length > 1 && (
+          <fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0">
+            <legend className="mb-1.5 text-[13px] font-semibold text-pos-soft">Arrives at</legend>
+            <div className="flex flex-wrap gap-2">
+              {places.map((p) => (
+                <label
+                  key={p.id}
+                  className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm font-semibold ${
+                    placeId === p.id ? "border-pos-green bg-pos-tint-green text-pos-green-ink" : "border-pos-line bg-white"
+                  }`}
+                >
+                  <input type="radio" name="arrives-at" value={p.id} checked={placeId === p.id} onChange={() => setPlaceId(p.id)} className="accent-pos-green" />
+                  {p.name}
+                </label>
+              ))}
+            </div>
+            {fieldError("placeId")}
+          </fieldset>
+        )}
         <label className={dialogLabelClass}>
           <span>Paid now (GH₵)</span>
           <input value={paidNow} onChange={(e) => setPaidNow(e.target.value)} inputMode="decimal" placeholder="0.00" className={dialogInputClass} />

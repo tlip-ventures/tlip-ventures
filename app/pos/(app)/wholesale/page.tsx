@@ -90,10 +90,11 @@ export default async function WholesalePage({ searchParams }: PageProps<"/pos/wh
             {params.q || params.filter !== "all" ? "No products match." : "No products yet."}
           </p>
         ) : (
-          <ScrollTable minWidth={720}>
+          <ScrollTable minWidth={800}>
             <TableHead>
               <Th>Product</Th>
-              <Th align="right">On the shelf</Th>
+              <Th align="right">In the shop</Th>
+              <Th align="right">Warehouse</Th>
               <Th align="right">Retail price</Th>
               <Th align="right">Wholesale price</Th>
               <Th align="right">Off retail</Th>
@@ -116,6 +117,9 @@ export default async function WholesalePage({ searchParams }: PageProps<"/pos/wh
                       </span>
                     </td>
                     <td className={`px-3 py-3 text-right tabular-nums ${r.onHand > 0 ? "" : "text-pos-rust"}`}>{r.onHand.toLocaleString("en-US")}</td>
+                    <td className={`px-3 py-3 text-right tabular-nums ${r.warehouseOnHand > 0 ? "font-bold" : "text-pos-muted"}`}>
+                      {r.warehouseOnHand.toLocaleString("en-US")}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{formatPesewas(r.price)}</td>
                     <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">
                       {user.isOwner ? (

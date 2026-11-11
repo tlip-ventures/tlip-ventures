@@ -291,7 +291,7 @@ export async function getPurchaseDetail(id: string) {
   const { data: p, error } = await supabase
     .from("purchases")
     .select(
-      "id, code, status, total, note, created_at, created_by, received_at, received_by, cancelled_at, suppliers(id, name, phone), purchase_items(id, variant_id, product_name, option_values, unit_cost, qty, line_total), purchase_payments(method, amount, paid_at, created_by, note)",
+      "id, code, status, total, note, created_at, created_by, received_at, received_by, cancelled_at, locations(name), suppliers(id, name, phone), purchase_items(id, variant_id, product_name, option_values, unit_cost, qty, line_total), purchase_payments(method, amount, paid_at, created_by, note)",
     )
     .eq("id", id)
     .order("paid_at", { referencedTable: "purchase_payments" })
@@ -312,6 +312,8 @@ export async function getPurchaseDetail(id: string) {
     receivedAt: p.received_at,
     receivedBy: p.received_by ? by(p.received_by) : null,
     supplier: p.suppliers,
+    /** Where the delivery arrives: "Warehouse", "Shop". */
+    place: p.locations?.name ?? "Shop",
     lines: p.purchase_items,
     payments: p.purchase_payments.map((x) => ({ method: x.method, amount: x.amount, paidAt: x.paid_at, by: by(x.created_by), note: x.note })),
     paid,

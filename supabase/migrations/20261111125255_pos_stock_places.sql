@@ -63,10 +63,9 @@ create index stock_movements_location_idx on public.stock_movements (location_id
 insert into public.stock_place_levels (variant_id, location_id, on_hand, updated_at)
 select variant_id, 1, on_hand, updated_at from public.stock_levels;
 
--- Supplier deliveries arrive somewhere: the warehouse unless chosen.
-alter table public.purchases add column location_id smallint not null default 2 references public.locations (id);
--- Earlier purchases went into the shop.
-update public.purchases set location_id = 1;
+-- Earlier purchases went into the shop; new ones arrive at the warehouse unless the owner picks the shop.
+alter table public.purchases add column location_id smallint not null default 1 references public.locations (id);
+alter table public.purchases alter column location_id set default 2;
 
 -- The website: in stock while all places together have any.
 create function private.variant_to_website(p_variant_id uuid)

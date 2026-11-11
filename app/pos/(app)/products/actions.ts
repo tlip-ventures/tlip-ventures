@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { duplicateField, friendlyDbError } from "@/lib/pos/errors";
 import { signedQty } from "@/lib/pos/stock";
-import { adjustSchema, fieldErrors, posProductSchema, recountSchema, type PosProductInput } from "@/lib/pos/schemas";
+import { adjustSchema, fieldErrors, moveStockSchema, posProductSchema, recountSchema, type PosProductInput } from "@/lib/pos/schemas";
 import { slugify } from "@/lib/slug";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { refreshPosAndShop } from "@/lib/server/pos/refresh";
@@ -37,26 +37,65 @@ export async function setOnWebsite(productId: string, on: boolean): Promise<Acti
   return { ok: true, message: on ? "Showing on the website." : "Hidden from the website." };
 }
 
-/** Recount one stock entry: brings the shelf to the counted number. */
+/** "in the warehouse", for messages; the shop when no place is given. */
+function where(formData: FormData): string {
+  const name = String(formData.get("placeName") ?? "").trim().slice(0, 40);
+  return name ? `in the ${name.toLowerCase()}` : "on the shelf";
+}
+
+/** Recount one stock entry in one place (the shop when none is given): brings it to the counted number. */
 export async function recountVariant(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const { supabase, canAdjustStock } = await requirePosUser();
   if (!canAdjustStock) return NOT_ALLOWED;
-  const parsed = recountSchema.safeParse({ variantId: formData.get("variantId"), counted: formData.get("counted") ?? "" });
+  const parsed = recountSchema.safeParse({
+    variantId: formData.get("variantId"),
+    counted: formData.get("counted") ?? "",
+    placeId: formData.get("placeId") || undefined,
+  });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const { variantId, counted, placeId } = parsed.data;
 
-  const { data: change, error } = await supabase.rpc("pos_recount", {
-    p_variant_id: parsed.data.variantId,
-    p_counted: parsed.data.counted,
+  const { data: change, error } =
+    placeId === undefined
+      ? await supabase.rpc("pos_recount", { p_variant_id: variantId, p_counted: counted })
+      : await supabase.rpc("pos_recount_at", { p_variant_id: variantId, p_location: placeId, p_counted: counted });
+  if (error) return { ok: false, message: friendlyDbError(error) };
+  refreshPos();
+  const there = where(formData);
+  return {
+    ok: true,
+    message: change === 0 ? `Matches: ${counted} ${there}.` : `Now ${counted} ${there} (${signedQty(change)}).`,
+  };
+}
+
+/** Move stock between places: usually from the warehouse to the shop. */
+export async function moveStock(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const { supabase, canAdjustStock } = await requirePosUser();
+  if (!canAdjustStock) return NOT_ALLOWED;
+  const parsed = moveStockSchema.safeParse({
+    variantId: formData.get("variantId"),
+    from: formData.get("from"),
+    to: formData.get("to"),
+    qty: formData.get("qty") ?? "",
+    note: formData.get("note") ?? undefined,
+  });
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const m = parsed.data;
+
+  const { data, error } = await supabase.rpc("pos_move_stock", {
+    p_variant_id: m.variantId,
+    p_from: m.from,
+    p_to: m.to,
+    p_qty: m.qty,
+    p_note: m.note || undefined,
   });
   if (error) return { ok: false, message: friendlyDbError(error) };
   refreshPos();
-  return {
-    ok: true,
-    message:
-      change === 0
-        ? `Matches: ${parsed.data.counted} on the shelf.`
-        : `Shelf now ${parsed.data.counted} (${signedQty(change)}).`,
-  };
+  const left = (data as { from_left?: number; to_now?: number } | null) ?? {};
+  const { data: places } = await supabase.from("locations").select("id, name").in("id", [m.from, m.to]);
+  const name = (id: number) => (places?.find((p) => p.id === id)?.name ?? "").toLowerCase();
+  if (!name(m.from) || !name(m.to) || typeof left.from_left !== "number") return { ok: true, message: `Moved ${m.qty}.` };
+  return { ok: true, message: `Moved ${m.qty} to the ${name(m.to)}. ${left.from_left} left in the ${name(m.from)}.` };
 }
 
 /** Add or take away stock by hand, with a reason. */
@@ -67,17 +106,18 @@ export async function adjustVariant(_prev: ActionResult | null, formData: FormDa
     variantId: formData.get("variantId"),
     change: formData.get("change") ?? "",
     reason: formData.get("reason") ?? "",
+    placeId: formData.get("placeId") || undefined,
   });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const { variantId, change, reason, placeId } = parsed.data;
 
-  const { data: balance, error } = await supabase.rpc("pos_adjust_stock", {
-    p_variant_id: parsed.data.variantId,
-    p_change: parsed.data.change,
-    p_reason: parsed.data.reason,
-  });
+  const { data: balance, error } =
+    placeId === undefined
+      ? await supabase.rpc("pos_adjust_stock", { p_variant_id: variantId, p_change: change, p_reason: reason })
+      : await supabase.rpc("pos_adjust_stock_at", { p_variant_id: variantId, p_location: placeId, p_change: change, p_reason: reason });
   if (error) return { ok: false, message: friendlyDbError(error) };
   refreshPos();
-  return { ok: true, message: `Shelf now ${balance} (${signedQty(parsed.data.change)}).` };
+  return { ok: true, message: `Now ${balance} ${where(formData)} (${signedQty(change)}).` };
 }
 
 export type SaveProductResult =

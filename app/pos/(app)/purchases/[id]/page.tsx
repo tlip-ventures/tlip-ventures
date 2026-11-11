@@ -43,6 +43,7 @@ export default async function PurchasePage({ params }: PageProps<"/pos/purchases
                 {supplierPhone && <span className="block text-pos-muted">{supplierPhone}</span>}
               </>,
             ],
+            [p.receivedAt ? "Arrived at" : "Arrives at", p.place],
             ["Received", p.receivedAt ? `${formatDayTime(p.receivedAt)}${p.receivedBy ? ` by ${p.receivedBy}` : ""}` : "Not yet"],
             [
               "Status",
