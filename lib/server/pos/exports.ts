@@ -100,7 +100,8 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
       { label: "Barcode", width: 16 },
       { label: "Category", width: 22 },
       { label: "Price", width: 12, align: "right" },
-      { label: "On shelf", width: 10, align: "right" },
+      { label: "In the shop", width: 11, align: "right" },
+      { label: "Warehouse", width: 11, align: "right" },
       { label: "Alert at", width: 10, align: "right" },
       { label: "Status", width: 14 },
       { label: "On the website", width: 14 },
@@ -115,12 +116,15 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
         r.categoryName ?? r.topCategoryName,
         money(r.price),
         r.onHand,
+        r.warehouseOnHand,
         r.reorderLevel,
         STOCK_PILLS[r.state].label,
         r.onWebsite ? "Yes" : "No",
       ];
       if (user.isOwner) {
-        const v = r.cost !== null && r.onHand > 0 ? r.cost * r.onHand : null;
+        // Value of every place's stock (the shop and the warehouse).
+        const units = Math.max(0, r.onHand) + Math.max(0, r.warehouseOnHand);
+        const v = r.cost !== null && units > 0 ? r.cost * units : null;
         if (v) value += v;
         row.push(r.cost === null ? null : money(r.cost), v === null ? null : money(v));
       }

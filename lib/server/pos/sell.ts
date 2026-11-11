@@ -18,7 +18,10 @@ export type SellTile = {
   price: number;
   /** null: no wholesale price (sold at the normal price on wholesale sales too). */
   wholesalePrice: number | null;
+  /** In the shop: what can be sold. */
   onHand: number;
+  /** In the warehouse: not for sale until moved to the shop. */
+  warehouseOnHand: number;
   imageUrl: string | null;
   topCategory: string | null;
 };
@@ -41,6 +44,7 @@ export async function listSellTiles(options: { search?: string; topCategoryId?: 
     price: r.price,
     wholesalePrice: r.wholesalePrice,
     onHand: r.onHand,
+    warehouseOnHand: r.warehouseOnHand,
     imageUrl: r.imageUrl,
     topCategory: r.topCategoryName,
   }));
@@ -54,7 +58,7 @@ export async function findTileByCode(code: string): Promise<SellTile | null> {
   const { supabase } = await requirePosUser();
   const { data, error } = await supabase
     .from("pos_stock_rows")
-    .select("variant_id, product_name, choice_name, choices, sku, price, on_hand, image_url, top_category_name, wholesale_price")
+    .select("variant_id, product_name, choice_name, choices, sku, price, on_hand, warehouse_on_hand, image_url, top_category_name, wholesale_price")
     .or(`barcode.eq.${term},sku.ilike.${term}`)
     .limit(2);
   if (error) throw new Error(`Could not look up the code: ${error.message}`);
@@ -70,6 +74,7 @@ export async function findTileByCode(code: string): Promise<SellTile | null> {
     price: r.price ?? 0,
     wholesalePrice: r.wholesale_price,
     onHand: r.on_hand ?? 0,
+    warehouseOnHand: r.warehouse_on_hand ?? 0,
     imageUrl: r.image_url,
     topCategory: r.top_category_name,
   };

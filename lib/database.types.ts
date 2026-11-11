@@ -415,6 +415,30 @@ export type Database = {
           },
         ]
       }
+      locations: {
+        Row: {
+          created_at: string
+          id: number
+          name: string
+          sells: boolean
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          name: string
+          sells?: boolean
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          name?: string
+          sells?: boolean
+          sort_order?: number
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           id: string
@@ -953,6 +977,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          location_id: number
           note: string | null
           received_at: string | null
           received_by: string | null
@@ -966,6 +991,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          location_id?: number
           note?: string | null
           received_at?: string | null
           received_by?: string | null
@@ -979,6 +1005,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          location_id?: number
           note?: string | null
           received_at?: string | null
           received_by?: string | null
@@ -987,6 +1014,13 @@ export type Database = {
           total?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "purchases_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchases_supplier_id_fkey"
             columns: ["supplier_id"]
@@ -1279,6 +1313,8 @@ export type Database = {
       sales: {
         Row: {
           code: string
+          collected_at: string | null
+          collected_by: string | null
           completed_at: string | null
           created_at: string
           created_by: string | null
@@ -1288,6 +1324,8 @@ export type Database = {
           id: string
           note: string | null
           order_id: string | null
+          reserved: boolean
+          reserved_until: string | null
           source: Database["public"]["Enums"]["sale_source"]
           status: Database["public"]["Enums"]["sale_status"]
           subtotal: number
@@ -1299,6 +1337,8 @@ export type Database = {
         }
         Insert: {
           code?: string
+          collected_at?: string | null
+          collected_by?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -1308,6 +1348,8 @@ export type Database = {
           id?: string
           note?: string | null
           order_id?: string | null
+          reserved?: boolean
+          reserved_until?: string | null
           source?: Database["public"]["Enums"]["sale_source"]
           status?: Database["public"]["Enums"]["sale_status"]
           subtotal: number
@@ -1319,6 +1361,8 @@ export type Database = {
         }
         Update: {
           code?: string
+          collected_at?: string | null
+          collected_by?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -1328,6 +1372,8 @@ export type Database = {
           id?: string
           note?: string | null
           order_id?: string | null
+          reserved?: boolean
+          reserved_until?: string | null
           source?: Database["public"]["Enums"]["sale_source"]
           status?: Database["public"]["Enums"]["sale_status"]
           subtotal?: number
@@ -1570,6 +1616,7 @@ export type Database = {
           created_by: string | null
           id: number
           kind: Database["public"]["Enums"]["stock_movement_kind"]
+          location_id: number
           purchase_id: string | null
           qty_change: number
           reason: string | null
@@ -1584,6 +1631,7 @@ export type Database = {
           created_by?: string | null
           id?: never
           kind: Database["public"]["Enums"]["stock_movement_kind"]
+          location_id?: number
           purchase_id?: string | null
           qty_change: number
           reason?: string | null
@@ -1598,6 +1646,7 @@ export type Database = {
           created_by?: string | null
           id?: never
           kind?: Database["public"]["Enums"]["stock_movement_kind"]
+          location_id?: number
           purchase_id?: string | null
           qty_change?: number
           reason?: string | null
@@ -1611,6 +1660,13 @@ export type Database = {
             columns: ["count_id"]
             isOneToOne: false
             referencedRelation: "stock_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
             referencedColumns: ["id"]
           },
           {
@@ -1671,6 +1727,49 @@ export type Database = {
           },
           {
             foreignKeyName: "stock_movements_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_place_levels: {
+        Row: {
+          location_id: number
+          on_hand: number
+          updated_at: string
+          variant_id: string
+        }
+        Insert: {
+          location_id: number
+          on_hand?: number
+          updated_at?: string
+          variant_id: string
+        }
+        Update: {
+          location_id?: number
+          on_hand?: number
+          updated_at?: string
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_place_levels_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_place_levels_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "pos_stock_rows"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "stock_place_levels_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
             referencedRelation: "product_variants"
@@ -1915,6 +2014,7 @@ export type Database = {
       pos_sales_list: {
         Row: {
           code: string | null
+          collected_at: string | null
           created_at: string | null
           created_by: string | null
           customer_id: string | null
@@ -1924,12 +2024,15 @@ export type Database = {
           delivery_address: string | null
           delivery_included: boolean | null
           delivery_paid: number | null
+          delivery_status: Database["public"]["Enums"]["delivery_status"] | null
           discount: number | null
           id: string | null
           order_id: string | null
           owed: number | null
           paid: number | null
           payment_methods: string | null
+          reserved: boolean | null
+          reserved_until: string | null
           rider: string | null
           source: Database["public"]["Enums"]["sale_source"] | null
           status: Database["public"]["Enums"]["sale_status"] | null
@@ -1973,8 +2076,10 @@ export type Database = {
           stock_state: string | null
           top_category_id: string | null
           top_category_name: string | null
+          total_on_hand: number | null
           updated_at: string | null
           variant_id: string | null
+          warehouse_on_hand: number | null
           wholesale_price: number | null
         }
         Relationships: []
@@ -2014,6 +2119,15 @@ export type Database = {
       }
       pos_adjust_stock: {
         Args: { p_change: number; p_reason: string; p_variant_id: string }
+        Returns: number
+      }
+      pos_adjust_stock_at: {
+        Args: {
+          p_change: number
+          p_location: number
+          p_reason: string
+          p_variant_id: string
+        }
         Returns: number
       }
       pos_cancel_count: { Args: { p_count_id: string }; Returns: undefined }
@@ -2199,6 +2313,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      pos_mark_collected: {
+        Args: { p_sale_id: string }
+        Returns: Database["public"]["Enums"]["sale_status"]
+      }
       pos_mark_order_paid:
         | {
             Args: {
@@ -2225,6 +2343,16 @@ export type Database = {
               total: number
             }[]
           }
+      pos_move_stock: {
+        Args: {
+          p_from: number
+          p_note?: string
+          p_qty: number
+          p_to: number
+          p_variant_id: string
+        }
+        Returns: Json
+      }
       pos_people: {
         Args: never
         Returns: {
@@ -2292,9 +2420,38 @@ export type Database = {
         Args: { p_counted: number; p_reason?: string; p_variant_id: string }
         Returns: number
       }
+      pos_recount_at: {
+        Args: {
+          p_counted: number
+          p_location: number
+          p_reason?: string
+          p_variant_id: string
+        }
+        Returns: number
+      }
       pos_report_overview: {
         Args: { p_from: string; p_to: string }
         Returns: Json
+      }
+      pos_reserve_sale: {
+        Args: {
+          p_cash_received: number
+          p_customer_id: string
+          p_delivery: Json
+          p_discount: number
+          p_items: Json
+          p_note: string
+          p_payments: Json
+          p_reserved_until?: string
+          p_wholesale: boolean
+        }
+        Returns: {
+          change_given: number
+          code: string
+          owed: number
+          sale_id: string
+          total: number
+        }[]
       }
       pos_rider_summary: {
         Args: { p_from: string; p_to: string }
@@ -2321,6 +2478,10 @@ export type Database = {
           code: string
           purchase_id: string
         }[]
+      }
+      pos_set_reserved_until: {
+        Args: { p_date: string; p_sale_id: string }
+        Returns: undefined
       }
       pos_set_wholesale_price: {
         Args: { p_price: number; p_product_id: string }
@@ -2419,6 +2580,7 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "voided"
+        | "reserved"
       stock_count_status: "open" | "finished" | "cancelled"
       stock_movement_kind:
         | "opening"
@@ -2429,6 +2591,7 @@ export type Database = {
         | "return"
         | "adjustment"
         | "count"
+        | "transfer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2577,6 +2740,7 @@ export const Constants = {
         "completed",
         "cancelled",
         "voided",
+        "reserved",
       ],
       stock_count_status: ["open", "finished", "cancelled"],
       stock_movement_kind: [
@@ -2588,6 +2752,7 @@ export const Constants = {
         "return",
         "adjustment",
         "count",
+        "transfer",
       ],
     },
   },

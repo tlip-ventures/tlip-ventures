@@ -109,7 +109,11 @@ export function ProductPanel({
     }
     const inBasket = basketQty(useBasket.getState().lines, tile.variantId);
     if (!tileStock(tile.onHand, inBasket).canAdd) {
-      setStatus(tile.onHand <= 0 ? `${tile.name} is out of stock.` : `All ${tile.onHand} of ${tile.name} are in the basket.`);
+      setStatus(
+        tile.onHand <= 0
+          ? `${tile.name} is out of stock in the shop.${tile.warehouseOnHand > 0 ? ` ${tile.warehouseOnHand} in the warehouse: move some to the shop first.` : ""}`
+          : `All ${tile.onHand} of ${tile.name} in the shop are in the basket.`,
+      );
     } else if (addTile(tile)) {
       setStatus(`Added ${tile.name}.`);
     }
@@ -210,7 +214,7 @@ export function ProductPanel({
                 disabled={!stock.canAdd}
                 aria-label={
                   out
-                    ? `${tile.name}, out of stock`
+                    ? `${tile.name}, out of stock in the shop${tile.warehouseOnHand > 0 ? `, ${tile.warehouseOnHand} in the warehouse` : ""}`
                     : `Add ${tile.name}, ${formatPesewas(tile.price)}${tile.choices.length ? `, choose the ${(tile.choiceName ?? "colour").toLowerCase()}` : ""}`
                 }
                 className={`flex flex-col gap-2 rounded-lg border border-pos-card-line bg-white p-2.5 text-left text-pos-ink transition-colors enabled:hover:border-pos-green ${
@@ -244,6 +248,9 @@ export function ProductPanel({
                   )}
                   <span className={`whitespace-nowrap text-xs font-semibold ${STOCK_TONE[stock.tone]}`}>{stock.text}</span>
                 </span>
+                {tile.warehouseOnHand > 0 && (
+                  <span className="text-xs text-pos-soft">{tile.warehouseOnHand} in the warehouse</span>
+                )}
               </button>
             );
           })}

@@ -57,6 +57,7 @@ export async function savePurchase(input: PurchaseInput): Promise<SavePurchaseRe
     p: {
       supplier_id: p.supplierId,
       received: p.received,
+      location_id: p.placeId,
       note: p.note,
       lines: p.lines.map((l) => ({ variant_id: l.variantId, qty: l.qty, unit_cost: l.unitCost })),
       payment: p.paidNow ? { method: p.method, amount: p.paidNow } : null,
@@ -76,7 +77,7 @@ export async function receivePurchase(_prev: ActionResult | null, formData: Form
   const { error } = await supabase.rpc("pos_receive_purchase", { p_purchase_id: id.data });
   if (error) return { ok: false, message: friendlyDbError(error) };
   refreshPosAndShop();
-  return { ok: true, message: "Received. The items are on the shelf count." };
+  return { ok: true, message: "Received. The items are in stock where the delivery arrived." };
 }
 
 export async function cancelPurchase(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {

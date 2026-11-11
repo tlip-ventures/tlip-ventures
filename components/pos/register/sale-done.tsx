@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas } from "@/lib/money";
+import { formatDay } from "@/lib/pos/format";
 import { ChatIcon, CheckIcon } from "../icons";
 
 /** "Sale saved." with the receipt buttons, as in the design. */
@@ -14,7 +15,7 @@ export function SaleDone({ sale, onNext }: { sale: CompletedSale & { method: str
       </span>
       <div className="flex flex-col gap-1.5">
         <h2 className="m-0 font-pos-display text-[30px] font-normal leading-[1.1]" tabIndex={-1} id="pos-done">
-          {sale.onHold ? "Sale on hold." : "Sale saved."}
+          {sale.reserved ? "Order reserved." : sale.onHold ? "Sale on hold." : "Sale saved."}
         </h2>
         {sale.onHold && (
           <p className="m-0 rounded-md bg-pos-tint-orange px-3 py-2.5 text-sm font-semibold leading-[22px] text-pos-rust">
@@ -25,9 +26,24 @@ export function SaleDone({ sale, onNext }: { sale: CompletedSale & { method: str
             as the money comes in; the last payment completes the sale.
           </p>
         )}
+        {sale.reserved && (
+          <p className="m-0 rounded-md bg-pos-tint-green px-3 py-2.5 text-sm font-semibold leading-[22px] text-pos-green-ink">
+            Kept for the customer
+            {sale.reserved.until ? ` until ${formatDay(sale.reserved.until)}` : ""}. It is on the{" "}
+            <Link href="/pos/reserved" className="font-bold text-pos-green-ink">
+              Reserved
+            </Link>{" "}
+            list until it is {sale.delivery ? "delivered" : "collected"}.
+            {sale.reserved.owed > 0 && ` ${formatPesewas(sale.reserved.owed)} still to pay: use Mark paid as the money comes in.`}
+          </p>
+        )}
         <p className="m-0 text-sm leading-[22px] text-pos-soft">
-          {sale.code} · {formatPesewas(sale.total)} · {sale.method}. Stock for {sale.items} {sale.items === 1 ? "item" : "items"} has been
-          taken off the shelf count.
+          {sale.code} · {formatPesewas(sale.total)} · {sale.method}.{" "}
+          {sale.reserved && sale.reserved.owed > 0
+            ? `The ${sale.items === 1 ? "item stays" : `${sale.items} items stay`} on the shelf until it is paid in full, collected or sent out.`
+            : sale.reserved
+              ? `Stock for ${sale.items} ${sale.items === 1 ? "item" : "items"} has been taken off the shelf count and put aside.`
+              : `Stock for ${sale.items} ${sale.items === 1 ? "item" : "items"} has been taken off the shelf count.`}
         </p>
         {sale.delivery && (
           <p className="m-0 text-sm leading-[22px] text-pos-soft">

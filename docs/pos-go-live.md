@@ -66,6 +66,14 @@ On the shop's phone and the owner's laptop:
 - [ ] Mark the Pay later sale paid from the Sales list.
 - [ ] On **Wholesale**, give one product a wholesale price. Switch the till to **Wholesale**, sell it: the
       sale uses the wholesale price and shows "Wholesale" on the Sales list (filter Wholesale).
+- [ ] **Reserved orders.** At the till add an item, choose a customer and press **Reserve for later**. Leave Paid now
+      empty and pick a date: the order shows on **Reserved** with its date and the item stays on the shelf. Use Mark paid
+      for the full amount: the item comes off the shelf. Press **Collected**: it leaves the Reserved list. Reserve another
+      one paid in full: its item comes off the shelf at once.
+- [ ] **Warehouse.** Open a product under **Products and stock** and **Recount** its Warehouse line to what is in the
+      warehouse. The list's Warehouse column shows it and the website counts shop + warehouse. Use **Move stock** to bring
+      some to the shop: the shop count goes up, the warehouse count down, and the stock history shows both lines. Record a
+      purchase: it arrives at the Warehouse unless you pick Shop under "Arrives at". The till only sells what is in the shop.
 - [ ] Ring up a Delivery with the fee **Already in the price** (e.g. GH₵ 70 with GH₵ 20 delivery): the
       total stays GH₵ 70 and the Sales list shows items GH₵ 50 and delivery GH₵ 20.
 - [ ] Ring up a Delivery on Pay later, then Mark paid part of it and say how much is for delivery: the

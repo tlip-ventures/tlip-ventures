@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createInvoice } from "@/app/pos/(app)/invoices/actions";
-import { completeSale, holdSale, type CompletedSale } from "@/app/pos/(app)/sell/actions";
+import { completeSale, holdSale, reserveSale, type CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
 import { phoneText } from "@/lib/pos/format";
 import { basketLineKey, basketLineName, basketTotals, linePrice, cashOptions, changeDue, deliveryFeeText, deliveryTooBig, draftDeliveryFee, lineRoom, momoSplit, NO_PAID_NOW, paidNowParts, type PaidNow, REST_LABELS, REST_METHODS, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
@@ -49,6 +49,11 @@ export function BasketPanel({
   const [holding, setHolding] = useState(false);
   const [paidNow, setPaidNow] = useState<PaidNow>(NO_PAID_NOW);
   const [holdCash, setHoldCash] = useState("");
+  // "Reserve for later": open while the cashier types what is paid now and the agreed date.
+  const [reserving, setReserving] = useState(false);
+  const [reservePaid, setReservePaid] = useState<PaidNow>(NO_PAID_NOW);
+  const [reserveCash, setReserveCash] = useState("");
+  const [reserveUntil, setReserveUntil] = useState("");
 
   const lines = hydrated ? state.lines : [];
   const delivering = hydrated && state.fulfilment === "delivery";
@@ -198,6 +203,61 @@ export function BasketPanel({
       setPaidNow(NO_PAID_NOW);
       setHoldCash("");
       onDone({ ...result.sale, method: payments.length ? `${formatPesewas(holdPaid)} paid by ${ways}` : "Nothing paid yet" });
+    });
+  };
+
+  // Reserve for later: any amount paid now (all of it too), for a chosen customer.
+  const reserveParts = paidNowParts(reservePaid, totals.total);
+  const reservePaidNow = reserveParts.kind === "ok" ? reserveParts.paid : 0;
+  const reserveCashPart = reserveParts.kind === "ok" ? reserveParts.cash : 0;
+  const reserveReceived = reserveCash.trim() ? parseCedis(reserveCash) : null;
+  const reserveChange = reserveReceived === null || reserveCashPart === 0 ? null : reserveReceived - reserveCashPart;
+  const reserveBlocker = !state.customer
+    ? "Choose the customer the order is kept for (Customer, above)."
+    : deliveryBlocker
+      ? deliveryBlocker
+      : reserveParts.kind === "error"
+        ? reserveParts.message
+        : reserveUntil && reserveUntil < ghanaToday(new Date())
+          ? "Pick today or a later date, or leave it empty."
+          : reserveCash.trim() && (reserveReceived === null || (reserveChange !== null && reserveChange < 0))
+            ? `Enter the cash received: at least ${formatPesewas(reserveCashPart)}, or leave it empty.`
+            : null;
+  const reservePaidInFull = reservePaidNow >= totals.total;
+
+  const closeReserve = () => {
+    setReserving(false);
+    setReservePaid(NO_PAID_NOW);
+    setReserveCash("");
+    setReserveUntil("");
+  };
+
+  const reserve = () => {
+    if (lines.length === 0 || reserveBlocker || reserveParts.kind !== "ok" || !state.customer) return;
+    setError(null);
+    const payments = reserveParts.payments;
+    startTransition(async () => {
+      const result = await reserveSale({
+        items: lines.map((l) => ({ variantId: l.variantId, qty: l.qty, choice: l.choice ?? null })),
+        customerId: state.customer!.id,
+        discount: totals.discount,
+        payments,
+        cashReceived: reserveCashPart > 0 ? reserveReceived : null,
+        delivery: deliveryInput(),
+        invoiceId: state.invoice?.id ?? null,
+        wholesale,
+        reservedUntil: reserveUntil || null,
+      });
+      if (!result.ok) {
+        setError(result.message);
+        router.refresh();
+        return;
+      }
+      const ways = payments.map((x) => (x.method === "momo" ? "Mobile Money" : PAYMENT_LABELS[x.method])).join(" + ");
+      state.clear();
+      setDiscountText("");
+      closeReserve();
+      onDone({ ...result.sale, method: payments.length ? `${formatPesewas(reservePaidNow)} paid by ${ways}` : "Nothing paid yet" });
     });
   };
 
@@ -621,7 +681,72 @@ export function BasketPanel({
         >
           {pending ? "Saving…" : `Complete sale · ${formatPesewas(totals.total)}`}
         </button>
-        {lines.length > 0 && !invoicing && !holding && (
+        {lines.length > 0 && !invoicing && !holding && !reserving && (
+          <button type="button" onClick={() => setReserving(true)} className="min-h-11 rounded-md border border-pos-line bg-white text-sm font-bold text-pos-ink hover:border-pos-muted">
+            Reserve for later (pick up or deliver)
+          </button>
+        )}
+        {reserving && lines.length > 0 && (
+          <div className="flex flex-col gap-2.5 rounded-md border border-pos-line bg-white p-3">
+            <span className="text-[13px] leading-[19px] text-pos-soft">
+              Kept for the customer to {delivering ? "have delivered" : "pick up"} later. Paid in full, the items come off the shelf now and are
+              put aside; otherwise they stay on the shelf until the last payment, or until it is {delivering ? "sent out" : "collected"}.
+            </span>
+            <label className="flex items-center justify-between gap-3 text-sm font-semibold text-pos-soft">
+              <span>{delivering ? "Deliver on (optional)" : "Pick up by (optional)"}</span>
+              <input
+                type="date"
+                value={reserveUntil}
+                min={ghanaToday(new Date())}
+                max={defaultValidUntil(new Date(), 365)}
+                onChange={(e) => setReserveUntil(e.target.value)}
+                className="min-h-11 rounded-md border border-pos-line bg-white px-3 text-sm text-pos-ink md:min-h-10"
+              />
+            </label>
+            <PaidNowFields value={reservePaid} onChange={setReservePaid} due={totals.total} legend="Paid now (leave empty if nothing yet)" />
+            {reserveCashPart > 0 && (
+              <label className="flex items-center justify-between gap-3 text-sm text-pos-soft">
+                <span>Cash received (for change)</span>
+                <input
+                  value={reserveCash}
+                  onChange={(e) => setReserveCash(e.target.value)}
+                  inputMode="decimal"
+                  placeholder={formatPesewas(reserveCashPart)}
+                  className="min-h-11 w-32 rounded-md border border-pos-line bg-white px-3 text-right text-sm font-bold tabular-nums text-pos-ink md:min-h-10"
+                />
+              </label>
+            )}
+            {reserveChange !== null && reserveChange > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-pos-soft">Change to give</span>
+                <span className="font-bold tabular-nums text-pos-green-ink">{formatPesewas(reserveChange)}</span>
+              </div>
+            )}
+            {reserveBlocker ? (
+              <span className="text-[13px] font-semibold text-pos-rust">{reserveBlocker}</span>
+            ) : (
+              <span className="text-[13px] font-semibold text-pos-ink">
+                {reservePaidInFull
+                  ? `Paid in full · put aside for ${state.customer?.name}`
+                  : `${formatPesewas(reservePaidNow)} paid now · ${formatPesewas(totals.total - reservePaidNow)} to pay later by ${state.customer?.name}`}
+              </span>
+            )}
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+              <button type="button" onClick={closeReserve} className="min-h-11 px-3 text-[13px] font-semibold text-pos-muted hover:text-pos-ink">
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={reserve}
+                disabled={pending || Boolean(reserveBlocker)}
+                className="min-h-11 rounded-md bg-pos-forest px-3 text-sm font-bold text-white hover:bg-pos-ink disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pending ? "Saving…" : `Reserve · ${formatPesewas(totals.total)}`}
+              </button>
+            </div>
+          </div>
+        )}
+        {lines.length > 0 && !invoicing && !holding && !reserving && (
           <button type="button" onClick={() => setHolding(true)} className="min-h-11 rounded-md border border-pos-line bg-white text-sm font-bold text-pos-ink hover:border-pos-muted">
             Put on hold (part paid)
           </button>
@@ -673,7 +798,7 @@ export function BasketPanel({
             </div>
           </div>
         )}
-        {hydrated && !state.invoice && lines.length > 0 && !invoicing && !holding && (
+        {hydrated && !state.invoice && lines.length > 0 && !invoicing && !holding && !reserving && (
           <button type="button" onClick={() => setInvoicing(true)} className="min-h-11 rounded-md border border-pos-line bg-white text-sm font-bold text-pos-ink hover:border-pos-muted">
             Make invoice instead
           </button>
@@ -720,6 +845,7 @@ export function BasketPanel({
             setHolding(false);
             setPaidNow(NO_PAID_NOW);
             setHoldCash("");
+            closeReserve();
           }}
           disabled={lines.length === 0 && !state.customer && state.fulfilment === "collect"}
           className="min-h-11 text-[13px] font-semibold text-pos-muted hover:text-pos-ink disabled:opacity-60 md:min-h-10"

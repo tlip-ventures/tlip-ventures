@@ -17,6 +17,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
       { icon: "wholesale", name: "Wholesale", href: "/pos/wholesale" },
       { icon: "sales", name: "Sales", href: "/pos/sales" },
       { icon: "invoices", name: "Invoices", href: "/pos/invoices" },
+      { icon: "reserved", name: "Reserved", href: "/pos/reserved" },
       { icon: "deliveries", name: "Deliveries", href: "/pos/deliveries" },
       { icon: "returns", name: "Returns", href: "/pos/returns" },
     ],
@@ -59,6 +60,7 @@ export function Sidebar({
   isOwner,
   attention,
   deliveries,
+  reserved = 0,
   signOut,
 }: {
   name: string;
@@ -67,6 +69,8 @@ export function Sidebar({
   attention: number;
   /** Deliveries not yet delivered: the badge on "Deliveries". */
   deliveries: number;
+  /** Reserved orders not yet collected or delivered: the badge on "Reserved". */
+  reserved?: number;
   signOut: () => Promise<void>;
 }) {
   const pathname = usePathname();
@@ -124,7 +128,9 @@ export function Sidebar({
                     ? attention
                     : it.href === "/pos/deliveries" && deliveries > 0
                       ? deliveries
-                      : null;
+                      : it.href === "/pos/reserved" && reserved > 0
+                        ? reserved
+                        : null;
                 return (
                   <Link
                     key={it.href}
@@ -142,7 +148,7 @@ export function Sidebar({
                     {badge !== null && (
                       <span className="box-border h-5 min-w-[22px] rounded-full bg-pos-gold px-1.5 text-center text-xs font-bold leading-5 text-pos-ink">
                         {badge > 99 ? "99+" : badge}
-                        <span className="sr-only">{it.href === "/pos/deliveries" ? " not delivered yet" : " need attention"}</span>
+                        <span className="sr-only">{it.href === "/pos/deliveries" ? " not delivered yet" : it.href === "/pos/reserved" ? " waiting for the customer" : " need attention"}</span>
                       </span>
                     )}
                   </Link>

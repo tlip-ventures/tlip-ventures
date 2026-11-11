@@ -85,6 +85,8 @@ export function saleStatusPill(status: SaleStatus): StatusPill {
       return { label: "Pending", className: SAND };
     case "on_hold":
       return { label: "On hold", className: ORANGE };
+    case "reserved":
+      return { label: "Reserved", className: "bg-pos-sage text-pos-forest" };
     default:
       return { label: "Cancelled", className: SAND };
   }

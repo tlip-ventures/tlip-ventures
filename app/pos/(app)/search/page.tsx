@@ -69,7 +69,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/pos/searc
                       {p.productName}
                     </Link>
                     <span className="text-xs text-pos-muted">
-                      {formatPesewas(p.price)} · {p.onHand} on shelf
+                      {formatPesewas(p.price)} · {p.onHand} in the shop{p.warehouseOnHand > 0 ? ` · ${p.warehouseOnHand} in the warehouse` : ""}
                     </span>
                   </span>
                   <Pill className={pill.className}>{pill.label}</Pill>

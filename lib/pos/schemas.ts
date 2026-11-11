@@ -54,16 +54,32 @@ const optionalCedis = (message: string) =>
     return pesewas;
   });
 
+/** A place stock is kept in (1 = the shop). Left out: the shop. */
+const placeIdSchema = z.coerce.number().int("Choose the place.").min(1, "Choose the place.").max(32767, "Choose the place.");
+
 export const recountSchema = z.object({
   variantId: z.uuid(),
   counted: wholeNumber("Enter how many are on the shelf (0 or more)."),
+  placeId: placeIdSchema.optional(),
 });
 
 export const adjustSchema = z.object({
   variantId: z.uuid(),
   change: stockChangeSchema,
   reason: z.string().trim().min(1, "Say why the stock is changing.").max(300, "At most 300 characters."),
+  placeId: placeIdSchema.optional(),
 });
+
+/** Move stock from one place to another (the warehouse to the shop, or back). */
+export const moveStockSchema = z
+  .object({
+    variantId: z.uuid(),
+    from: placeIdSchema,
+    to: placeIdSchema,
+    qty: wholeNumber("Enter how many to move (1 or more).").refine((n) => n >= 1, "Enter how many to move (1 or more)."),
+    note: z.string().trim().max(200, "At most 200 characters.").optional(),
+  })
+  .refine((m) => m.from !== m.to, { message: "Choose two different places.", path: ["to"] });
 
 export const countLineSchema = z.object({
   countId: z.uuid(),
@@ -214,6 +230,15 @@ export const holdSaleSchema = z.object({
 
 export type HoldSaleInput = z.input<typeof holdSaleSchema>;
 
+/** "Reserve for later" at the till: like a held sale, but paid in full is fine, with an optional date. */
+export const reserveSaleSchema = holdSaleSchema.extend({
+  customerId: z.uuid({ message: "Choose the customer the order is kept for." }),
+  // The agreed pickup or delivery date (Ghana date, "2026-11-14"); null: none agreed.
+  reservedUntil: z.iso.date("Pick the date, or leave it empty.").nullable(),
+});
+
+export type ReserveSaleInput = z.input<typeof reserveSaleSchema>;
+
 /** "Make invoice" at the till: the basket, priced by the database, nothing taken off the shelf. */
 export const createInvoiceSchema = z.object({
   items: z
@@ -280,6 +305,8 @@ export const purchaseSchema = z
   .object({
     supplierId: z.uuid({ message: "Choose the supplier." }),
     received: z.boolean(),
+    /** Where the delivery arrives: the warehouse unless the owner picks the shop. */
+    placeId: placeIdSchema,
     note: z.string().trim().max(300, "At most 300 characters."),
     lines: z
       .array(

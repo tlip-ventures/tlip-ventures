@@ -21,7 +21,12 @@ export type StockRow = {
   price: number;
   onWebsite: boolean;
   reorderLevel: number;
+  /** In the shop: what sells. */
   onHand: number;
+  /** In the warehouse (every place that doesn't sell). */
+  warehouseOnHand: number;
+  /** Shop + warehouse: what the website shows. */
+  totalOnHand: number;
   state: StockState;
   categoryName: string | null;
   topCategoryName: string | null;
@@ -49,6 +54,8 @@ type ViewRow = {
   on_website: boolean | null;
   reorder_level: number | null;
   on_hand: number | null;
+  warehouse_on_hand: number | null;
+  total_on_hand: number | null;
   stock_state: string | null;
   category_name: string | null;
   top_category_name: string | null;
@@ -70,6 +77,8 @@ function toStockRow(r: ViewRow, costs: Map<string, number>): StockRow {
     onWebsite: r.on_website ?? false,
     reorderLevel: r.reorder_level ?? 0,
     onHand: r.on_hand ?? 0,
+    warehouseOnHand: r.warehouse_on_hand ?? 0,
+    totalOnHand: r.total_on_hand ?? r.on_hand ?? 0,
     state: toStockState(r.stock_state),
     categoryName: r.category_name,
     topCategoryName: r.top_category_name,
@@ -79,7 +88,7 @@ function toStockRow(r: ViewRow, costs: Map<string, number>): StockRow {
 }
 
 const ROW_COLUMNS =
-  "variant_id, product_id, product_name, choice_name, choices, sku, barcode, price, on_website, reorder_level, on_hand, stock_state, category_name, top_category_name, image_url, wholesale_price";
+  "variant_id, product_id, product_name, choice_name, choices, sku, barcode, price, on_website, reorder_level, on_hand, warehouse_on_hand, total_on_hand, stock_state, category_name, top_category_name, image_url, wholesale_price";
 
 export async function listStockRows(options: {
   search?: string;
@@ -184,10 +193,16 @@ export type ProductVariantDetail = {
   barcode: string | null;
   reorderLevel: number;
   priceOverride: number | null;
+  /** In the shop: what sells. */
   onHand: number;
   state: StockState;
   cost: number | null;
+  /** Every place's count, the shop first. */
+  places: PlaceCount[];
 };
+
+export type Place = { id: number; name: string; sells: boolean };
+export type PlaceCount = Place & { onHand: number };
 
 export type MovementRow = {
   id: number;
@@ -195,10 +210,21 @@ export type MovementRow = {
   change: number;
   kind: MovementKind;
   reason: string | null;
+  /** The count left in that place after it. */
   balanceAfter: number;
+  /** Where it happened: "Shop", "Warehouse". */
+  place: string;
   createdAt: string;
   by: string;
 };
+
+/** The places stock is kept in, the shop (where sales come from) first. */
+export async function listPlaces(): Promise<Place[]> {
+  const { supabase } = await requirePosUser();
+  const { data, error } = await supabase.from("locations").select("id, name, sells").order("sells", { ascending: false }).order("sort_order");
+  if (error) throw new Error(`Could not load places: ${error.message}`);
+  return data;
+}
 
 /**
  * One product with its stock entry, costs (owner) and recent stock history.
@@ -231,13 +257,20 @@ export async function getStockProduct(productId: string) {
   const [{ data: moves, error: movesError }, people] = await Promise.all([
     supabase
       .from("stock_movements")
-      .select("id, variant_id, qty_change, kind, reason, balance_after, created_by, created_at")
+      .select("id, variant_id, qty_change, kind, reason, balance_after, location_id, created_by, created_at")
       .in("variant_id", variantIds.length ? variantIds : ["00000000-0000-0000-0000-000000000000"])
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
       .limit(50),
     getPeopleNames(),
   ]);
+  const [places, { data: levels, error: levelsError }] = await Promise.all([
+    listPlaces(),
+    supabase.from("stock_place_levels").select("location_id, on_hand").in("variant_id", inUseIds(p.product_variants)),
+  ]);
+  if (levelsError) throw new Error(`Could not load stock by place: ${levelsError.message}`);
+  const placeName = new Map(places.map((pl) => [pl.id, pl.name]));
+  const levelAt = new Map(levels.map((l) => [l.location_id, l.on_hand]));
   if (movesError) throw new Error(`Could not load stock history: ${movesError.message}`);
 
   const inUse = p.product_variants.find((v) => !v.retired) ?? null;
@@ -253,6 +286,7 @@ export async function getStockProduct(productId: string) {
       onHand,
       state: stockState(onHand, v.reorder_level),
       cost: costs.get(v.id) ?? null,
+      places: places.map((pl) => ({ ...pl, onHand: levelAt.get(pl.id) ?? 0 })),
     };
   })();
   // History labels for earlier entries: "Pink", or "Foldable Travel Kettle 1.5L / Pink" for a merged duplicate.
@@ -269,6 +303,7 @@ export async function getStockProduct(productId: string) {
     kind: m.kind,
     reason: m.reason,
     balanceAfter: m.balance_after,
+    place: placeName.get(m.location_id) ?? "Shop",
     createdAt: m.created_at,
     by: (m.created_by && people.get(m.created_by)) || "Someone no longer here",
   }));
@@ -287,6 +322,12 @@ export async function getStockProduct(productId: string) {
     earlier,
     movements,
   };
+}
+
+/** The stock entry in use (never more than one), as a list for an `in` filter. */
+function inUseIds(variants: readonly { id: string; retired: boolean }[]): string[] {
+  const ids = variants.filter((v) => !v.retired).map((v) => v.id);
+  return ids.length ? ids : ["00000000-0000-0000-0000-000000000000"];
 }
 
 /** user id → name, for "who did it". */

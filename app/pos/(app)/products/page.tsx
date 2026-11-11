@@ -4,7 +4,7 @@ import { z } from "zod";
 import { CountIcon, DownloadIcon, PlusIcon, WarningIcon } from "@/components/pos/icons";
 import { FilterChips, Pager, SearchForm } from "@/components/pos/list-controls";
 import { ProductTile } from "@/components/pos/product-tile";
-import { RecountButton } from "@/components/pos/stock-dialogs";
+import { MoveStockButton, RecountButton } from "@/components/pos/stock-dialogs";
 import { buttonClass, ButtonLink, Card, PageHeader, PageShell, Pill, ScrollTable, StatCard, StatGrid, TableHead, Th } from "@/components/pos/ui";
 import { WebsiteSwitch } from "@/components/pos/website-switch";
 import { formatPesewas } from "@/lib/money";
@@ -17,7 +17,7 @@ import {
   type StockFilter,
 } from "@/lib/pos/stock";
 import { requirePosUser } from "@/lib/server/pos/auth";
-import { getStockSummary, listStockRows, STOCK_PAGE_SIZE } from "@/lib/server/pos/stock";
+import { getStockSummary, listPlaces, listStockRows, STOCK_PAGE_SIZE } from "@/lib/server/pos/stock";
 
 export const metadata: Metadata = { title: "Products and stock" };
 
@@ -31,10 +31,13 @@ const paramsSchema = z.object({
 export default async function ProductsAndStockPage({ searchParams }: PageProps<"/pos/products">) {
   const params = paramsSchema.parse(await searchParams);
   const user = await requirePosUser();
-  const [{ rows, total }, summary] = await Promise.all([
+  const [{ rows, total }, summary, places] = await Promise.all([
     listStockRows({ search: params.q, filter: params.filter, page: params.page }),
     getStockSummary(),
+    listPlaces(),
   ]);
+  const shop = places.find((p) => p.sells);
+  const store = places.find((p) => !p.sells);
 
   const href = (changes: Partial<typeof params>) => {
     const next = { ...params, ...changes };
@@ -118,13 +121,14 @@ export default async function ProductsAndStockPage({ searchParams }: PageProps<"
           <p className="m-0 px-[18px] py-8 text-center text-sm text-pos-soft">No products match. Try another name or filter.</p>
         ) : (
           <>
-            <ScrollTable minWidth={user.isOwner ? 940 : 840}>
+            <ScrollTable minWidth={user.isOwner ? 1040 : 940}>
               <TableHead>
                 <Th>Product</Th>
                 <Th>Category</Th>
                 {user.isOwner && <Th align="right">Cost</Th>}
                 <Th align="right">Price</Th>
-                <Th>On the shelf</Th>
+                <Th>In the shop</Th>
+                <Th align="right">{store?.name ?? "Warehouse"}</Th>
                 <Th>On the website</Th>
                 <Th>
                   <span className="sr-only">Actions</span>
@@ -174,6 +178,9 @@ export default async function ProductsAndStockPage({ searchParams }: PageProps<"
                           </span>
                         </span>
                       </td>
+                      <td className={`whitespace-nowrap px-3 py-2.5 text-right tabular-nums ${r.warehouseOnHand > 0 ? "font-bold" : "text-pos-muted"}`}>
+                        {r.warehouseOnHand}
+                      </td>
                       <td className="px-3 py-2.5">
                         <WebsiteSwitch productId={r.productId} productName={r.productName} on={r.onWebsite} canEdit={user.isOwner} />
                       </td>
@@ -182,7 +189,21 @@ export default async function ProductsAndStockPage({ searchParams }: PageProps<"
                           {r.state === "recount" && user.canAdjustStock && (
                             <RecountButton variantId={r.variantId} name={name} onHand={r.onHand} />
                           )}
-                          {(r.state === "out" || r.state === "low") && user.isOwner && (
+                          {(r.state === "out" || r.state === "low") && r.warehouseOnHand > 0 && user.canAdjustStock && shop && store && (
+                            <MoveStockButton
+                              variantId={r.variantId}
+                              name={name}
+                              places={[
+                                { ...shop, onHand: r.onHand },
+                                { ...store, onHand: r.warehouseOnHand },
+                              ]}
+                              from={store.id}
+                              to={shop.id}
+                              label="Bring to shop"
+                              kind="green"
+                            />
+                          )}
+                          {(r.state === "out" || r.state === "low") && r.warehouseOnHand === 0 && user.isOwner && (
                             <ButtonLink href={`/pos/purchases/new?variant=${r.variantId}`} kind="orange" size="sm" className="px-3">
                               Reorder
                             </ButtonLink>

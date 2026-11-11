@@ -76,6 +76,7 @@ const MOVEMENT_LABELS: Record<MovementKind, string> = {
   return: "Customer return",
   adjustment: "Adjustment",
   count: "Count",
+  transfer: "Moved",
 };
 
 export function movementLabel(kind: MovementKind): string {

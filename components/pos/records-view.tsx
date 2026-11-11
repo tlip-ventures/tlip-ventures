@@ -292,6 +292,11 @@ export function RecordsView({
                           {r.code}
                         </Link>
                         {r.wholesale && <span className="mt-0.5 block text-xs font-semibold text-pos-green-ink">Wholesale</span>}
+                        {r.reserved && (
+                          <span className="mt-0.5 block text-xs font-semibold text-pos-green-ink">
+                            {r.reserved === "open" ? "Reserved: waiting" : "Reserved: handed over"}
+                          </span>
+                        )}
                       </td>
                       <td className="min-w-[170px] px-3 py-3.5">
                         <span className="flex flex-col">
