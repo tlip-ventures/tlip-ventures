@@ -60,6 +60,17 @@ export function addToBasket(lines: readonly BasketLine[], item: NewBasketLine, q
   return [...lines, { ...item, qty: Math.min(qty, cap) }];
 }
 
+/** The most this line can be: what is on the shelf less the item's other lines (other colours), at most MAX_LINE_QTY. */
+export function lineRoom(lines: readonly BasketLine[], line: BasketLine): number {
+  return Math.max(0, room(lines, line, line.maxQty));
+}
+
+/** A quantity typed at the till: "200" → 200, "0" → 0 (removes the line); null when it isn't a whole number. */
+export function parseQty(text: string): number | null {
+  const t = text.trim();
+  return /^\d{1,4}$/.test(t) ? Number(t) : null;
+}
+
 /** Sets a line's quantity (by line key); 0 or less removes it. Never above the shelf, all colours together. */
 export function setBasketQty(lines: readonly BasketLine[], key: string, qty: number): BasketLine[] {
   if (qty <= 0) return lines.filter((l) => basketLineKey(l) !== key);

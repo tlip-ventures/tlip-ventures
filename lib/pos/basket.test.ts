@@ -11,7 +11,9 @@ import {
   deliveryFeeText,
   deliveryTooBig,
   linePrice,
+  lineRoom,
   momoSplit,
+  parseQty,
   draftDeliveryFee,
   setBasketQty,
   tileStock,
@@ -191,5 +193,41 @@ describe("deliveryFeeText", () => {
 
   it("leaves the typed fee beyond the price list", () => {
     expect(deliveryFeeText({ fee: "150", area: akosombo, auto: true }, DEFAULT_DELIVERY_PRICING, 20000)).toBe("150");
+  });
+});
+
+describe("typing a quantity", () => {
+  const line = (variantId: string, choice: string | null, qty: number, maxQty: number) => ({
+    variantId,
+    name: "Plastic chair",
+    choice,
+    sku: null,
+    unitPrice: 5000,
+    qty,
+    maxQty,
+  });
+
+  it("reads whole numbers only", () => {
+    expect(parseQty("200")).toBe(200);
+    expect(parseQty(" 12 ")).toBe(12);
+    expect(parseQty("0")).toBe(0);
+    expect(parseQty("")).toBeNull();
+    expect(parseQty("2.5")).toBeNull();
+    expect(parseQty("-3")).toBeNull();
+    expect(parseQty("12345")).toBeNull();
+  });
+
+  it("knows how many a line can take: the shelf less the item's other colours", () => {
+    const red = line("v1", "Red", 30, 250);
+    const blue = line("v1", "Blue", 20, 250);
+    expect(lineRoom([red, blue], red)).toBe(230);
+    expect(lineRoom([red], red)).toBe(250);
+  });
+
+  it("sets 200 in one go, never above the shelf", () => {
+    const chair = line("v1", null, 1, 250);
+    expect(setBasketQty([chair], basketLineKey(chair), 200)[0].qty).toBe(200);
+    expect(setBasketQty([chair], basketLineKey(chair), 300)[0].qty).toBe(250);
+    expect(setBasketQty([chair], basketLineKey(chair), 0)).toEqual([]);
   });
 });

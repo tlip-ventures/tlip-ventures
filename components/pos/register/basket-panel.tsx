@@ -6,11 +6,12 @@ import { createInvoice } from "@/app/pos/(app)/invoices/actions";
 import { completeSale, type CompletedSale } from "@/app/pos/(app)/sell/actions";
 import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
 import { phoneText } from "@/lib/pos/format";
-import { basketLineKey, basketLineName, basketQty, basketTotals, linePrice, cashOptions, changeDue, deliveryFeeText, deliveryTooBig, draftDeliveryFee, momoSplit, REST_LABELS, REST_METHODS, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
+import { basketLineKey, basketLineName, basketTotals, linePrice, cashOptions, changeDue, deliveryFeeText, deliveryTooBig, draftDeliveryFee, lineRoom, momoSplit, REST_LABELS, REST_METHODS, FULFILMENT_LABELS, FULFILMENTS, PAYMENT_LABELS, PAYMENT_METHODS } from "@/lib/pos/basket";
 import { useBasket, useBasketHydrated, type CashChoice } from "@/lib/pos/basket-store";
 import { defaultValidUntil, ghanaToday } from "@/lib/pos/invoices";
 import type { DeliveryArea, DeliveryPricing } from "@/lib/delivery";
 import { CustomerPicker } from "./customer-picker";
+import { QtyInput } from "./qty-input";
 import { DeliveryAreaPicker } from "./delivery-area-picker";
 
 const inputClass = "min-h-11 w-full rounded-md border border-pos-line bg-white px-3 text-sm text-pos-ink placeholder:text-pos-muted";
@@ -346,7 +347,6 @@ export function BasketPanel({
         {lines.map((l) => {
           const key = basketLineKey(l);
           const name = basketLineName(l);
-          const full = basketQty(lines, l.variantId) >= l.maxQty;
           return (
           <div key={key} className="flex items-center gap-2.5 border-b border-pos-paper-deep py-3">
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -361,29 +361,7 @@ export function BasketPanel({
                 )}
               </span>
             </span>
-            <span className="flex items-center rounded-md border border-pos-line">
-              <button
-                type="button"
-                onClick={() => state.setQty(key, l.qty - 1)}
-                aria-label={`Remove one ${name}`}
-                className="h-11 w-10 text-lg text-pos-ink md:h-9 md:w-9"
-              >
-                −
-              </button>
-              <span className="min-w-6 text-center text-sm font-bold tabular-nums" aria-label={`${l.qty} in basket`}>
-                {l.qty}
-              </span>
-              <button
-                type="button"
-                onClick={() => state.setQty(key, l.qty + 1)}
-                disabled={full}
-                aria-label={`Add one ${name}`}
-                title={full ? `Only ${l.maxQty} on the shelf` : undefined}
-                className="h-11 w-10 text-lg text-pos-ink disabled:cursor-not-allowed disabled:text-pos-faint md:h-9 md:w-9"
-              >
-                +
-              </button>
-            </span>
+            <QtyInput qty={l.qty} max={lineRoom(lines, l)} name={name} onChange={(qty) => state.setQty(key, qty)} />
             <span className="w-[92px] text-right text-sm font-bold tabular-nums">{formatPesewas(linePrice(l, wholesale) * l.qty)}</span>
           </div>
           );
