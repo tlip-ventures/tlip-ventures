@@ -100,6 +100,8 @@ export async function listStockRows(options: {
   order?: "attention" | "name";
   /** The Wholesale screen: only products with (or without) a wholesale price. */
   wholesale?: "with" | "without";
+  /** The Warehouse screen: products with some in the warehouse ("has"), of those the ones low or out in the shop ("bring"). */
+  warehouse?: "has" | "bring";
 }) {
   const { supabase, isOwner } = await requirePosUser();
   const { from, to } = pageRange(options.page ?? 1, options.pageSize ?? STOCK_PAGE_SIZE);
@@ -112,6 +114,8 @@ export async function listStockRows(options: {
   if (options.topCategoryId) query = query.eq("top_category_id", options.topCategoryId);
   if (options.wholesale === "with") query = query.not("wholesale_price", "is", null);
   if (options.wholesale === "without") query = query.is("wholesale_price", null);
+  if (options.warehouse) query = query.gt("warehouse_on_hand", 0);
+  if (options.warehouse === "bring") query = query.in("stock_state", ["low", "out", "recount"]);
   const term = searchTerm(options.search);
   if (term) {
     // Name contains it; code starts with it; barcode is exactly it (a scan).
@@ -347,4 +351,82 @@ export async function countWholesalePrices(): Promise<{ with: number; without: n
   ]);
   if (withPrice.error || without.error) throw new Error(`Could not count wholesale prices: ${(withPrice.error ?? without.error)!.message}`);
   return { with: withPrice.count ?? 0, without: without.count ?? 0 };
+}
+
+export type WarehouseSummary = {
+  /** Products with any in the warehouse. */
+  products: number;
+  units: number;
+  /** Of those, low or out in the shop: ready to bring over. */
+  toBring: number;
+  /** Owner only: what the warehouse stock cost (products without a cost left out). */
+  value: number | null;
+};
+
+/** The Warehouse screen's cards: every place that doesn't sell counts as the warehouse. */
+export async function getWarehouseSummary(): Promise<WarehouseSummary> {
+  const { supabase, isOwner } = await requirePosUser();
+  const { data, error } = await supabase
+    .from("pos_stock_rows")
+    .select("variant_id, warehouse_on_hand, stock_state")
+    .gt("warehouse_on_hand", 0)
+    .limit(10000);
+  if (error) throw new Error(`Could not load the warehouse: ${error.message}`);
+  const units = data.reduce((n, r) => n + (r.warehouse_on_hand ?? 0), 0);
+  const toBring = data.filter((r) => r.stock_state !== "ok").length;
+
+  let value: number | null = null;
+  if (isOwner) {
+    value = 0;
+    const ids = data.map((r) => r.variant_id!);
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data: costs, error: costError } = await supabase
+        .from("variant_costs")
+        .select("variant_id, cost_price")
+        .in("variant_id", ids.slice(i, i + 200));
+      if (costError) throw new Error(`Could not load costs: ${costError.message}`);
+      const cost = new Map(costs.map((c) => [c.variant_id, c.cost_price]));
+      for (const r of data.slice(i, i + 200)) value += (cost.get(r.variant_id!) ?? 0) * (r.warehouse_on_hand ?? 0);
+    }
+  }
+  return { products: data.length, units, toBring, value };
+}
+
+export type PlaceMovement = {
+  id: number;
+  productId: string | null;
+  productName: string;
+  change: number;
+  kind: MovementKind;
+  reason: string | null;
+  balanceAfter: number;
+  createdAt: string;
+  by: string;
+};
+
+/** The latest stock changes in one place (deliveries in, moves to the shop, counts), newest first. */
+export async function listPlaceMovements(placeId: number, limit = 20): Promise<PlaceMovement[]> {
+  const { supabase } = await requirePosUser();
+  const [{ data, error }, people] = await Promise.all([
+    supabase
+      .from("stock_movements")
+      .select("id, qty_change, kind, reason, balance_after, created_at, created_by, product_variants(product_id, products(name))")
+      .eq("location_id", placeId)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(limit),
+    getPeopleNames(),
+  ]);
+  if (error) throw new Error(`Could not load warehouse history: ${error.message}`);
+  return data.map((m) => ({
+    id: m.id,
+    productId: m.product_variants?.product_id ?? null,
+    productName: m.product_variants?.products?.name ?? "A product no longer sold",
+    change: m.qty_change,
+    kind: m.kind,
+    reason: m.reason,
+    balanceAfter: m.balance_after,
+    createdAt: m.created_at,
+    by: (m.created_by && people.get(m.created_by)) || "Someone no longer here",
+  }));
 }
