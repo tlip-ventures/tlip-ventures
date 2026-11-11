@@ -26,6 +26,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Stock",
     items: [
       { icon: "products", name: "Products and stock", href: "/pos/products" },
+      { icon: "warehouse", name: "Warehouse", href: "/pos/warehouse" },
       { icon: "count", name: "Stock count", href: "/pos/count" },
     ],
   },
