@@ -2145,6 +2145,25 @@ export type Database = {
         Returns: string
       }
       pos_finish_count: { Args: { p_count_id: string }; Returns: number }
+      pos_hold_sale: {
+        Args: {
+          p_cash_received?: number
+          p_customer_id: string
+          p_delivery: Json
+          p_discount: number
+          p_items: Json
+          p_note?: string
+          p_payments: Json
+          p_wholesale: boolean
+        }
+        Returns: {
+          change_given: number
+          code: string
+          owed: number
+          sale_id: string
+          total: number
+        }[]
+      }
       pos_import_people: {
         Args: { p_apply: boolean; p_kind: string; p_rows: Json }
         Returns: Json
@@ -2310,6 +2329,20 @@ export type Database = {
       pos_start_count: { Args: { p_note?: string }; Returns: string }
       pos_stock_summary: { Args: never; Returns: Json }
       pos_sync_website_orders: { Args: never; Returns: number }
+      pos_take_order_payment: {
+        Args: {
+          p_cash_received?: number
+          p_delivery?: Json
+          p_payments: Json
+          p_sale_id: string
+        }
+        Returns: {
+          change_given: number
+          code: string
+          owed: number
+          total: number
+        }[]
+      }
       pos_top_products: {
         Args: { p_from: string; p_limit?: number; p_to: string }
         Returns: {
@@ -2379,7 +2412,13 @@ export type Database = {
       payment_method: "cash" | "momo" | "bank"
       purchase_status: "ordered" | "received" | "cancelled"
       sale_source: "shop" | "website" | "import"
-      sale_status: "ordered" | "pending" | "completed" | "cancelled" | "voided"
+      sale_status:
+        | "ordered"
+        | "pending"
+        | "on_hold"
+        | "completed"
+        | "cancelled"
+        | "voided"
       stock_count_status: "open" | "finished" | "cancelled"
       stock_movement_kind:
         | "opening"
@@ -2531,7 +2570,14 @@ export const Constants = {
       payment_method: ["cash", "momo", "bank"],
       purchase_status: ["ordered", "received", "cancelled"],
       sale_source: ["shop", "website", "import"],
-      sale_status: ["ordered", "pending", "completed", "cancelled", "voided"],
+      sale_status: [
+        "ordered",
+        "pending",
+        "on_hold",
+        "completed",
+        "cancelled",
+        "voided",
+      ],
       stock_count_status: ["open", "finished", "cancelled"],
       stock_movement_kind: [
         "opening",

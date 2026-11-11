@@ -27,6 +27,8 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
   const salePaid = sale?.status === "completed" || sale?.status === "voided";
   const blocked = (status: OrderStatus) => {
     if (!sale || status === order.status || sale.status === "voided") return false;
+    // Part paid in Stock and sales: paid and cancelled change there.
+    if (sale.status === "on_hold") return PAID_STAGES.includes(status) || status === "cancelled" || status === "not_sent";
     // Paid there: only dispatched and delivered from here. Not paid yet: not "paid" from here.
     return sale.status === "completed" ? !PAID_STAGES.includes(status) : PAID_STAGES.includes(status);
   };
@@ -126,7 +128,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
               href={`/pos/sales/${sale.id}`}
               className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-green px-4 text-center font-bold text-white no-underline hover:bg-brand-green/90"
             >
-              Mark as paid in Stock and sales
+              {sale.status === "on_hold" ? "Part paid: take the rest in Stock and sales" : "Mark as paid in Stock and sales"}
             </Link>
           ) : next && !blocked(next) && (
             <form action={updateOrderStatus}>

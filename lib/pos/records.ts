@@ -83,6 +83,8 @@ export function saleStatusPill(status: SaleStatus): StatusPill {
       return { label: "Ordered", className: ORANGE };
     case "pending":
       return { label: "Pending", className: SAND };
+    case "on_hold":
+      return { label: "On hold", className: ORANGE };
     default:
       return { label: "Cancelled", className: SAND };
   }

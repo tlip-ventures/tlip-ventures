@@ -1,5 +1,5 @@
 import { deliveryQuote, type DeliveryPricing } from "@/lib/delivery";
-import { lineTotal, parseCedis, pesewasToInput, sumPesewas, type Pesewas } from "@/lib/money";
+import { formatPesewas, lineTotal, parseCedis, pesewasToInput, sumPesewas, type Pesewas } from "@/lib/money";
 
 // The till's basket. Prices here are for display only: the database works
 // every price out again when the sale is saved (pos_complete_sale).
@@ -58,6 +58,17 @@ export function addToBasket(lines: readonly BasketLine[], item: NewBasketLine, q
     return lines.map((l) => (basketLineKey(l) === key ? { ...l, ...item, qty: Math.min(l.qty + qty, cap) } : l));
   }
   return [...lines, { ...item, qty: Math.min(qty, cap) }];
+}
+
+/** The most this line can be: what is on the shelf less the item's other lines (other colours), at most MAX_LINE_QTY. */
+export function lineRoom(lines: readonly BasketLine[], line: BasketLine): number {
+  return Math.max(0, room(lines, line, line.maxQty));
+}
+
+/** A quantity typed at the till: "200" → 200, "0" → 0 (removes the line); null when it isn't a whole number. */
+export function parseQty(text: string): number | null {
+  const t = text.trim();
+  return /^\d{1,4}$/.test(t) ? Number(t) : null;
 }
 
 /** Sets a line's quantity (by line key); 0 or less removes it. Never above the shelf, all colours together. */
@@ -206,3 +217,31 @@ export function momoSplit(total: Pesewas, momoText: string, restMethod: RestMeth
   if (restMethod !== "later") payments.push({ method: restMethod, amount: rest });
   return { kind: "split", momo, rest, restMethod, payments, owed: restMethod === "later" ? rest : 0 };
 }
+
+/** What the customer pays now, typed per way of paying (cedis; empty = nothing that way). */
+export type PaidNow = { momo: string; cash: string; bank: string };
+
+export const NO_PAID_NOW: PaidNow = { momo: "", cash: "", bank: "" };
+
+export type PaidNowParts =
+  | { kind: "ok"; payments: SplitPayment[]; paid: Pesewas; cash: Pesewas }
+  | { kind: "error"; message: string };
+
+/**
+ * The amounts typed per way of paying as payments (MoMo, cash, bank; empty
+ * ones left out), checked against what is due: never more than it in all.
+ */
+export function paidNowParts(p: PaidNow, due: Pesewas): PaidNowParts {
+  const payments: SplitPayment[] = [];
+  for (const method of ["momo", "cash", "bank"] as const) {
+    const text = p[method].trim();
+    if (text === "") continue;
+    const amount = parseCedis(text);
+    if (amount === null) return { kind: "error", message: `Enter the ${method === "momo" ? "MoMo" : method} amount like 50 or 12.50.` };
+    if (amount > 0) payments.push({ method, amount });
+  }
+  const paid = sumPesewas(payments.map((x) => x.amount));
+  if (paid > due) return { kind: "error", message: `That is ${formatPesewas(paid - due)} more than the ${formatPesewas(due)} to pay.` };
+  return { kind: "ok", payments, paid, cash: payments.find((x) => x.method === "cash")?.amount ?? 0 };
+}
+

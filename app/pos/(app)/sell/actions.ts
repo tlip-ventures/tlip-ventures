@@ -5,7 +5,8 @@ import { normaliseGhanaPhone } from "@/lib/phone";
 import { BAD_RIDER_PHONE, deliveryForDb } from "@/lib/pos/deliveries";
 import { friendlyDbError } from "@/lib/pos/errors";
 import { buildReceiptMessage, receiptWhatsappUrl } from "@/lib/pos/receipt";
-import { completeSaleSchema, newCustomerSchema, type CompleteSaleInput } from "@/lib/pos/schemas";
+import { completeSaleSchema, holdSaleSchema, newCustomerSchema, type CompleteSaleInput, type HoldSaleInput } from "@/lib/pos/schemas";
+import type { Json } from "@/lib/database.types";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import type { CustomerChoice } from "@/lib/pos/basket";
 import { refreshPosAndShop } from "@/lib/server/pos/refresh";
@@ -19,6 +20,8 @@ export type CompletedSale = {
   items: number;
   whatsappUrl: string;
   delivery: boolean;
+  /** Put on hold: what is still to pay (the sale completes itself when it is paid). */
+  onHold?: { owed: number };
 };
 
 export type CompleteSaleResult = { ok: true; sale: CompletedSale } | { ok: false; message: string };
@@ -54,9 +57,74 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
   if (error || !data?.[0]) return { ok: false, message: friendlyDbError(error, "The sale wasn't saved. Please try again.") };
   const saved = data[0];
 
+  const whatsappUrl = await afterSave(supabase, saved, s.invoiceId);
+  return {
+    ok: true,
+    sale: {
+      saleId: saved.sale_id,
+      code: saved.code,
+      total: saved.total,
+      change: saved.change_given,
+      items: s.items.reduce((n, i) => n + i.qty, 0),
+      whatsappUrl,
+      delivery: delivery !== null,
+    },
+  };
+}
+
+/**
+ * "Put on hold": saves the basket like a sale (prices, shelf, delivery) for a
+ * customer with what they pay now; its items come off the shelf at once and
+ * the rest is owed. The last payment (Mark paid) completes it.
+ */
+export async function holdSale(input: HoldSaleInput): Promise<CompleteSaleResult> {
+  const { supabase } = await requirePosUser();
+  const parsed = holdSaleSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const s = parsed.data;
+
+  const delivery = deliveryForDb(s.delivery);
+  if (delivery === "bad phone") return { ok: false, message: BAD_RIDER_PHONE };
+  const cashPart = s.payments.some((p) => p.method === "cash");
+
+  const { data, error } = await supabase.rpc("pos_hold_sale", {
+    p_items: s.items.map((i) => ({ variant_id: i.variantId, qty: i.qty, choice: i.choice })),
+    p_customer_id: s.customerId,
+    p_discount: s.discount,
+    p_payments: s.payments,
+    p_wholesale: s.wholesale,
+    // The function takes null for "no delivery"; the generated type doesn't know it.
+    p_delivery: delivery as unknown as Json,
+    p_cash_received: cashPart && s.cashReceived !== null ? s.cashReceived : undefined,
+  });
+  if (error || !data?.[0]) return { ok: false, message: friendlyDbError(error, "The sale wasn't put on hold. Please try again.") };
+  const saved = data[0];
+
+  const whatsappUrl = await afterSave(supabase, saved, s.invoiceId);
+  return {
+    ok: true,
+    sale: {
+      saleId: saved.sale_id,
+      code: saved.code,
+      total: saved.total,
+      change: saved.change_given,
+      items: s.items.reduce((n, i) => n + i.qty, 0),
+      whatsappUrl,
+      delivery: delivery !== null,
+      onHold: { owed: saved.owed },
+    },
+  };
+}
+
+/** After a sale is saved (completed or held): close its invoice, refresh the pages, and the WhatsApp receipt link. */
+async function afterSave(
+  supabase: Awaited<ReturnType<typeof requirePosUser>>["supabase"],
+  saved: { sale_id: string; code: string },
+  invoiceId: string | null | undefined,
+): Promise<string> {
   // Sold from an invoice: close it. The sale is saved either way.
-  if (s.invoiceId) {
-    const { error: invoiceError } = await supabase.rpc("pos_invoice_sold", { p_invoice_id: s.invoiceId, p_sale_id: saved.sale_id });
+  if (invoiceId) {
+    const { error: invoiceError } = await supabase.rpc("pos_invoice_sold", { p_invoice_id: invoiceId, p_sale_id: saved.sale_id });
     if (invoiceError) console.error(`Sale ${saved.code} saved, but its invoice was not marked sold: ${invoiceError.message}`);
   }
 
@@ -80,18 +148,7 @@ export async function completeSale(input: CompleteSaleInput): Promise<CompleteSa
     : `Tlip Ventures receipt\nSale ${saved.code}`;
 
   refreshPosAndShop();
-  return {
-    ok: true,
-    sale: {
-      saleId: saved.sale_id,
-      code: saved.code,
-      total: saved.total,
-      change: saved.change_given,
-      items: s.items.reduce((n, i) => n + i.qty, 0),
-      whatsappUrl: receiptWhatsappUrl(receipt?.customer?.phone ?? receipt?.delivery?.phone ?? null, message),
-      delivery: delivery !== null,
-    },
-  };
+  return receiptWhatsappUrl(receipt?.customer?.phone ?? receipt?.delivery?.phone ?? null, message);
 }
 
 /** A scanned barcode or typed code: the matching product, or null to search by name instead. */

@@ -4,8 +4,10 @@ import { useState } from "react";
 import { cancelWebsiteOrder, markOrderPaid, recordPayment, voidSale } from "@/app/pos/(app)/payments/actions";
 import { cancelPurchase, receivePurchase } from "@/app/pos/(app)/purchases/actions";
 import { formatPesewas, parseCedis, pesewasToInput } from "@/lib/money";
+import { NO_PAID_NOW, paidNowParts, type PaidNow } from "@/lib/pos/basket";
 import { METHOD_LABELS } from "@/lib/pos/records";
 import { ActionDialog, dialogInputClass, dialogLabelClass } from "./action-dialog";
+import { PaidNowFields } from "./paid-now-fields";
 import type { ButtonKind } from "./ui";
 
 const TITLES = { sale: "Mark paid", purchase: "Record payment", refund: "Record refund" } as const;
@@ -152,14 +154,19 @@ export function MarkOrderPaidButton({
   className?: string;
 }) {
   const [cash, setCash] = useState("");
+  const [paidNow, setPaidNow] = useState<PaidNow>(NO_PAID_NOW);
   const [deliver, setDeliver] = useState(false);
   const [fee, setFee] = useState("");
   // The fee agreed is already in the order total: nothing is added.
   const [inPrice, setInPrice] = useState(false);
   const feeAmount = deliver ? (parseCedis(fee) ?? 0) : 0;
   const due = total + (inPrice ? 0 : feeAmount);
+  const parts = paidNowParts(paidNow, due);
+  const paid = parts.kind === "ok" ? parts.paid : 0;
+  const cashPart = parts.kind === "ok" ? parts.cash : 0;
+  const onHold = parts.kind === "ok" && paid > 0 && paid < due;
   const received = parseCedis(cash);
-  const change = received === null ? null : received - due;
+  const change = received === null || cashPart === 0 ? null : received - cashPart;
   return (
     <ActionDialog
       label="Mark as paid"
@@ -167,12 +174,12 @@ export function MarkOrderPaidButton({
       kind={buttonKind}
       size={size}
       action={markOrderPaid}
-      submitLabel="Mark as paid"
+      submitLabel={onHold ? `Put on hold · ${formatPesewas(due - paid)} to pay` : "Mark as paid"}
       className={className}
     >
       <input type="hidden" name="saleId" value={saleId} />
       <p className="m-0 text-sm leading-[22px] text-pos-soft">
-        The customer paid <strong className="text-pos-ink">{formatPesewas(due)}</strong>
+        The order comes to <strong className="text-pos-ink">{formatPesewas(due)}</strong>
         {feeAmount > 0 && <> ({inPrice ? "of which" : "with"} {formatPesewas(feeAmount)} delivery)</>}. Its items come off the shelf count now.
       </p>
       <label className="flex min-h-11 items-start gap-3 text-sm">
@@ -213,18 +220,30 @@ export function MarkOrderPaidButton({
           </label>
         </div>
       )}
-      <MethodChoice />
-      <label className={dialogLabelClass}>
-        <span>Cash received (optional, for change)</span>
-        <input
-          name="cashReceived"
-          value={cash}
-          onChange={(e) => setCash(e.target.value)}
-          inputMode="decimal"
-          placeholder={pesewasToInput(due)}
-          className={dialogInputClass}
-        />
-      </label>
+      <PaidNowFields value={paidNow} onChange={setPaidNow} due={due} />
+      {parts.kind === "error" ? (
+        <p role="alert" className="m-0 text-[13px] font-semibold text-pos-rust">
+          {parts.message}
+        </p>
+      ) : onHold ? (
+        <p className="m-0 rounded-md bg-pos-tint-orange px-3 py-2.5 text-[13px] font-semibold leading-[19px] text-pos-rust" aria-live="polite">
+          Part paid: the order goes On hold with {formatPesewas(due - paid)} still to pay. Use Mark paid when the rest comes in; the last payment
+          completes it.
+        </p>
+      ) : null}
+      {cashPart > 0 && (
+        <label className={dialogLabelClass}>
+          <span>Cash received (optional, for change)</span>
+          <input
+            name="cashReceived"
+            value={cash}
+            onChange={(e) => setCash(e.target.value)}
+            inputMode="decimal"
+            placeholder={pesewasToInput(cashPart)}
+            className={dialogInputClass}
+          />
+        </label>
+      )}
       {change !== null && change > 0 && (
         <p className="m-0 flex justify-between rounded-md bg-pos-tint-green px-3 py-2.5 text-sm font-bold text-pos-green-ink" aria-live="polite">
           <span>Change to give (cash)</span>

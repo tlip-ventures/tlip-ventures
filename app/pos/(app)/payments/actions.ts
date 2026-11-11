@@ -70,13 +70,17 @@ export async function voidSale(_prev: ActionResult | null, formData: FormData): 
 
 /**
  * "Mark as paid" on a website order: the database checks the shelf, takes the
- * items off it, records the payment and sets the order to paid.
+ * items off it and records what was paid each way. Paid in full: the order is
+ * paid. Less: the order is On hold with the rest owed (Mark paid takes the
+ * rest; the last payment completes it).
  */
 export async function markOrderPaid(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const { supabase } = await requirePosUser();
   const parsed = markOrderPaidSchema.safeParse({
     saleId: formData.get("saleId"),
-    method: formData.get("method"),
+    momo: formData.get("momo") ?? "",
+    cash: formData.get("cash") ?? "",
+    bank: formData.get("bank") ?? "",
     cashReceived: formData.get("cashReceived") ?? "",
     deliver: formData.get("deliver") === "on",
     deliveryFee: formData.get("deliveryFee") ?? "",
@@ -85,18 +89,27 @@ export async function markOrderPaid(_prev: ActionResult | null, formData: FormDa
   });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const p = parsed.data;
+  const payments = (["momo", "cash", "bank"] as const)
+    .filter((m) => (p[m] ?? 0) > 0)
+    .map((method) => ({ method, amount: p[method] as number }));
+  if (payments.length === 0) return { ok: false, message: "Enter how much the customer paid." };
 
-  const { data, error } = await supabase.rpc("pos_mark_order_paid", {
+  const { data, error } = await supabase.rpc("pos_take_order_payment", {
     p_sale_id: p.saleId,
-    p_method: p.method,
-    p_cash_received: p.method === "cash" && p.cashReceived !== null ? p.cashReceived : undefined,
-    // Always sent (null: no delivery); the database fills in the order's location and phone.
-    p_delivery: p.deliver ? { fee: p.deliveryFee ?? 0, address: p.deliveryAddress, included: p.deliveryIncluded } : null,
+    p_payments: payments,
+    // The database fills in the order's location and phone.
+    p_delivery: p.deliver ? { fee: p.deliveryFee ?? 0, address: p.deliveryAddress, included: p.deliveryIncluded } : undefined,
+    p_cash_received: p.cash && p.cashReceived !== null ? p.cashReceived : undefined,
   });
   if (error) return { ok: false, message: friendlyDbError(error) };
   refreshPosAndShop();
   const change = data?.[0]?.change_given ?? 0;
-  return { ok: true, message: change > 0 ? `Paid, stock updated. Give ${formatPesewas(change)} change.` : "Paid, stock updated." };
+  const owed = data?.[0]?.owed ?? 0;
+  const changeText = change > 0 ? ` Give ${formatPesewas(change)} change.` : "";
+  return {
+    ok: true,
+    message: owed > 0 ? `On hold: ${formatPesewas(owed)} still to pay. Stock updated.${changeText}` : `Paid, stock updated.${changeText}`,
+  };
 }
 
 /** A website basket that won't be paid: cancels the sale and the order. */
