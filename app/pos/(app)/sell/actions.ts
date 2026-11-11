@@ -5,7 +5,7 @@ import { normaliseGhanaPhone } from "@/lib/phone";
 import { BAD_RIDER_PHONE, deliveryForDb } from "@/lib/pos/deliveries";
 import { friendlyDbError } from "@/lib/pos/errors";
 import { buildReceiptMessage, receiptWhatsappUrl } from "@/lib/pos/receipt";
-import { completeSaleSchema, holdSaleSchema, newCustomerSchema, type CompleteSaleInput, type HoldSaleInput } from "@/lib/pos/schemas";
+import { completeSaleSchema, holdSaleSchema, newCustomerSchema, reserveSaleSchema, type CompleteSaleInput, type HoldSaleInput, type ReserveSaleInput } from "@/lib/pos/schemas";
 import type { Json } from "@/lib/database.types";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import type { CustomerChoice } from "@/lib/pos/basket";
@@ -22,6 +22,8 @@ export type CompletedSale = {
   delivery: boolean;
   /** Put on hold: what is still to pay (the sale completes itself when it is paid). */
   onHold?: { owed: number };
+  /** Reserved for later: what is still to pay, and the agreed date ("2026-11-14") if any. */
+  reserved?: { owed: number; until: string | null };
 };
 
 export type CompleteSaleResult = { ok: true; sale: CompletedSale } | { ok: false; message: string };
@@ -112,6 +114,53 @@ export async function holdSale(input: HoldSaleInput): Promise<CompleteSaleResult
       whatsappUrl,
       delivery: delivery !== null,
       onHold: { owed: saved.owed },
+    },
+  };
+}
+
+/**
+ * "Reserve for later": saves the basket like a sale for a customer, kept for
+ * them to pick up or have delivered later (an optional date). Paid in full,
+ * its items come off the shelf now; otherwise they stay on the shelf until
+ * the last payment, or until it is collected or sent out.
+ */
+export async function reserveSale(input: ReserveSaleInput): Promise<CompleteSaleResult> {
+  const { supabase } = await requirePosUser();
+  const parsed = reserveSaleSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const s = parsed.data;
+
+  const delivery = deliveryForDb(s.delivery);
+  if (delivery === "bad phone") return { ok: false, message: BAD_RIDER_PHONE };
+  const cashPart = s.payments.some((p) => p.method === "cash");
+
+  const { data, error } = await supabase.rpc("pos_reserve_sale", {
+    p_items: s.items.map((i) => ({ variant_id: i.variantId, qty: i.qty, choice: i.choice })),
+    p_customer_id: s.customerId,
+    p_discount: s.discount,
+    p_payments: s.payments,
+    p_wholesale: s.wholesale,
+    // The function takes null for "no delivery" and "exact cash"; the generated type doesn't know it.
+    p_delivery: delivery as unknown as Json,
+    p_cash_received: (cashPart && s.cashReceived !== null ? s.cashReceived : null) as number,
+    p_note: null as unknown as string,
+    p_reserved_until: s.reservedUntil ?? undefined,
+  });
+  if (error || !data?.[0]) return { ok: false, message: friendlyDbError(error, "The order wasn't reserved. Please try again.") };
+  const saved = data[0];
+
+  const whatsappUrl = await afterSave(supabase, saved, s.invoiceId);
+  return {
+    ok: true,
+    sale: {
+      saleId: saved.sale_id,
+      code: saved.code,
+      total: saved.total,
+      change: saved.change_given,
+      items: s.items.reduce((n, i) => n + i.qty, 0),
+      whatsappUrl,
+      delivery: delivery !== null,
+      reserved: { owed: saved.owed, until: s.reservedUntil },
     },
   };
 }

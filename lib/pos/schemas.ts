@@ -230,6 +230,15 @@ export const holdSaleSchema = z.object({
 
 export type HoldSaleInput = z.input<typeof holdSaleSchema>;
 
+/** "Reserve for later" at the till: like a held sale, but paid in full is fine, with an optional date. */
+export const reserveSaleSchema = holdSaleSchema.extend({
+  customerId: z.uuid({ message: "Choose the customer the order is kept for." }),
+  // The agreed pickup or delivery date (Ghana date, "2026-11-14"); null: none agreed.
+  reservedUntil: z.iso.date("Pick the date, or leave it empty.").nullable(),
+});
+
+export type ReserveSaleInput = z.input<typeof reserveSaleSchema>;
+
 /** "Make invoice" at the till: the basket, priced by the database, nothing taken off the shelf. */
 export const createInvoiceSchema = z.object({
   items: z

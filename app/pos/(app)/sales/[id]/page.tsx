@@ -6,12 +6,15 @@ import { BackLink, Facts, MoneySummary, PaymentsCard } from "@/components/pos/de
 import { ChatIcon } from "@/components/pos/icons";
 import { BackToListButton, DeliveredButton, SendOutButton } from "@/components/pos/delivery-actions";
 import { CancelWebsiteOrderButton, MarkOrderPaidButton, PaymentButton, VoidSaleButton } from "@/components/pos/record-actions";
+import { CollectedButton, ReservedDateButton } from "@/components/pos/reservation-actions";
 import { buttonClass, ButtonLink, Card, Notice, PageHeader, PageShell, Pill, ScrollTable, TableHead, Th } from "@/components/pos/ui";
 import { formatPesewas } from "@/lib/money";
 import { formatDay, formatDayTime, phoneText } from "@/lib/pos/format";
 import { buildReceiptMessage, lineName, receiptWhatsappUrl } from "@/lib/pos/receipt";
 import { DELIVERY_PILLS, deliveryProgress } from "@/lib/pos/deliveries";
+import { ghanaToday } from "@/lib/pos/invoices";
 import { paymentPill, saleStatusPill } from "@/lib/pos/records";
+import { reservationDueText } from "@/lib/pos/reservations";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { listRiders } from "@/lib/server/pos/deliveries";
 import { getSaleDetail } from "@/lib/server/pos/records";
@@ -32,6 +35,9 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
   const waiting = sale.source === "website" && (sale.status === "ordered" || sale.status === "pending");
   // Of what is still owed, the part for the delivery fee.
   const deliveryOwed = sale.cancelled ? 0 : Math.min(sale.owed, Math.max(0, sale.deliveryFee - sale.deliveryPaid));
+  // Reserved and not yet collected or delivered.
+  const openReservation = sale.reservation && !sale.reservation.collectedAt && !sale.cancelled ? sale.reservation : null;
+  const today = ghanaToday(new Date());
   const canReturn = sale.status === "completed" && sale.lines.some((l) => l.kind === "item" && l.qty > l.returned);
   const whatsapp = receiptWhatsappUrl(
     receipt.customer?.phone ?? null,
@@ -75,7 +81,10 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
             Return items
           </ButtonLink>
         )}
-        {user.isOwner && (sale.status === "completed" || sale.status === "on_hold") && sale.returns.length === 0 && (
+        {openReservation && !sale.delivery && (
+          <CollectedButton saleId={sale.id} code={sale.code} owed={sale.owed} onShelf={sale.status === "reserved"} kind="outline" size="md" />
+        )}
+        {user.isOwner && (sale.status === "completed" || sale.status === "on_hold" || sale.status === "reserved") && sale.returns.length === 0 && (
           <VoidSaleButton saleId={sale.id} code={sale.code} paid={sale.paid} />
         )}
         {waiting && <CancelWebsiteOrderButton saleId={sale.id} code={sale.code} />}
@@ -88,6 +97,26 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
         </Notice>
       )}
 
+      {openReservation && (
+        <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-pos-tint-green px-3 py-2.5 text-[13px] font-semibold leading-[19px] text-pos-green-ink">
+            <span>
+              Reserved{sale.customer ? ` for ${sale.customer.name}` : ""} · {reservationDueText(openReservation.until, today, Boolean(sale.delivery))}.{" "}
+              {sale.status === "reserved"
+                ? `Its items stay on the shelf until it is paid in full, ${sale.delivery ? "sent out" : "collected"}.`
+                : `Its items are off the shelf, put aside for the customer.`}{" "}
+              {sale.delivery ? "It leaves this list when delivered." : "Press Collected when the customer takes it."}
+            </span>
+            <ReservedDateButton saleId={sale.id} code={sale.code} until={openReservation.until} today={today} />
+        </div>
+      )}
+
+      {sale.reservation?.collectedAt && (
+        <Notice tone="good">
+          Reserved order {sale.delivery ? "delivered" : "collected"} {formatDayTime(sale.reservation.collectedAt)}
+          {sale.reservation.collectedBy ? ` (${sale.reservation.collectedBy})` : ""}.
+        </Notice>
+      )}
+
       {sale.status === "on_hold" && (
         <Notice tone="good">
           On hold{sale.customer ? ` for ${sale.customer.name}` : ""}: its items are off the shelf count, {formatPesewas(sale.paid)} paid,{" "}
@@ -97,7 +126,8 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
 
       {sale.voided && (
         <Notice tone="bad">
-          Cancelled {formatDayTime(sale.voided.at)} by {sale.voided.by}: {sale.voided.reason}. Its items went back on the shelf count.
+          Cancelled {formatDayTime(sale.voided.at)} by {sale.voided.by}: {sale.voided.reason}.{" "}
+          {sale.reservation ? "Any items that had left the shelf went back on the shelf count." : "Its items went back on the shelf count."}
         </Notice>
       )}
 
@@ -196,7 +226,7 @@ export default async function SalePage({ params }: PageProps<"/pos/sales/[id]">)
                 </span>
               )}
             </div>
-            {(sale.status === "completed" || sale.status === "on_hold") && (
+            {(sale.status === "completed" || sale.status === "on_hold" || sale.status === "reserved") && (
               <span className="flex flex-wrap gap-1.5">
                 {sale.delivery.status === "to_deliver" && <SendOutButton saleId={sale.id} code={sale.code} rider={sale.delivery.rider} riders={riders} />}
                 {sale.delivery.status === "out" && <DeliveredButton saleId={sale.id} code={sale.code} owed={sale.owed} />}

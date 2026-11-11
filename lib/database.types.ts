@@ -1313,6 +1313,8 @@ export type Database = {
       sales: {
         Row: {
           code: string
+          collected_at: string | null
+          collected_by: string | null
           completed_at: string | null
           created_at: string
           created_by: string | null
@@ -1322,6 +1324,8 @@ export type Database = {
           id: string
           note: string | null
           order_id: string | null
+          reserved: boolean
+          reserved_until: string | null
           source: Database["public"]["Enums"]["sale_source"]
           status: Database["public"]["Enums"]["sale_status"]
           subtotal: number
@@ -1333,6 +1337,8 @@ export type Database = {
         }
         Insert: {
           code?: string
+          collected_at?: string | null
+          collected_by?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -1342,6 +1348,8 @@ export type Database = {
           id?: string
           note?: string | null
           order_id?: string | null
+          reserved?: boolean
+          reserved_until?: string | null
           source?: Database["public"]["Enums"]["sale_source"]
           status?: Database["public"]["Enums"]["sale_status"]
           subtotal: number
@@ -1353,6 +1361,8 @@ export type Database = {
         }
         Update: {
           code?: string
+          collected_at?: string | null
+          collected_by?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -1362,6 +1372,8 @@ export type Database = {
           id?: string
           note?: string | null
           order_id?: string | null
+          reserved?: boolean
+          reserved_until?: string | null
           source?: Database["public"]["Enums"]["sale_source"]
           status?: Database["public"]["Enums"]["sale_status"]
           subtotal?: number
@@ -2002,6 +2014,7 @@ export type Database = {
       pos_sales_list: {
         Row: {
           code: string | null
+          collected_at: string | null
           created_at: string | null
           created_by: string | null
           customer_id: string | null
@@ -2011,12 +2024,15 @@ export type Database = {
           delivery_address: string | null
           delivery_included: boolean | null
           delivery_paid: number | null
+          delivery_status: Database["public"]["Enums"]["delivery_status"] | null
           discount: number | null
           id: string | null
           order_id: string | null
           owed: number | null
           paid: number | null
           payment_methods: string | null
+          reserved: boolean | null
+          reserved_until: string | null
           rider: string | null
           source: Database["public"]["Enums"]["sale_source"] | null
           status: Database["public"]["Enums"]["sale_status"] | null
@@ -2297,6 +2313,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      pos_mark_collected: {
+        Args: { p_sale_id: string }
+        Returns: Database["public"]["Enums"]["sale_status"]
+      }
       pos_mark_order_paid:
         | {
             Args: {
@@ -2413,6 +2433,26 @@ export type Database = {
         Args: { p_from: string; p_to: string }
         Returns: Json
       }
+      pos_reserve_sale: {
+        Args: {
+          p_cash_received: number
+          p_customer_id: string
+          p_delivery: Json
+          p_discount: number
+          p_items: Json
+          p_note: string
+          p_payments: Json
+          p_reserved_until?: string
+          p_wholesale: boolean
+        }
+        Returns: {
+          change_given: number
+          code: string
+          owed: number
+          sale_id: string
+          total: number
+        }[]
+      }
       pos_rider_summary: {
         Args: { p_from: string; p_to: string }
         Returns: Json
@@ -2438,6 +2478,10 @@ export type Database = {
           code: string
           purchase_id: string
         }[]
+      }
+      pos_set_reserved_until: {
+        Args: { p_date: string; p_sale_id: string }
+        Returns: undefined
       }
       pos_set_wholesale_price: {
         Args: { p_price: number; p_product_id: string }
@@ -2536,6 +2580,7 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "voided"
+        | "reserved"
       stock_count_status: "open" | "finished" | "cancelled"
       stock_movement_kind:
         | "opening"
@@ -2695,6 +2740,7 @@ export const Constants = {
         "completed",
         "cancelled",
         "voided",
+        "reserved",
       ],
       stock_count_status: ["open", "finished", "cancelled"],
       stock_movement_kind: [

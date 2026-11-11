@@ -13,6 +13,7 @@ describe("record pills", () => {
     expect(saleStatusPill("completed").label).toBe("Completed");
     expect(saleStatusPill("voided").label).toBe("Cancelled");
     expect(saleStatusPill("on_hold").label).toBe("On hold");
+    expect(saleStatusPill("reserved").label).toBe("Reserved");
     expect(purchaseStatusPill("ordered").label).toBe("Ordered");
     expect(purchaseStatusPill("received").label).toBe("Received");
     expect(returnStatusPill(2, 2).label).toBe("Back on shelf");

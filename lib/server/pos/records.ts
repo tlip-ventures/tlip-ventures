@@ -34,6 +34,8 @@ export type RecordRow = {
   deliveryIncluded?: boolean;
   /** Sales: sold at wholesale prices. */
   wholesale?: boolean;
+  /** Sales: reserved for the customer; "open" until collected or delivered. */
+  reserved?: "open" | "done" | null;
   /** Sales: who took the delivery, if anyone yet. */
   rider?: string | null;
   /** Sales: a website order (no shop counter involved). */
@@ -68,7 +70,7 @@ export async function listRecords(
   if (kind === "sales") {
     let query = supabase
       .from("pos_sales_list")
-      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery, rider, delivery_address, payment_methods, delivery_paid, delivery_included, wholesale", { count: "exact" })
+      .select("id, code, source, status, created_at, created_by, total, paid, owed, customer_name, delivery, rider, delivery_address, payment_methods, delivery_paid, delivery_included, wholesale, reserved, collected_at", { count: "exact" })
       .order("created_at", { ascending: false })
       .order("code", { ascending: false });
     if (q) query = query.or(`code.ilike.*${q}*,customer_name.ilike.*${q}*`);
@@ -100,6 +102,7 @@ export async function listRecords(
       deliveryPaid: r.delivery_paid ?? 0,
       deliveryIncluded: r.delivery_included ?? false,
       wholesale: r.wholesale ?? false,
+      reserved: r.reserved ? (r.collected_at ? "done" : "open") : null,
       rider: r.rider,
       fromWebsite: r.source === "website",
       deliverTo: r.delivery_address,
@@ -224,7 +227,7 @@ export async function getSaleDetail(id: string) {
   const { data: s, error } = await supabase
     .from("sales")
     .select(
-      "id, code, source, status, subtotal, discount, total, note, delivery_included, wholesale, created_at, created_by, completed_at, voided_at, voided_by, void_reason, order_id, customers(id, name, phone), sale_items(id, variant_id, product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at, created_by, note, delivery_amount), returns(id, code, created_at, refund_total), deliveries(address, contact_name, contact_phone, note, status, rider, out_at, delivered_at)",
+      "id, code, source, status, subtotal, discount, total, note, delivery_included, wholesale, reserved, reserved_until, collected_at, collected_by, created_at, created_by, completed_at, voided_at, voided_by, void_reason, order_id, customers(id, name, phone), sale_items(id, variant_id, product_name, option_values, unit_price, qty, line_total, kind), payments(method, amount, cash_received, change_given, paid_at, created_by, note, delivery_amount), returns(id, code, created_at, refund_total), deliveries(address, contact_name, contact_phone, note, status, rider, out_at, delivered_at)",
     )
     .eq("id", id)
     .order("paid_at", { referencedTable: "payments" })
@@ -283,6 +286,10 @@ export async function getSaleDetail(id: string) {
     /** Sold at wholesale prices. */
     wholesale: s.wholesale,
     delivery: s.deliveries,
+    /** Kept for the customer to pick up or have delivered later. */
+    reservation: s.reserved
+      ? { until: s.reserved_until, collectedAt: s.collected_at, collectedBy: s.collected_by ? by(s.collected_by) : null }
+      : null,
   };
 }
 
