@@ -64,6 +64,9 @@ export default async function WarehousePage({ searchParams }: PageProps<"/pos/wa
   return (
     <PageShell>
       <PageHeader eyebrow="Stock" title={`${store.name}.`}>
+        {user.canAdjustStock && (
+          <ButtonLink href={`/pos/count?place=${store.id}`}>Count the {store.name.toLowerCase()}</ButtonLink>
+        )}
         {user.isOwner && (
           <ButtonLink href="/pos/purchases/new" kind="outline">
             Record a delivery
@@ -111,7 +114,7 @@ export default async function WarehousePage({ searchParams }: PageProps<"/pos/wa
               : params.view === "bring"
                 ? "Nothing to bring over: the shop has enough of everything kept here."
                 : params.view === "has"
-                  ? `Nothing is in the ${store.name.toLowerCase()} yet. Record a delivery arriving here, or open a product and recount its ${store.name} line.`
+                  ? `Nothing is in the ${store.name.toLowerCase()} yet. Use Count the ${store.name.toLowerCase()} to enter what is here, or choose All products and Recount one.`
                   : "No products yet."}
           </p>
         ) : (

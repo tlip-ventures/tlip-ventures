@@ -11,13 +11,17 @@ import type { ActionResult } from "../products/actions";
 
 const NOT_ALLOWED = { ok: false, message: "You are not allowed to count stock. Ask the owner to switch it on for you." } as const;
 
+/** The place a count is for (1 = the shop); missing or bad: the shop. */
+const placeIdSchema = z.coerce.number().int().min(1).max(32767).catch(1);
+
 export async function startCount(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const { supabase, canAdjustStock } = await requirePosUser();
   if (!canAdjustStock) return NOT_ALLOWED;
   const note = z.string().trim().max(300).safeParse(formData.get("note") ?? "");
   if (!note.success) return { ok: false, message: "Keep the note under 300 characters." };
+  const placeId = placeIdSchema.parse(formData.get("placeId"));
 
-  const { error } = await supabase.rpc("pos_start_count", { p_note: note.data });
+  const { error } = await supabase.rpc("pos_start_count", { p_note: note.data, p_location: placeId });
   if (error) return { ok: false, message: friendlyDbError(error) };
   revalidatePath("/pos/count");
   return { ok: true, message: "Count started." };
@@ -51,7 +55,7 @@ export async function finishCount(_prev: ActionResult | null, formData: FormData
   if (error) return { ok: false, message: friendlyDbError(error) };
   refreshPosAndShop();
   // The count is gone from the page once finished, so the result goes in the address.
-  redirect(`/pos/count?finished=${changed}`);
+  redirect(`/pos/count?place=${placeIdSchema.parse(formData.get("placeId"))}&finished=${changed}`);
 }
 
 export async function cancelCount(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
@@ -63,5 +67,5 @@ export async function cancelCount(_prev: ActionResult | null, formData: FormData
   const { error } = await supabase.rpc("pos_cancel_count", { p_count_id: id.data });
   if (error) return { ok: false, message: friendlyDbError(error) };
   revalidatePath("/pos/count");
-  redirect("/pos/count?cancelled=1");
+  redirect(`/pos/count?place=${placeIdSchema.parse(formData.get("placeId"))}&cancelled=1`);
 }
