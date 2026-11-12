@@ -1,13 +1,10 @@
 -- Stock & POS: stock counts in any place (the shop or the warehouse).
 --
 -- A count belongs to one place (stock_counts.location_id; earlier ones were
--- the shop's). Each place can have one count open at a time. Lines compare
+-- the shop's). One count is open at a time, of either place. Lines compare
 -- with that place's number, and finishing corrects that place only.
 
 alter table public.stock_counts add column location_id smallint not null default 1 references public.locations (id);
-
-drop index public.stock_counts_one_open_idx;
-create unique index stock_counts_one_open_per_place_idx on public.stock_counts (location_id) where status = 'open';
 
 -- Start a count of one place.
 create function public.pos_start_count(p_note text, p_location smallint)
@@ -19,6 +16,7 @@ as $$
 declare
   v_id uuid;
   v_place text;
+  v_open text;
 begin
   if not private.can_adjust_stock() then
     raise exception 'You are not allowed to count or adjust stock.' using errcode = '42501';
@@ -27,8 +25,10 @@ begin
   if v_place is null then
     raise exception 'Choose the place to count.' using errcode = '22023';
   end if;
-  if exists (select 1 from public.stock_counts where status = 'open' and location_id = p_location) then
-    raise exception 'A count of the % is already in progress. Finish or cancel it first.', v_place using errcode = '23505';
+  -- One count at a time (stock_counts_one_open_idx), of either place.
+  select lower(l.name) into v_open from public.stock_counts c join public.locations l on l.id = c.location_id where c.status = 'open';
+  if found then
+    raise exception 'A count of the % is already in progress. Finish or cancel it first.', v_open using errcode = '23505';
   end if;
   insert into public.stock_counts (note, location_id) values (nullif(btrim(p_note), ''), p_location) returning id into v_id;
   return v_id;
