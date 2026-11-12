@@ -4,12 +4,12 @@ import { getPeopleNames } from "@/lib/server/pos/stock";
 
 export type CountLine = { variantId: string; expected: number; counted: number };
 
-/** The stock count in progress, if any, with its lines. */
+/** The stock count in progress (one at a time, of the shop or the warehouse), if any, with its lines. */
 export async function getOpenCount() {
   const { supabase } = await requirePosUser();
   const { data: count, error } = await supabase
     .from("stock_counts")
-    .select("id, note, created_at, created_by, stock_count_lines(variant_id, expected, counted)")
+    .select("id, note, created_at, created_by, location_id, stock_count_lines(variant_id, expected, counted)")
     .eq("status", "open")
     .maybeSingle();
   if (error) throw new Error(`Could not load the stock count: ${error.message}`);
@@ -20,6 +20,8 @@ export async function getOpenCount() {
   return {
     id: count.id,
     note: count.note,
+    /** The place being counted. */
+    placeId: count.location_id,
     createdAt: count.created_at,
     by: (count.created_by && people.get(count.created_by)) || "Someone no longer here",
     lines,
@@ -50,12 +52,13 @@ export async function getCountDifferences(lines: CountLine[]) {
     .sort((a, b) => a.productName.localeCompare(b.productName));
 }
 
-/** The last few finished or cancelled counts, with how many items each changed. */
-export async function listRecentCounts(limit = 8) {
+/** The last few finished or cancelled counts of one place, with how many items each changed. */
+export async function listRecentCounts(placeId: number, limit = 8) {
   const { supabase } = await requirePosUser();
   const { data: counts, error } = await supabase
     .from("stock_counts")
     .select("id, status, note, created_at, finished_at, finished_by")
+    .eq("location_id", placeId)
     .neq("status", "open")
     .order("created_at", { ascending: false })
     .limit(limit);

@@ -59,23 +59,24 @@ export function CountInput({
   );
 }
 
-export function StartCountForm() {
+export function StartCountForm({ placeId, placeName }: { placeId: number; placeName: string }) {
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(startCount, null);
   return (
     <form action={action} className="flex flex-col gap-3">
+      <input type="hidden" name="placeId" value={placeId} />
       <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-pos-soft">
         <span>Note (optional)</span>
         <input
           name="note"
           maxLength={300}
-          placeholder="Baking shelf, or Month-end count"
+          placeholder={placeName === "Shop" ? "Baking shelf, or Month-end count" : "Back row, or First warehouse count"}
           className="min-h-11 w-full max-w-md rounded-md border border-pos-line bg-white px-3 text-[15px] text-pos-ink placeholder:text-pos-muted"
         />
       </label>
       {state && !state.ok && <Notice tone="bad">{state.message}</Notice>}
       <div>
         <button type="submit" disabled={pending} className={buttonClass("primary")}>
-          {pending ? "Starting…" : "Start a stock count"}
+          {pending ? "Starting…" : `Start counting the ${placeName.toLowerCase()}`}
         </button>
       </div>
     </form>
@@ -83,7 +84,18 @@ export function StartCountForm() {
 }
 
 /** Finish (records the differences) and Cancel (changes nothing). */
-export function FinishCountForms({ countId, differences }: { countId: string; differences: number }) {
+export function FinishCountForms({
+  countId,
+  placeId,
+  placeName,
+  differences,
+}: {
+  countId: string;
+  placeId: number;
+  placeName: string;
+  differences: number;
+}) {
+  const where = placeName === "Shop" ? "shelf" : placeName.toLowerCase();
   const [finished, finishAction, finishing] = useActionState<ActionResult | null, FormData>(finishCount, null);
   const [cancelled, cancelAction, cancelling] = useActionState<ActionResult | null, FormData>(cancelCount, null);
   const result = finished ?? cancelled;
@@ -98,11 +110,12 @@ export function FinishCountForms({ countId, differences }: { countId: string; di
             const text =
               differences === 0
                 ? "Finish this count? Nothing needs correcting."
-                : `Finish this count? The shelf count changes for ${differences} ${differences === 1 ? "item" : "items"}.`;
+                : `Finish this count? The ${where} count changes for ${differences} ${differences === 1 ? "item" : "items"}.`;
             if (!window.confirm(text)) e.preventDefault();
           }}
         >
           <input type="hidden" name="countId" value={countId} />
+          <input type="hidden" name="placeId" value={placeId} />
           <button type="submit" disabled={finishing || cancelling} className={`${buttonClass("primary")} min-h-12 px-6 text-base`}>
             {finishing ? "Finishing…" : "Finish count"}
           </button>
@@ -110,10 +123,11 @@ export function FinishCountForms({ countId, differences }: { countId: string; di
         <form
           action={cancelAction}
           onSubmit={(e) => {
-            if (!window.confirm("Cancel this count? What you typed is thrown away and the shelf count stays as it is.")) e.preventDefault();
+            if (!window.confirm(`Cancel this count? What you typed is thrown away and the ${where} count stays as it is.`)) e.preventDefault();
           }}
         >
           <input type="hidden" name="countId" value={countId} />
+          <input type="hidden" name="placeId" value={placeId} />
           <button type="submit" disabled={finishing || cancelling} className={buttonClass("quiet")}>
             {cancelling ? "Cancelling…" : "Cancel count"}
           </button>

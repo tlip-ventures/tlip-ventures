@@ -1552,6 +1552,7 @@ export type Database = {
           finished_at: string | null
           finished_by: string | null
           id: string
+          location_id: number
           note: string | null
           status: Database["public"]["Enums"]["stock_count_status"]
         }
@@ -1561,6 +1562,7 @@ export type Database = {
           finished_at?: string | null
           finished_by?: string | null
           id?: string
+          location_id?: number
           note?: string | null
           status?: Database["public"]["Enums"]["stock_count_status"]
         }
@@ -1570,10 +1572,19 @@ export type Database = {
           finished_at?: string | null
           finished_by?: string | null
           id?: string
+          location_id?: number
           note?: string | null
           status?: Database["public"]["Enums"]["stock_count_status"]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stock_counts_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_levels: {
         Row: {
@@ -2487,7 +2498,9 @@ export type Database = {
         Args: { p_price: number; p_product_id: string }
         Returns: undefined
       }
-      pos_start_count: { Args: { p_note?: string }; Returns: string }
+      pos_start_count:
+        | { Args: { p_note?: string }; Returns: string }
+        | { Args: { p_location: number; p_note: string }; Returns: string }
       pos_stock_summary: { Args: never; Returns: Json }
       pos_sync_website_orders: { Args: never; Returns: number }
       pos_take_order_payment: {
