@@ -7,7 +7,7 @@ import { MoveStockButton, RecountButton } from "@/components/pos/stock-dialogs";
 import { ButtonLink, Card, PageHeader, PageShell, Pill, ScrollTable, StatCard, StatGrid, TableHead, Th } from "@/components/pos/ui";
 import { formatPesewas } from "@/lib/money";
 import { formatDayTime } from "@/lib/pos/format";
-import { movementLabel, signedQty, STOCK_PILLS } from "@/lib/pos/stock";
+import { cartonsText, movementLabel, signedQty, STOCK_PILLS } from "@/lib/pos/stock";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { getWarehouseSummary, listPlaceMovements, listPlaces, listStockRows, STOCK_PAGE_SIZE } from "@/lib/server/pos/stock";
 
@@ -145,7 +145,12 @@ export default async function WarehousePage({ searchParams }: PageProps<"/pos/wa
                         </span>
                       </td>
                       <td className={`whitespace-nowrap px-3 py-2.5 text-right text-[15px] tabular-nums ${r.warehouseOnHand > 0 ? "font-bold" : "text-pos-muted"}`}>
-                        {r.warehouseOnHand.toLocaleString("en-US")}
+                        <span className="flex flex-col items-end">
+                          <span>{cartonsText(r.warehouseOnHand, r.unitsPerCarton)}</span>
+                          {r.unitsPerCarton && r.warehouseOnHand >= r.unitsPerCarton && (
+                            <span className="text-xs font-normal text-pos-muted">{r.warehouseOnHand.toLocaleString("en-US")} items</span>
+                          )}
+                        </span>
                       </td>
                       <td className="px-3 py-2.5">
                         <span className="flex flex-wrap items-center gap-2 text-[13px]">
