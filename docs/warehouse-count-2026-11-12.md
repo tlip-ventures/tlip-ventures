@@ -100,3 +100,20 @@ looks like it, please check · **Ask** = see the questions below.
 - **O. Rechargeable blender:** is it the app's "Mixdor Mini Blender", or new?
 
 New products would be added hidden from the website, with no price yet. You set the price and photo later.
+
+## What was entered (owner's answers, 12 Nov 2026)
+
+All of it is in the open warehouse stock count: 64 products, 1,611 items. Warehouse stock changes only when **Finish count** is pressed.
+
+- A: both 5-tier cabinet lines are the 5-Tier Storage Cabinet: 8, model number YJ727-1.
+- B: both organizer-with-bins lines are the Refrigerator Organizer with 3 Bins, 12 a carton: 13 cartons = 156.
+- C: KM5077 is a different product. Added as **DSP 9-in-1 Salad Maker KM-5077** (new, hidden, no price): 3 cartons of 4 = 12.
+- D: Fridge Stand with Wheels: 3 cartons of 12 = 36 (the warehouse showed 12 before).
+- E: both stool lines are the Folding Extension Stool: 96 + 48 = 144 (entered as single items).
+- F, G, I, K, L: as guessed (Cloth Drying Rack 24, Commercial Grinder 4.5kg 1, Slow Juicer with Wide Feed Chute 1, Golden Clothes Hanging Rack 8, Folding 3-Tier Mesh Storage Rack 10).
+- H: the freestanding dehydrator has 12 trays: renamed **Food Dehydrator 12 Trays Freestanding**, 3.
+- J: plantain chips peeler is the Vegetable Peeler: 4.
+- M: renamed to **Kids Study Table & Chair YJ727-5 / -8 / -9 / -10** (the former Foldable Kids Table and Chair is YJ727-8: 12). **Kids Study Table & Chair YJ727-6** added as new (hidden, no price): 1.
+- O: **Rechargeable Blender** added as new (hidden, no price): 1 carton of 40.
+- New also: **Garlic Peeler B** (36218-6, hidden, no price): 1 carton of 24.
+- Not entered: N (white 4-tier rack, on hold) and the pending quantities (flower laundry basket, 15L multicooker, second towel roll 30pcs line).
