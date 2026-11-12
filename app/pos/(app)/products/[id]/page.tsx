@@ -5,12 +5,13 @@ import { z } from "zod";
 import { BackIcon, ExternalIcon } from "@/components/pos/icons";
 import { ProductForm } from "@/components/pos/product-form";
 import { ProductTile } from "@/components/pos/product-tile";
+import { CartonSizeButton } from "@/components/pos/count-controls";
 import { AdjustButton, MoveStockButton, RecountButton } from "@/components/pos/stock-dialogs";
 import { ButtonLink, Card, Notice, PageHeader, PageShell, Pill, ScrollTable, TableHead, Th } from "@/components/pos/ui";
 import { WebsiteSwitch } from "@/components/pos/website-switch";
 import { formatPesewas, pesewasToInput } from "@/lib/money";
 import { formatDayTime } from "@/lib/pos/format";
-import { movementLabel, shelfText, signedQty, STOCK_PILLS } from "@/lib/pos/stock";
+import { cartonsText, movementLabel, shelfText, signedQty, STOCK_PILLS } from "@/lib/pos/stock";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { getStockProduct } from "@/lib/server/pos/stock";
 
@@ -83,7 +84,7 @@ export default async function StockProductPage({ params, searchParams }: PagePro
                   <td className="px-3 py-3 text-pos-soft">{v.barcode ?? "—"}</td>
                   {user.isOwner && <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-pos-soft">{v.cost === null ? "—" : formatPesewas(v.cost)}</td>}
                   <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{formatPesewas(v.priceOverride ?? product.price)}</td>
-                  <td className="whitespace-nowrap py-3 pl-3 pr-[18px] text-right font-bold tabular-nums">{total}</td>
+                  <td className="whitespace-nowrap py-3 pl-3 pr-[18px] text-right font-bold tabular-nums">{cartonsText(total, v.unitsPerCarton)}</td>
                 </tr>
               </tbody>
             </ScrollTable>
@@ -91,6 +92,13 @@ export default async function StockProductPage({ params, searchParams }: PagePro
               <span className="flex flex-col">
                 <span className="font-bold">Where it is</span>
                 <span className="text-[13px] text-pos-muted">Sales come from the shop. The website counts every place.</span>
+                <span className="text-[13px] text-pos-soft">
+                  {user.canAdjustStock ? (
+                    <CartonSizeButton variantId={v.id} name={product.name} units={v.unitsPerCarton} />
+                  ) : v.unitsPerCarton ? (
+                    `Carton: ${v.unitsPerCarton}`
+                  ) : null}
+                </span>
               </span>
               {user.canAdjustStock && shop && store && (
                 <MoveStockButton
@@ -129,7 +137,12 @@ export default async function StockProductPage({ params, searchParams }: PagePro
                             <Pill className={STOCK_PILLS[v.state].className}>{STOCK_PILLS[v.state].label}</Pill>
                           </span>
                         ) : (
-                          <span className={`text-[13px] font-bold tabular-nums ${pl.onHand < 0 ? "text-pos-rust" : ""}`}>{pl.onHand}</span>
+                          <span className={`text-[13px] font-bold tabular-nums ${pl.onHand < 0 ? "text-pos-rust" : ""}`}>
+                            {cartonsText(pl.onHand, v.unitsPerCarton)}
+                            {v.unitsPerCarton && pl.onHand >= v.unitsPerCarton && (
+                              <span className="font-normal text-pos-muted"> ({pl.onHand.toLocaleString("en-US")} items)</span>
+                            )}
+                          </span>
                         )}
                       </td>
                       <td className="whitespace-nowrap py-2 pl-3 pr-[18px] text-right">

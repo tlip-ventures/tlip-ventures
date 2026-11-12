@@ -116,3 +116,22 @@ export function tileCode(sku: string | null, name: string): string {
 export function variantName(productName: string, optionLabel: string | null): string {
   return optionLabel ? `${productName} (${optionLabel})` : productName;
 }
+
+/**
+ * A number of single items as cartons + singles, when the product has a
+ * carton size: 41 with 12 a carton is "3 cartons + 5"; 36 is "3 cartons";
+ * 5 is "5". Without a carton size it is just the number.
+ */
+export function cartonsText(total: number, unitsPerCarton: number | null | undefined): string {
+  if (!unitsPerCarton || unitsPerCarton < 2 || total < unitsPerCarton) return total.toLocaleString("en-US");
+  const cartons = Math.floor(total / unitsPerCarton);
+  const singles = total - cartons * unitsPerCarton;
+  const head = `${cartons.toLocaleString("en-US")} ${cartons === 1 ? "carton" : "cartons"}`;
+  return singles ? `${head} + ${singles.toLocaleString("en-US")}` : head;
+}
+
+/** Cartons + singles typed in a count, as single items (null: nothing typed). */
+export function countTotal(cartons: number | null, singles: number | null, unitsPerCarton: number | null | undefined): number | null {
+  if (cartons === null && singles === null) return null;
+  return (cartons ?? 0) * (unitsPerCarton ?? 0) + (singles ?? 0);
+}

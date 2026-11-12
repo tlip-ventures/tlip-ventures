@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  cartonsText,
+  countTotal,
   movementLabel,
   shelfBarPercent,
   shelfText,
@@ -88,5 +90,27 @@ describe("variantName", () => {
   it("adds the option in brackets", () => {
     expect(variantName("Blender 1.5L", "Black")).toBe("Blender 1.5L (Black)");
     expect(variantName("Funnel", null)).toBe("Funnel");
+  });
+});
+
+describe("cartonsText", () => {
+  it("shows single items as cartons + singles when the product has a carton size", () => {
+    expect(cartonsText(41, 12)).toBe("3 cartons + 5");
+    expect(cartonsText(36, 12)).toBe("3 cartons");
+    expect(cartonsText(12, 12)).toBe("1 carton");
+    expect(cartonsText(13, 12)).toBe("1 carton + 1");
+    expect(cartonsText(5, 12)).toBe("5");
+    expect(cartonsText(0, 12)).toBe("0");
+    expect(cartonsText(1250, null)).toBe("1,250");
+    expect(cartonsText(-2, 12)).toBe("-2");
+  });
+});
+
+describe("countTotal", () => {
+  it("adds cartons and singles", () => {
+    expect(countTotal(3, 5, 12)).toBe(41);
+    expect(countTotal(null, 7, null)).toBe(7);
+    expect(countTotal(2, null, 6)).toBe(12);
+    expect(countTotal(null, null, 12)).toBeNull();
   });
 });

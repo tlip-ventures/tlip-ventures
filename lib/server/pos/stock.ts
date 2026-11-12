@@ -27,6 +27,8 @@ export type StockRow = {
   warehouseOnHand: number;
   /** Shop + warehouse: what the website shows. */
   totalOnHand: number;
+  /** How many single items are in a carton; null: not set. */
+  unitsPerCarton: number | null;
   state: StockState;
   categoryName: string | null;
   topCategoryName: string | null;
@@ -56,6 +58,7 @@ type ViewRow = {
   on_hand: number | null;
   warehouse_on_hand: number | null;
   total_on_hand: number | null;
+  units_per_carton: number | null;
   stock_state: string | null;
   category_name: string | null;
   top_category_name: string | null;
@@ -79,6 +82,7 @@ function toStockRow(r: ViewRow, costs: Map<string, number>): StockRow {
     onHand: r.on_hand ?? 0,
     warehouseOnHand: r.warehouse_on_hand ?? 0,
     totalOnHand: r.total_on_hand ?? r.on_hand ?? 0,
+    unitsPerCarton: r.units_per_carton,
     state: toStockState(r.stock_state),
     categoryName: r.category_name,
     topCategoryName: r.top_category_name,
@@ -88,7 +92,7 @@ function toStockRow(r: ViewRow, costs: Map<string, number>): StockRow {
 }
 
 const ROW_COLUMNS =
-  "variant_id, product_id, product_name, choice_name, choices, sku, barcode, price, on_website, reorder_level, on_hand, warehouse_on_hand, total_on_hand, stock_state, category_name, top_category_name, image_url, wholesale_price";
+  "variant_id, product_id, product_name, choice_name, choices, sku, barcode, price, on_website, reorder_level, on_hand, warehouse_on_hand, total_on_hand, units_per_carton, stock_state, category_name, top_category_name, image_url, wholesale_price";
 
 export async function listStockRows(options: {
   search?: string;
@@ -197,6 +201,8 @@ export type ProductVariantDetail = {
   barcode: string | null;
   reorderLevel: number;
   priceOverride: number | null;
+  /** How many single items are in a carton; null: not set. */
+  unitsPerCarton: number | null;
   /** In the shop: what sells. */
   onHand: number;
   state: StockState;
@@ -239,7 +245,7 @@ export async function getStockProduct(productId: string) {
   const { data: p, error } = await supabase
     .from("products")
     .select(
-      "id, name, slug, price, is_active, option1_name, choices, product_images(url, sort_order), product_categories(categories(name)), product_variants(id, retired, option1_value, option2_value, sku, barcode, reorder_level, price_override, stock_levels(on_hand))",
+      "id, name, slug, price, is_active, option1_name, choices, product_images(url, sort_order), product_categories(categories(name)), product_variants(id, retired, option1_value, option2_value, sku, barcode, reorder_level, price_override, units_per_carton, stock_levels(on_hand))",
     )
     .eq("id", productId)
     .order("sort_order", { referencedTable: "product_images" })
@@ -287,6 +293,7 @@ export async function getStockProduct(productId: string) {
       barcode: v.barcode,
       reorderLevel: v.reorder_level,
       priceOverride: v.price_override,
+      unitsPerCarton: v.units_per_carton,
       onHand,
       state: stockState(onHand, v.reorder_level),
       cost: costs.get(v.id) ?? null,

@@ -729,6 +729,7 @@ export type Database = {
           retired: boolean
           sku: string | null
           stock_qty: number | null
+          units_per_carton: number | null
         }
         Insert: {
           barcode?: string | null
@@ -742,6 +743,7 @@ export type Database = {
           retired?: boolean
           sku?: string | null
           stock_qty?: number | null
+          units_per_carton?: number | null
         }
         Update: {
           barcode?: string | null
@@ -755,6 +757,7 @@ export type Database = {
           retired?: boolean
           sku?: string | null
           stock_qty?: number | null
+          units_per_carton?: number | null
         }
         Relationships: [
           {
@@ -1498,27 +1501,33 @@ export type Database = {
       }
       stock_count_lines: {
         Row: {
+          cartons: number | null
           count_id: string
           counted: number
           counted_at: string
           counted_by: string | null
           expected: number
+          singles: number | null
           variant_id: string
         }
         Insert: {
+          cartons?: number | null
           count_id: string
           counted: number
           counted_at?: string
           counted_by?: string | null
           expected: number
+          singles?: number | null
           variant_id: string
         }
         Update: {
+          cartons?: number | null
           count_id?: string
           counted?: number
           counted_at?: string
           counted_by?: string | null
           expected?: number
+          singles?: number | null
           variant_id?: string
         }
         Relationships: [
@@ -2088,6 +2097,7 @@ export type Database = {
           top_category_id: string | null
           top_category_name: string | null
           total_on_hand: number | null
+          units_per_carton: number | null
           updated_at: string | null
           variant_id: string | null
           warehouse_on_hand: number | null
@@ -2478,10 +2488,24 @@ export type Database = {
         }
         Returns: Json
       }
-      pos_save_count_line: {
-        Args: { p_count_id: string; p_counted: number; p_variant_id: string }
-        Returns: undefined
-      }
+      pos_save_count_line:
+        | {
+            Args: {
+              p_cartons: number
+              p_count_id: string
+              p_singles: number
+              p_variant_id: string
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              p_count_id: string
+              p_counted: number
+              p_variant_id: string
+            }
+            Returns: undefined
+          }
       pos_save_product: { Args: { p: Json }; Returns: string }
       pos_save_purchase: {
         Args: { p: Json }
@@ -2489,6 +2513,10 @@ export type Database = {
           code: string
           purchase_id: string
         }[]
+      }
+      pos_set_carton_size: {
+        Args: { p_units: number; p_variant_id: string }
+        Returns: undefined
       }
       pos_set_reserved_until: {
         Args: { p_date: string; p_sale_id: string }

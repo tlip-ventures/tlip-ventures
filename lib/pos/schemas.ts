@@ -81,6 +81,14 @@ export const moveStockSchema = z
   })
   .refine((m) => m.from !== m.to, { message: "Choose two different places.", path: ["to"] });
 
+/** A count line typed as cartons + singles; both empty clears it. */
+export const countPartsSchema = z.object({
+  countId: z.uuid(),
+  variantId: z.uuid(),
+  cartons: z.union([z.literal(""), wholeNumber("Cartons: a whole number, 0 or more.")]).transform((v) => (v === "" ? null : v)),
+  singles: z.union([z.literal(""), wholeNumber("Singles: a whole number, 0 or more.")]).transform((v) => (v === "" ? null : v)),
+});
+
 export const countLineSchema = z.object({
   countId: z.uuid(),
   variantId: z.uuid(),

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { z } from "zod";
-import { CountInput, FinishCountForms, StartCountForm } from "@/components/pos/count-controls";
+import { CartonSizeButton, CountInput, FinishCountForms, StartCountForm } from "@/components/pos/count-controls";
 import { FilterChips, Pager, SearchForm } from "@/components/pos/list-controls";
 import { ProductTile } from "@/components/pos/product-tile";
 import { Card, Notice, PageHeader, PageShell, Pill, ScrollTable, StatCard, StatGrid, TableHead, Th } from "@/components/pos/ui";
 import { formatDay, formatDayTime, plural } from "@/lib/pos/format";
-import { signedQty } from "@/lib/pos/stock";
+import { cartonsText, signedQty } from "@/lib/pos/stock";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { getCountDifferences, getOpenCount, listRecentCounts } from "@/lib/server/pos/counts";
 import { listPlaces, listStockRows, listTopCategories, STOCK_PAGE_SIZE, type Place } from "@/lib/server/pos/stock";
@@ -194,11 +194,11 @@ async function OpenCount({
           <p className="m-0 px-[18px] py-8 text-center text-sm text-pos-soft">No products match. Try another name or category.</p>
         ) : (
           <>
-            <ScrollTable minWidth={620}>
+            <ScrollTable minWidth={760}>
               <TableHead>
                 <Th>Product</Th>
                 <Th align="right">The app says</Th>
-                <Th>Counted</Th>
+                <Th>Counted (cartons + singles)</Th>
                 <Th align="right">Difference</Th>
               </TableHead>
               <tbody>
@@ -215,16 +215,40 @@ async function OpenCount({
                           <ProductTile imageUrl={r.imageUrl} sku={r.sku} name={r.productName} category={r.topCategoryName} />
                           <span className="flex min-w-0 flex-col">
                             <span className="font-semibold">{name}</span>
-                            <span className="text-xs text-pos-muted">{r.sku ?? "No code"}</span>
+                            <span className="flex flex-wrap items-center gap-x-2 text-xs text-pos-muted">
+                              <span>{r.sku ?? "No code"}</span>
+                              {canCount ? (
+                                <CartonSizeButton variantId={r.variantId} name={name} units={r.unitsPerCarton} />
+                              ) : (
+                                r.unitsPerCarton && <span>Carton: {r.unitsPerCarton}</span>
+                              )}
+                            </span>
                           </span>
                         </span>
                       </td>
-                      <td className={`px-3 py-2 text-right font-semibold tabular-nums ${says < 0 ? "text-pos-rust" : ""}`}>{says}</td>
+                      <td className={`px-3 py-2 text-right font-semibold tabular-nums ${says < 0 ? "text-pos-rust" : ""}`}>
+                        <span className="flex flex-col items-end">
+                          <span>{cartonsText(says, r.unitsPerCarton)}</span>
+                          {r.unitsPerCarton && says >= r.unitsPerCarton && (
+                            <span className="text-xs font-normal text-pos-muted">{says.toLocaleString("en-US")} items</span>
+                          )}
+                        </span>
+                      </td>
                       <td className="px-3 py-2">
                         {canCount ? (
-                          <CountInput countId={count.id} variantId={r.variantId} name={name} initial={line?.counted ?? null} />
+                          <CountInput
+                            // A new carton size shows the boxes afresh.
+                            key={`${r.variantId}-${r.unitsPerCarton ?? 0}`}
+                            countId={count.id}
+                            variantId={r.variantId}
+                            name={name}
+                            unitsPerCarton={r.unitsPerCarton}
+                            initialCartons={line?.cartons ?? null}
+                            // Lines typed as one number (before cartons) show it as singles.
+                            initialSingles={line ? (line.singles ?? (line.cartons === null ? line.counted : 0)) : null}
+                          />
                         ) : (
-                          <span className="tabular-nums">{line?.counted ?? "—"}</span>
+                          <span className="tabular-nums">{line ? cartonsText(line.counted, r.unitsPerCarton) : "—"}</span>
                         )}
                       </td>
                       <td className="py-2 pl-3 pr-[18px] text-right">
@@ -269,8 +293,8 @@ async function OpenCount({
               {differences.map((d) => (
                 <tr key={d.variantId} className="border-t border-pos-paper-deep">
                   <td className="py-2.5 pl-[18px] pr-3 font-semibold">{d.productName}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{d.expected}</td>
-                  <td className="px-3 py-2.5 text-right font-bold tabular-nums">{d.counted}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{cartonsText(d.expected, d.unitsPerCarton)}</td>
+                  <td className="px-3 py-2.5 text-right font-bold tabular-nums">{cartonsText(d.counted, d.unitsPerCarton)}</td>
                   <td className={`py-2.5 pl-3 pr-[18px] text-right font-bold tabular-nums ${d.counted < d.expected ? "text-pos-rust" : "text-pos-green-ink"}`}>
                     {signedQty(d.counted - d.expected)}
                   </td>

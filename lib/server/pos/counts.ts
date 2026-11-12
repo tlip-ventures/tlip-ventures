@@ -2,21 +2,28 @@ import "server-only";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { getPeopleNames } from "@/lib/server/pos/stock";
 
-export type CountLine = { variantId: string; expected: number; counted: number };
+/** One counted product: the total in single items, and the cartons + singles typed (null on lines typed as one number). */
+export type CountLine = { variantId: string; expected: number; counted: number; cartons: number | null; singles: number | null };
 
 /** The stock count in progress (one at a time, of the shop or the warehouse), if any, with its lines. */
 export async function getOpenCount() {
   const { supabase } = await requirePosUser();
   const { data: count, error } = await supabase
     .from("stock_counts")
-    .select("id, note, created_at, created_by, location_id, stock_count_lines(variant_id, expected, counted)")
+    .select("id, note, created_at, created_by, location_id, stock_count_lines(variant_id, expected, counted, cartons, singles)")
     .eq("status", "open")
     .maybeSingle();
   if (error) throw new Error(`Could not load the stock count: ${error.message}`);
   if (!count) return null;
 
   const people = await getPeopleNames();
-  const lines: CountLine[] = count.stock_count_lines.map((l) => ({ variantId: l.variant_id, expected: l.expected, counted: l.counted }));
+  const lines: CountLine[] = count.stock_count_lines.map((l) => ({
+    variantId: l.variant_id,
+    expected: l.expected,
+    counted: l.counted,
+    cartons: l.cartons,
+    singles: l.singles,
+  }));
   return {
     id: count.id,
     note: count.note,
@@ -35,7 +42,7 @@ export async function getCountDifferences(lines: CountLine[]) {
   const { supabase } = await requirePosUser();
   const { data, error } = await supabase
     .from("pos_stock_rows")
-    .select("variant_id, product_name, sku")
+    .select("variant_id, product_name, sku, units_per_carton")
     .in("variant_id", differing.map((l) => l.variantId));
   if (error) throw new Error(`Could not load the differences: ${error.message}`);
   const names = new Map(data.map((r) => [r.variant_id!, r]));
@@ -46,6 +53,7 @@ export async function getCountDifferences(lines: CountLine[]) {
       variantId: l.variantId,
       productName: l.row!.product_name ?? "",
       sku: l.row!.sku,
+      unitsPerCarton: l.row!.units_per_carton,
       expected: l.expected,
       counted: l.counted,
     }))

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { friendlyDbError } from "@/lib/pos/errors";
-import { countLineSchema } from "@/lib/pos/schemas";
+import { countPartsSchema } from "@/lib/pos/schemas";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { refreshPosAndShop } from "@/lib/server/pos/refresh";
 import type { ActionResult } from "../products/actions";
@@ -27,22 +27,50 @@ export async function startCount(_prev: ActionResult | null, formData: FormData)
   return { ok: true, message: "Count started." };
 }
 
-/** Saves one counted number (empty clears it). */
-export async function saveCountLine(countId: string, variantId: string, counted: string): Promise<ActionResult> {
+/** Saves one counted product as cartons + singles (both empty clears it); the database works out the total. */
+export async function saveCountLine(countId: string, variantId: string, cartons: string, singles: string): Promise<ActionResult> {
   const { supabase, canAdjustStock } = await requirePosUser();
   if (!canAdjustStock) return NOT_ALLOWED;
-  const parsed = countLineSchema.safeParse({ countId, variantId, counted });
+  const parsed = countPartsSchema.safeParse({ countId, variantId, cartons: cartons.trim(), singles: singles.trim() });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const p = parsed.data;
 
   const { error } = await supabase.rpc("pos_save_count_line", {
-    p_count_id: parsed.data.countId,
-    p_variant_id: parsed.data.variantId,
-    // null clears the line; the generated type doesn't know the column accepts it.
-    p_counted: parsed.data.counted as number,
+    p_count_id: p.countId,
+    p_variant_id: p.variantId,
+    // null leaves that part empty; the generated type doesn't know the function takes null.
+    p_cartons: p.cartons as number,
+    p_singles: p.singles as number,
   });
   if (error) return { ok: false, message: friendlyDbError(error) };
   revalidatePath("/pos/count");
-  return { ok: true, message: parsed.data.counted === null ? "Cleared." : "Saved." };
+  return { ok: true, message: p.cartons === null && p.singles === null ? "Cleared." : "Saved." };
+}
+
+/** How many single items are in a carton of a product (empty clears it). */
+export async function setCartonSize(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const { supabase, canAdjustStock } = await requirePosUser();
+  if (!canAdjustStock) return NOT_ALLOWED;
+  const parsed = z
+    .object({
+      variantId: z.uuid(),
+      units: z.union([
+        z.literal(""),
+        z.coerce.number().int("Whole numbers only.").min(2, "A carton holds 2 or more items.").max(10000, "At most 10,000 items."),
+      ]),
+    })
+    .safeParse({ variantId: formData.get("variantId"), units: String(formData.get("units") ?? "").trim() });
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+
+  const units = parsed.data.units === "" ? null : parsed.data.units;
+  const { error } = await supabase.rpc("pos_set_carton_size", {
+    p_variant_id: parsed.data.variantId,
+    // null clears it; the generated type doesn't know the function takes null.
+    p_units: units as number,
+  });
+  if (error) return { ok: false, message: friendlyDbError(error) };
+  revalidatePath("/pos", "layout");
+  return { ok: true, message: units ? `A carton holds ${units}.` : "Carton size cleared." };
 }
 
 export async function finishCount(_prev: ActionResult | null, formData: FormData): Promise<ActionResult> {
