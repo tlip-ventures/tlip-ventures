@@ -89,6 +89,37 @@ export function periodRange(period: Period, now: Date): PeriodRange {
   };
 }
 
+/** "2026-11-13" as a date, or null when it isn't a real day ("2026-02-30", "13/11"). */
+export function parseDay(value: string | null | undefined): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? "");
+  if (!m) return null;
+  const date = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return date.toISOString().slice(0, 10) === value ? date : null;
+}
+
+/**
+ * One chosen day: its sales in parts of the day (before 9, 9–12, 12–3,
+ * 3–6, after 6, Ghana time) against the same day the week before.
+ */
+export function dayRange(day: Date): PeriodRange {
+  const start = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate());
+  const hour = 3_600_000;
+  const bounds = [0, 9, 12, 15, 18, 24].map((h) => new Date(start + h * hour));
+  const name = (t: number) => {
+    const d = new Date(t);
+    return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+  };
+  return {
+    bounds,
+    labels: ["Before 9am", "9am–12", "12–3pm", "3–6pm", "After 6pm"],
+    shortLabels: ["<9", "9–12", "12–3", "3–6", "6+"],
+    prevFrom: new Date(start - 7 * DAY),
+    prevTo: new Date(start - 6 * DAY),
+    word: `on ${name(start)}`,
+    prevWord: name(start - 7 * DAY),
+  };
+}
+
 /** "+12%", "−5%" or "0%"; null when there is nothing to compare with. */
 export function percentChange(current: number, previous: number): string | null {
   if (previous <= 0) return null;

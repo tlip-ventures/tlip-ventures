@@ -71,27 +71,52 @@ export function TopBarTools({ alerts }: { alerts: Alert[] }) {
   );
 }
 
-/** This week / This month / This year: links, so it works without JavaScript. */
-export function PeriodSwitch({ current }: { current: Period }) {
+/**
+ * This week / This month / This year (links), and a date box for one
+ * particular day (a small form). Both work without JavaScript.
+ */
+export function PeriodSwitch({ current, day, today }: { current: Period; day: string | null; today: string }) {
   return (
-    <nav aria-label="Period" className="flex rounded-lg bg-pos-paper-deep p-[3px]">
-      {PERIODS.map((p) => {
-        const on = p === current;
-        return (
-          <Link
-            key={p}
-            href={p === "week" ? "/pos" : `/pos?period=${p}`}
-            aria-current={on ? "true" : undefined}
-            scroll={false}
-            className={`flex min-h-[38px] items-center rounded-md px-4 text-[13px] text-pos-ink no-underline hover:text-pos-ink ${
-              on ? "bg-white font-bold shadow-[0_1px_2px_rgba(17,17,17,0.12)]" : "font-medium"
-            }`}
-          >
-            {PERIOD_LABELS[p]}
-          </Link>
-        );
-      })}
-    </nav>
+    <div className="flex flex-wrap items-center gap-2">
+      <nav aria-label="Period" className="flex rounded-lg bg-pos-paper-deep p-[3px]">
+        {PERIODS.map((p) => {
+          const on = !day && p === current;
+          return (
+            <Link
+              key={p}
+              href={p === "week" ? "/pos" : `/pos?period=${p}`}
+              aria-current={on ? "true" : undefined}
+              scroll={false}
+              className={`flex min-h-[38px] items-center rounded-md px-4 text-[13px] text-pos-ink no-underline hover:text-pos-ink ${
+                on ? "bg-white font-bold shadow-[0_1px_2px_rgba(17,17,17,0.12)]" : "font-medium"
+              }`}
+            >
+              {PERIOD_LABELS[p]}
+            </Link>
+          );
+        })}
+      </nav>
+      <form
+        action="/pos"
+        className={`flex items-center gap-1.5 rounded-lg p-[3px] ${day ? "bg-white shadow-[0_1px_2px_rgba(17,17,17,0.12)]" : "bg-pos-paper-deep"}`}
+      >
+        <label htmlFor="tv-day" className="sr-only">
+          Show one day
+        </label>
+        <input
+          id="tv-day"
+          type="date"
+          name="day"
+          defaultValue={day ?? ""}
+          max={today}
+          required
+          className="min-h-[38px] rounded-md border border-pos-line bg-white px-2 text-[13px] text-pos-ink"
+        />
+        <button type="submit" className="min-h-[38px] rounded-md bg-pos-green px-3 text-[13px] font-bold text-white hover:bg-pos-forest">
+          Show day
+        </button>
+      </form>
+    </div>
   );
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barHeight, chartTop, greeting, percentChange, periodRange, shortMoney } from "./periods";
+import { barHeight, chartTop, dayRange, greeting, parseDay, percentChange, periodRange, shortMoney } from "./periods";
 
 const now = new Date("2026-10-29T09:30:00Z"); // a Thursday
 
@@ -86,5 +86,34 @@ describe("greeting", () => {
     expect(greeting(new Date("2026-10-29T08:00:00Z"))).toBe("Good morning");
     expect(greeting(new Date("2026-10-29T13:00:00Z"))).toBe("Good afternoon");
     expect(greeting(new Date("2026-10-29T19:00:00Z"))).toBe("Good evening");
+  });
+});
+
+describe("parseDay", () => {
+  it("reads real days only", () => {
+    expect(parseDay("2026-11-13")?.toISOString()).toBe("2026-11-13T00:00:00.000Z");
+    expect(parseDay("2026-02-30")).toBeNull();
+    expect(parseDay("13/11/2026")).toBeNull();
+    expect(parseDay("")).toBeNull();
+    expect(parseDay(undefined)).toBeNull();
+  });
+});
+
+describe("dayRange", () => {
+  it("splits one day into parts and compares it with the same day a week before", () => {
+    const r = dayRange(new Date("2026-11-13T00:00:00Z"));
+    expect(r.bounds.map((b) => b.toISOString())).toEqual([
+      "2026-11-13T00:00:00.000Z",
+      "2026-11-13T09:00:00.000Z",
+      "2026-11-13T12:00:00.000Z",
+      "2026-11-13T15:00:00.000Z",
+      "2026-11-13T18:00:00.000Z",
+      "2026-11-14T00:00:00.000Z",
+    ]);
+    expect(r.labels).toHaveLength(5);
+    expect(r.prevFrom.toISOString()).toBe("2026-11-06T00:00:00.000Z");
+    expect(r.prevTo.toISOString()).toBe("2026-11-07T00:00:00.000Z");
+    expect(r.word).toBe("on Fri 13 Nov");
+    expect(r.prevWord).toBe("Fri 6 Nov");
   });
 });
