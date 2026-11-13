@@ -1,5 +1,5 @@
 import "server-only";
-import { periodRange, type Period } from "@/lib/pos/periods";
+import { dayRange, periodRange, type Period } from "@/lib/pos/periods";
 import { requirePosUser } from "./auth";
 
 export type PeriodFigures = {
@@ -24,10 +24,10 @@ type RawFigures = {
   missing_costs: number | null;
 };
 
-/** Sales, purchases and profit for This week / This month / This year. */
-export async function getPeriodFigures(period: Period, now = new Date()): Promise<PeriodFigures> {
+/** Sales, purchases and profit for This week / This month / This year, or for one chosen day. */
+export async function getPeriodFigures(period: Period, now = new Date(), day: Date | null = null): Promise<PeriodFigures> {
   const { supabase } = await requirePosUser();
-  const range = periodRange(period, now);
+  const range = day ? dayRange(day) : periodRange(period, now);
   const { data, error } = await supabase.rpc("pos_period_figures", {
     p_bounds: range.bounds.map((b) => b.toISOString()),
     p_prev_from: range.prevFrom.toISOString(),

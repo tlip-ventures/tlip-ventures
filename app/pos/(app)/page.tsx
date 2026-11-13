@@ -4,7 +4,7 @@ import { MoneyCards, PeriodSwitch, RecentSales, RestockCard, SalesChart, TopBarT
 import { PageShell } from "@/components/pos/ui";
 import { formatPesewas } from "@/lib/money";
 import { formatLongDay, plural } from "@/lib/pos/format";
-import { greeting, PERIODS } from "@/lib/pos/periods";
+import { greeting, parseDay, PERIODS } from "@/lib/pos/periods";
 import { requirePosUser } from "@/lib/server/pos/auth";
 import { getMoneyOwed, getPeriodFigures, getWebsiteOrders } from "@/lib/server/pos/dashboard";
 import { listRecords } from "@/lib/server/pos/records";
@@ -12,16 +12,24 @@ import { getStockSummary, listStockRows } from "@/lib/server/pos/stock";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
+const first = (v: unknown) => (Array.isArray(v) ? v[0] : v);
 const paramsSchema = z.object({
-  period: z.preprocess((v) => (Array.isArray(v) ? v[0] : v), z.enum(PERIODS)).catch("week"),
+  period: z.preprocess(first, z.enum(PERIODS)).catch("week"),
+  // One particular day, "2026-11-13" (from the date box); anything else is ignored.
+  day: z.preprocess(first, z.string().max(10)).optional().catch(undefined),
 });
 
 export default async function DashboardPage({ searchParams }: PageProps<"/pos">) {
-  const { period } = paramsSchema.parse(await searchParams);
+  const params = paramsSchema.parse(await searchParams);
+  const period = params.period;
   const user = await requirePosUser();
   const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  // A day after today has nothing to show: use the period instead.
+  const dayDate = parseDay(params.day);
+  const day = dayDate && params.day! <= today ? params.day! : null;
   const [figures, owed, web, recent, attention, summary] = await Promise.all([
-    getPeriodFigures(period, now),
+    getPeriodFigures(period, now, day ? dayDate : null),
     getMoneyOwed(),
     getWebsiteOrders(),
     listRecords("sales", { page: 1, pageSize: 5 }),
@@ -54,7 +62,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/pos">)
           <h2 id="tv-money" className="m-0 text-[13px] font-semibold uppercase leading-[18px] tracking-[0.14em] text-pos-muted">
             Money
           </h2>
-          <PeriodSwitch current={period} />
+          <PeriodSwitch current={period} day={day} today={today} />
         </div>
         <MoneyCards figures={figures} owed={owed} />
       </section>
