@@ -7,6 +7,7 @@ import {
   purchaseStatusPill,
   RECORD_FILTER_LABELS,
   RECORD_FILTERS,
+  recordFilters,
   RECORD_PERIOD_LABELS,
   RECORD_PERIODS,
   returnStatusPill,
@@ -21,8 +22,9 @@ import {
   type SaleType,
 } from "@/lib/pos/records";
 import type { RiderTotals } from "@/lib/server/pos/deliveries";
+import type { ReactNode } from "react";
 import type { RecordRow, RecordsSummary } from "@/lib/server/pos/records";
-import { DownloadIcon, MoreIcon, PlusIcon, ReturnsIcon } from "./icons";
+import { BackIcon, DownloadIcon, MoreIcon, PlusIcon, ReturnsIcon } from "./icons";
 import { FilterChips, Pager, SearchForm } from "./list-controls";
 import { MarkOrderPaidButton, PaymentButton } from "./record-actions";
 import { buttonClass, ButtonLink, Card, PageHeader, PageShell, Pill, ScrollTable, StatGrid, TableHead, Th } from "./ui";
@@ -38,6 +40,26 @@ function statusFor(row: RecordRow) {
   if (row.kind === "sales") return saleStatusPill(row.saleStatus!);
   if (row.kind === "purchases") return purchaseStatusPill(row.purchaseStatus!);
   return returnStatusPill(row.items ?? 0, row.restocked ?? 0);
+}
+
+/** A total card that opens the records it adds up, in the list below. */
+function StatLink({ href, on, label, hint, children }: { href: string; on: boolean; label: string; hint: string; children: ReactNode }) {
+  return (
+    <Link
+      href={href}
+      aria-current={on ? "true" : undefined}
+      className={`flex flex-col gap-1.5 rounded-[10px] border bg-white px-[18px] py-4 text-pos-ink no-underline hover:border-pos-green hover:text-pos-ink ${
+        on ? "border-pos-green ring-1 ring-pos-green" : "border-pos-card-line"
+      }`}
+    >
+      <span className="flex items-center justify-between gap-2 text-[13px] font-semibold text-pos-muted">
+        <span>{label}</span>
+        <BackIcon size={16} className="flex-none rotate-180" />
+      </span>
+      {children}
+      <span className="sr-only">{hint}</span>
+    </Link>
+  );
 }
 
 /** The design's Sales / Purchases / Returns screen: one tab per record type. */
@@ -78,6 +100,9 @@ export function RecordsView({
     const s = query(changes);
     return `${base}${s ? `?${s}` : ""}`;
   };
+  // A card opens the list below, showing only what it adds up.
+  const cardHref = (filter: RecordFilter) => `${href({ filter, page: 1 })}#records`;
+  const things = m.heading.toLowerCase();
   const exportQuery = query({ page: 1 });
   const deliveryPaid = summary.delivery_paid ?? 0;
   const tabs = (["sales", "purchases", "returns"] as const).filter((t) => isOwner || t !== "purchases");
@@ -120,42 +145,63 @@ export function RecordsView({
         })}
       </nav>
 
-      {/* The cards below and the downloads follow the period chosen here. */}
-      <FilterChips<RecordPeriod>
-        label="Period"
-        options={RECORD_PERIODS.map((p) => ({ value: p, name: RECORD_PERIOD_LABELS[p] }))}
-        current={params.period}
-        href={(period) => href({ period, page: 1 })}
-      />
+      {/* The cards below, the list and the downloads follow the period and the search chosen here. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <FilterChips<RecordPeriod>
+          label="Period"
+          options={RECORD_PERIODS.map((p) => ({ value: p, name: RECORD_PERIOD_LABELS[p] }))}
+          current={params.period}
+          href={(period) => href({ period, page: 1 })}
+        />
+        <SearchForm
+          action={base}
+          id="sl-q"
+          label="Search the totals and the list"
+          placeholder={m.search}
+          value={params.q}
+          hidden={{
+            ...(params.filter !== "all" ? { filter: params.filter } : {}),
+            ...(params.period !== "all" ? { period: params.period } : {}),
+            ...(params.rider ? { rider: params.rider } : {}),
+            ...(params.type !== "all" ? { type: params.type } : {}),
+          }}
+        />
+      </div>
+      {params.q && (
+        <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-pos-soft">
+          <span>
+            The totals and the list show only {things} matching <strong className="text-pos-ink">&ldquo;{params.q}&rdquo;</strong>.
+          </span>
+          <Link href={href({ q: "", page: 1 })} className="inline-flex min-h-11 items-center font-bold md:min-h-8">
+            Clear search
+          </Link>
+        </p>
+      )}
 
       <StatGrid min={200}>
-        <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
-          <span className="text-[13px] font-semibold text-pos-muted">Total value</span>
+        <StatLink href={cardHref("all")} on={false} label="Total value" hint={`Show all ${things} in the list`}>
           <span className="font-pos-display text-[28px] leading-none tabular-nums">{formatPesewas(summary.total)}</span>
-        </div>
-        <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
-          <span className="text-[13px] font-semibold text-pos-muted">{m.paidLabel}</span>
+        </StatLink>
+        <StatLink href={cardHref("collected")} on={params.filter === "collected"} label={m.paidLabel} hint={`Show only ${things} with a payment`}>
           <span className="font-pos-display text-[28px] leading-none tabular-nums text-pos-green-ink">{formatPesewas(summary.paid)}</span>
           {kind === "sales" && (
             <span className="text-[13px] tabular-nums text-pos-soft">
               Items {formatPesewas(summary.paid - deliveryPaid)} · Delivery {formatPesewas(deliveryPaid)}
             </span>
           )}
-        </div>
-        <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
-          <span className="text-[13px] font-semibold text-pos-muted">{m.dueLabel}</span>
+        </StatLink>
+        <StatLink href={cardHref("unpaid")} on={params.filter === "unpaid"} label={m.dueLabel} hint={`Show only ${things} with money still owed`}>
           <span className="font-pos-display text-[28px] leading-none tabular-nums text-pos-rust">{formatPesewas(summary.owed)}</span>
-        </div>
+        </StatLink>
         {kind === "sales" && (
           // Delivery money on its own, for the end-of-day count (already part of Total value).
-          <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
-            <span className="text-[13px] font-semibold text-pos-muted">Delivery fees</span>
+          <StatLink href={cardHref("delivery")} on={params.filter === "delivery"} label="Delivery fees" hint="Show only sales with a delivery fee">
             <span className="font-pos-display text-[28px] leading-none tabular-nums">{formatPesewas(summary.delivery)}</span>
             <span className="text-[13px] tabular-nums text-pos-soft">
               Collected {formatPesewas(deliveryPaid)}
               {summary.delivery - deliveryPaid > 0 ? ` · still owed ${formatPesewas(summary.delivery - deliveryPaid)}` : ""}
             </span>
-          </div>
+          </StatLink>
         )}
       </StatGrid>
 
@@ -216,21 +262,9 @@ export function RecordsView({
         </Card>
       )}
 
+      <div id="records" className="scroll-mt-4">
       <Card label={m.heading}>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-pos-paper-deep px-[18px] py-3.5">
-          <SearchForm
-            action={base}
-            id="sl-q"
-            label="Search this list"
-            placeholder={m.search}
-            value={params.q}
-            hidden={{
-              ...(params.filter !== "all" ? { filter: params.filter } : {}),
-              ...(params.period !== "all" ? { period: params.period } : {}),
-              ...(params.rider ? { rider: params.rider } : {}),
-              ...(params.type !== "all" ? { type: params.type } : {}),
-            }}
-          />
           {kind === "sales" && (
             <FilterChips<SaleType>
               label="Retail or wholesale"
@@ -241,7 +275,7 @@ export function RecordsView({
           )}
           <FilterChips<RecordFilter>
             label="Payment filter"
-            options={RECORD_FILTERS.map((f) => ({ value: f, name: RECORD_FILTER_LABELS[f] }))}
+            options={recordFilters(kind).map((f) => ({ value: f, name: RECORD_FILTER_LABELS[f] }))}
             current={params.filter}
             href={(filter) => href({ filter, page: 1 })}
           />
@@ -396,6 +430,7 @@ export function RecordsView({
           </div>
         )}
       </Card>
+      </div>
     </PageShell>
   );
 }
