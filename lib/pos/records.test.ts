@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { paidByText, saleTypeFilter, paymentPill, purchaseStatusPill, recordPeriodRange, returnStatusPill, riderTerm, saleStatusPill } from "./records";
+import { paidByText, paymentPill, purchaseStatusPill, recordDay, recordPeriodRange, returnStatusPill, riderTerm, saleStatusPill, saleTypeFilter } from "./records";
 
 describe("record pills", () => {
   it("labels payment like the design", () => {
@@ -56,5 +56,32 @@ describe("paidByText", () => {
 describe("saleTypeFilter", () => {
   it("maps the chips to the database filter", () => {
     expect([saleTypeFilter("all"), saleTypeFilter("retail"), saleTypeFilter("wholesale")]).toEqual([null, false, true]);
+  });
+});
+
+describe("recordDay", () => {
+  const now = new Date("2026-11-14T10:00:00Z");
+  it("keeps a real day up to today", () => {
+    expect(recordDay("2026-11-10", now)).toBe("2026-11-10");
+    expect(recordDay("2026-11-14", now)).toBe("2026-11-14");
+  });
+  it("drops later days and bad dates", () => {
+    expect(recordDay("2026-11-15", now)).toBe("");
+    expect(recordDay("2026-02-30", now)).toBe("");
+    expect(recordDay("10/11/2026", now)).toBe("");
+    expect(recordDay(undefined, now)).toBe("");
+  });
+});
+
+describe("recordPeriodRange with a day", () => {
+  const now = new Date("2026-11-14T10:00:00Z");
+  it("covers that whole day, whatever the period", () => {
+    const r = recordPeriodRange("month", now, "2026-11-10");
+    expect(r?.from.toISOString()).toBe("2026-11-10T00:00:00.000Z");
+    expect(r?.to.toISOString()).toBe("2026-11-11T00:00:00.000Z");
+  });
+  it("falls back to the period without a day", () => {
+    expect(recordPeriodRange("all", now, "")).toBeNull();
+    expect(recordPeriodRange("today", now)?.from.toISOString()).toBe("2026-11-14T00:00:00.000Z");
   });
 });

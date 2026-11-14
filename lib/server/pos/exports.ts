@@ -1,5 +1,5 @@
 import "server-only";
-import { formatDayTime } from "@/lib/pos/format";
+import { formatDay, formatDayTime } from "@/lib/pos/format";
 import {
   paidByText,
   paymentPill,
@@ -9,6 +9,7 @@ import {
   RECORD_PERIOD_LABELS,
   RECORD_PERIODS,
   returnStatusPill,
+  recordDay,
   riderTerm,
   SALE_TYPE_LABELS,
   SALE_TYPES,
@@ -49,7 +50,7 @@ export type ExportTable = {
   cut: boolean;
 };
 
-export type ExportParams = { q: string; filter: string; period: RecordPeriod; rider: string; type: SaleType };
+export type ExportParams = { q: string; filter: string; period: RecordPeriod; day: string; rider: string; type: SaleType };
 
 export function parseExportParams(get: (name: string) => string | null): ExportParams {
   const period = get("period") ?? "all";
@@ -57,6 +58,7 @@ export function parseExportParams(get: (name: string) => string | null): ExportP
     q: (get("q") ?? "").trim().slice(0, 100),
     filter: get("filter") ?? "all",
     period: (RECORD_PERIODS as readonly string[]).includes(period) ? (period as RecordPeriod) : "all",
+    day: recordDay(get("day"), new Date()),
     rider: riderTerm(get("rider") ?? undefined),
     type: (SALE_TYPES as readonly string[]).includes(get("type") ?? "") ? (get("type") as SaleType) : "all",
   };
@@ -142,7 +144,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
   }
 
   const filter: RecordFilter = (recordFilters(kind) as readonly string[]).includes(params.filter) ? (params.filter as RecordFilter) : "all";
-  const { rows, cut } = await everyPage<RecordRow>((page) => listRecords(kind, { search: params.q, filter, period: params.period, rider: kind === "sales" ? params.rider : "", type: kind === "sales" ? params.type : "all", page, pageSize: BATCH }));
+  const { rows, cut } = await everyPage<RecordRow>((page) => listRecords(kind, { search: params.q, filter, period: params.period, day: params.day, rider: kind === "sales" ? params.rider : "", type: kind === "sales" ? params.type : "all", page, pageSize: BATCH }));
   const meta = TAB_META[kind];
   const status = (r: RecordRow) =>
     kind === "sales"
@@ -157,7 +159,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
     title: meta.heading,
     scope: scopeText(
       [
-        params.period === "all" ? null : RECORD_PERIOD_LABELS[params.period],
+        params.day ? formatDay(params.day) : params.period === "all" ? null : RECORD_PERIOD_LABELS[params.period],
         kind === "sales" && params.rider ? `Rider ${params.rider}` : null,
         kind === "sales" && params.type !== "all" ? SALE_TYPE_LABELS[params.type] : null,
         filter === "all" ? null : RECORD_FILTER_LABELS[filter],

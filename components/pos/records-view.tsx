@@ -9,6 +9,7 @@ import {
   recordFilters,
   RECORD_PERIOD_LABELS,
   RECORD_PERIODS,
+  recordDay,
   returnStatusPill,
   riderTerm,
   SALE_TYPE_LABELS,
@@ -30,7 +31,8 @@ import { buttonClass, ButtonLink, Card, PageHeader, PageShell, Pill, ScrollTable
 
 /** rider: Sales only, one rider's deliveries ("" for every sale). */
 /** type: Sales only, Retail / Wholesale ("all" for both). */
-export type RecordsParams = { q: string; filter: RecordFilter; period: RecordPeriod; rider: string; type: SaleType; page: number };
+/** day: one particular day ("2026-11-10"), chosen in the date box; it wins over the period ("" for none). */
+export type RecordsParams = { q: string; filter: RecordFilter; period: RecordPeriod; day: string; rider: string; type: SaleType; page: number };
 
 const PATHS: Record<RecordKind, string> = { sales: "/pos/sales", purchases: "/pos/purchases", returns: "/pos/returns" };
 const SETTLE_KIND = { sales: "sale", purchases: "purchase", returns: "refund" } as const;
@@ -87,7 +89,8 @@ export function RecordsView({
   const query = (changes: Partial<RecordsParams>) => {
     const next = { ...params, ...changes };
     const q = new URLSearchParams();
-    if (next.period !== "all") q.set("period", next.period);
+    if (next.day) q.set("day", next.day);
+    else if (next.period !== "all") q.set("period", next.period);
     if (next.filter !== "all") q.set("filter", next.filter);
     if (next.rider) q.set("rider", next.rider);
     if (next.type !== "all") q.set("type", next.type);
@@ -144,14 +147,41 @@ export function RecordsView({
         })}
       </nav>
 
-      {/* The cards below, the list and the downloads follow the period and the search chosen here. */}
+      {/* The cards below, the list and the downloads follow the period (or day) and the search chosen here. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <FilterChips<RecordPeriod>
-          label="Period"
-          options={RECORD_PERIODS.map((p) => ({ value: p, name: RECORD_PERIOD_LABELS[p] }))}
-          current={params.period}
-          href={(period) => href({ period, page: 1 })}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterChips<RecordPeriod | "day">
+            label="Period"
+            options={RECORD_PERIODS.map((p) => ({ value: p, name: RECORD_PERIOD_LABELS[p] }))}
+            current={params.day ? "day" : params.period}
+            href={(period) => href({ period: period as RecordPeriod, day: "", page: 1 })}
+          />
+          {/* One particular day: a small form, so it works without JavaScript. */}
+          <form
+            action={base}
+            className={`flex items-center gap-1.5 rounded-full p-[3px] ${params.day ? "bg-pos-forest" : "bg-pos-paper-deep"}`}
+          >
+            {params.filter !== "all" && <input type="hidden" name="filter" value={params.filter} />}
+            {params.rider && <input type="hidden" name="rider" value={params.rider} />}
+            {params.type !== "all" && <input type="hidden" name="type" value={params.type} />}
+            {params.q && <input type="hidden" name="q" value={params.q} />}
+            <label htmlFor={`${kind}-day`} className="sr-only">
+              Show one day
+            </label>
+            <input
+              id={`${kind}-day`}
+              type="date"
+              name="day"
+              defaultValue={params.day}
+              max={new Date().toISOString().slice(0, 10)}
+              required
+              className="min-h-10 rounded-full border border-pos-line bg-white px-3 text-[13px] text-pos-ink"
+            />
+            <button type="submit" className="min-h-10 rounded-full bg-pos-green px-3.5 text-[13px] font-bold text-white hover:bg-pos-forest">
+              Show day
+            </button>
+          </form>
+        </div>
         <SearchForm
           action={base}
           id="sl-q"
@@ -160,12 +190,22 @@ export function RecordsView({
           value={params.q}
           hidden={{
             ...(params.filter !== "all" ? { filter: params.filter } : {}),
-            ...(params.period !== "all" ? { period: params.period } : {}),
+            ...(params.day ? { day: params.day } : params.period !== "all" ? { period: params.period } : {}),
             ...(params.rider ? { rider: params.rider } : {}),
             ...(params.type !== "all" ? { type: params.type } : {}),
           }}
         />
       </div>
+      {params.day && (
+        <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-pos-soft">
+          <span>
+            Showing <strong className="text-pos-ink">{formatDay(params.day)}</strong> only.
+          </span>
+          <Link href={href({ day: "", page: 1 })} className="inline-flex min-h-11 items-center font-bold md:min-h-8">
+            Back to {RECORD_PERIOD_LABELS[params.period].toLowerCase()}
+          </Link>
+        </p>
+      )}
       {params.q && (
         <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-pos-soft">
           <span>
@@ -210,7 +250,7 @@ export function RecordsView({
             <div className="flex flex-col gap-0.5">
               <h2 className="m-0 text-lg font-bold leading-6">Deliveries by rider</h2>
               <p className="m-0 text-[13px] text-pos-muted">
-                {RECORD_PERIOD_LABELS[params.period]}. Choose a rider to see only their sales and add up their delivery fees.
+                {params.day ? formatDay(params.day) : RECORD_PERIOD_LABELS[params.period]}. Choose a rider to see only their sales and add up their delivery fees.
               </p>
             </div>
             {params.rider && (
@@ -421,10 +461,10 @@ export function RecordsView({
                 <ReturnsIcon />
               </span>
               <span className="font-pos-display text-[26px] leading-[1.1]">
-                {params.q || params.filter !== "all" || params.period !== "all" || params.rider ? "Nothing here." : m.emptyTitle}
+                {params.q || params.filter !== "all" || params.period !== "all" || params.day || params.rider ? "Nothing here." : m.emptyTitle}
               </span>
               <span className="max-w-[420px] text-sm leading-[22px] text-pos-soft">
-                {params.q || params.filter !== "all" || params.period !== "all" || params.rider ? "No records match this filter. Try All or All time." : m.emptyBody}
+                {params.q || params.filter !== "all" || params.period !== "all" || params.day || params.rider ? "No records match this filter. Try All or All time." : m.emptyBody}
               </span>
             </div>
           )}
@@ -444,6 +484,7 @@ export function parseRecordsParams(raw: Record<string, string | string[] | undef
     q: one(raw.q).trim().slice(0, 100),
     filter: (recordFilters(kind) as readonly string[]).includes(filter) ? (filter as RecordFilter) : "all",
     period: (RECORD_PERIODS as readonly string[]).includes(period) ? (period as RecordPeriod) : "all",
+    day: recordDay(one(raw.day), new Date()),
     rider: riderTerm(one(raw.rider)),
     type: (SALE_TYPES as readonly string[]).includes(one(raw.type)) ? (one(raw.type) as SaleType) : "all",
     page: Number.isSafeInteger(page) && page >= 1 && page <= 10_000 ? page : 1,
