@@ -82,6 +82,9 @@ export async function listRecords(
     if (wholesale !== null) query = query.eq("wholesale", wholesale);
     if (options.filter === "unpaid") query = query.gt("owed", 0);
     if (options.filter === "paid") query = query.eq("owed", 0).not("status", "in", "(voided,cancelled)");
+    // The sales the Collected and Delivery fees cards add up.
+    if (options.filter === "collected") query = query.gt("paid", 0).not("status", "in", "(voided,cancelled)");
+    if (options.filter === "delivery") query = query.gt("delivery", 0).not("status", "in", "(voided,cancelled)");
     const { data, count, error } = await query.range(from, to);
     if (error?.code === "PGRST103") return { rows: [] as RecordRow[], total: count ?? 0 };
     if (error) throw new Error(`Could not load sales: ${error.message}`);
@@ -125,6 +128,7 @@ export async function listRecords(
     if (range) query = query.gte("created_at", range.from.toISOString()).lt("created_at", range.to.toISOString());
     if (options.filter === "unpaid") query = query.gt("owed", 0);
     if (options.filter === "paid") query = query.eq("owed", 0).neq("status", "cancelled");
+    if (options.filter === "collected") query = query.gt("paid", 0).neq("status", "cancelled");
     const { data, count, error } = await query.range(from, to);
     if (error?.code === "PGRST103") return { rows: [] as RecordRow[], total: count ?? 0 };
     if (error) throw new Error(`Could not load purchases: ${error.message}`);
@@ -153,6 +157,7 @@ export async function listRecords(
   if (range) query = query.gte("created_at", range.from.toISOString()).lt("created_at", range.to.toISOString());
   if (options.filter === "unpaid") query = query.gt("owed", 0);
   if (options.filter === "paid") query = query.eq("owed", 0);
+  if (options.filter === "collected") query = query.gt("paid", 0);
   const { data, count, error } = await query.range(from, to);
   if (error?.code === "PGRST103") return { rows: [] as RecordRow[], total: count ?? 0 };
   if (error) throw new Error(`Could not load returns: ${error.message}`);

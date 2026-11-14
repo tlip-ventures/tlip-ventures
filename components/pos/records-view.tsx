@@ -6,7 +6,7 @@ import {
   paymentPill,
   purchaseStatusPill,
   RECORD_FILTER_LABELS,
-  RECORD_FILTERS,
+  recordFilters,
   RECORD_PERIOD_LABELS,
   RECORD_PERIODS,
   returnStatusPill,
@@ -21,8 +21,9 @@ import {
   type SaleType,
 } from "@/lib/pos/records";
 import type { RiderTotals } from "@/lib/server/pos/deliveries";
+import type { ReactNode } from "react";
 import type { RecordRow, RecordsSummary } from "@/lib/server/pos/records";
-import { DownloadIcon, MoreIcon, PlusIcon, ReturnsIcon } from "./icons";
+import { BackIcon, DownloadIcon, MoreIcon, PlusIcon, ReturnsIcon } from "./icons";
 import { FilterChips, Pager, SearchForm } from "./list-controls";
 import { MarkOrderPaidButton, PaymentButton } from "./record-actions";
 import { buttonClass, ButtonLink, Card, PageHeader, PageShell, Pill, ScrollTable, StatGrid, TableHead, Th } from "./ui";
@@ -38,6 +39,26 @@ function statusFor(row: RecordRow) {
   if (row.kind === "sales") return saleStatusPill(row.saleStatus!);
   if (row.kind === "purchases") return purchaseStatusPill(row.purchaseStatus!);
   return returnStatusPill(row.items ?? 0, row.restocked ?? 0);
+}
+
+/** A total card that opens the records it adds up, in the list below. */
+function StatLink({ href, on, label, hint, children }: { href: string; on: boolean; label: string; hint: string; children: ReactNode }) {
+  return (
+    <Link
+      href={href}
+      aria-current={on ? "true" : undefined}
+      className={`flex flex-col gap-1.5 rounded-[10px] border bg-white px-[18px] py-4 text-pos-ink no-underline hover:border-pos-green hover:text-pos-ink ${
+        on ? "border-pos-green ring-1 ring-pos-green" : "border-pos-card-line"
+      }`}
+    >
+      <span className="flex items-center justify-between gap-2 text-[13px] font-semibold text-pos-muted">
+        <span>{label}</span>
+        <BackIcon size={16} className="flex-none rotate-180" />
+      </span>
+      {children}
+      <span className="sr-only">{hint}</span>
+    </Link>
+  );
 }
 
 /** The design's Sales / Purchases / Returns screen: one tab per record type. */
@@ -78,6 +99,9 @@ export function RecordsView({
     const s = query(changes);
     return `${base}${s ? `?${s}` : ""}`;
   };
+  // A card opens the list below, showing only what it adds up.
+  const cardHref = (filter: RecordFilter) => `${href({ filter, page: 1 })}#records`;
+  const things = m.heading.toLowerCase();
   const exportQuery = query({ page: 1 });
   const deliveryPaid = summary.delivery_paid ?? 0;
   const tabs = (["sales", "purchases", "returns"] as const).filter((t) => isOwner || t !== "purchases");
@@ -120,42 +144,63 @@ export function RecordsView({
         })}
       </nav>
 
-      {/* The cards below and the downloads follow the period chosen here. */}
-      <FilterChips<RecordPeriod>
-        label="Period"
-        options={RECORD_PERIODS.map((p) => ({ value: p, name: RECORD_PERIOD_LABELS[p] }))}
-        current={params.period}
-        href={(period) => href({ period, page: 1 })}
-      />
+      {/* The cards below, the list and the downloads follow the period and the search chosen here. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <FilterChips<RecordPeriod>
+          label="Period"
+          options={RECORD_PERIODS.map((p) => ({ value: p, name: RECORD_PERIOD_LABELS[p] }))}
+          current={params.period}
+          href={(period) => href({ period, page: 1 })}
+        />
+        <SearchForm
+          action={base}
+          id="sl-q"
+          label="Search the totals and the list"
+          placeholder={m.search}
+          value={params.q}
+          hidden={{
+            ...(params.filter !== "all" ? { filter: params.filter } : {}),
+            ...(params.period !== "all" ? { period: params.period } : {}),
+            ...(params.rider ? { rider: params.rider } : {}),
+            ...(params.type !== "all" ? { type: params.type } : {}),
+          }}
+        />
+      </div>
+      {params.q && (
+        <p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-pos-soft">
+          <span>
+            The totals and the list show only {things} matching <strong className="text-pos-ink">&ldquo;{params.q}&rdquo;</strong>.
+          </span>
+          <Link href={href({ q: "", page: 1 })} className="inline-flex min-h-11 items-center font-bold md:min-h-8">
+            Clear search
+          </Link>
+        </p>
+      )}
 
       <StatGrid min={200}>
-        <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
-          <span className="text-[13px] font-semibold text-pos-muted">Total value</span>
+        <StatLink href={cardHref("all")} on={false} label="Total value" hint={`Show all ${things} in the list`}>
           <span className="font-pos-display text-[28px] leading-none tabular-nums">{formatPesewas(summary.total)}</span>
-        </div>
-        <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
-          <span className="text-[13px] font-semibold text-pos-muted">{m.paidLabel}</span>
+        </StatLink>
+        <StatLink href={cardHref("collected")} on={params.filter === "collected"} label={m.paidLabel} hint={`Show only ${things} with a payment`}>
           <span className="font-pos-display text-[28px] leading-none tabular-nums text-pos-green-ink">{formatPesewas(summary.paid)}</span>
           {kind === "sales" && (
             <span className="text-[13px] tabular-nums text-pos-soft">
               Items {formatPesewas(summary.paid - deliveryPaid)} · Delivery {formatPesewas(deliveryPaid)}
             </span>
           )}
-        </div>
-        <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
-          <span className="text-[13px] font-semibold text-pos-muted">{m.dueLabel}</span>
+        </StatLink>
+        <StatLink href={cardHref("unpaid")} on={params.filter === "unpaid"} label={m.dueLabel} hint={`Show only ${things} with money still owed`}>
           <span className="font-pos-display text-[28px] leading-none tabular-nums text-pos-rust">{formatPesewas(summary.owed)}</span>
-        </div>
+        </StatLink>
         {kind === "sales" && (
           // Delivery money on its own, for the end-of-day count (already part of Total value).
-          <div className="flex flex-col gap-1.5 rounded-[10px] border border-pos-card-line bg-white px-[18px] py-4">
-            <span className="text-[13px] font-semibold text-pos-muted">Delivery fees</span>
+          <StatLink href={cardHref("delivery")} on={params.filter === "delivery"} label="Delivery fees" hint="Show only sales with a delivery fee">
             <span className="font-pos-display text-[28px] leading-none tabular-nums">{formatPesewas(summary.delivery)}</span>
             <span className="text-[13px] tabular-nums text-pos-soft">
               Collected {formatPesewas(deliveryPaid)}
               {summary.delivery - deliveryPaid > 0 ? ` · still owed ${formatPesewas(summary.delivery - deliveryPaid)}` : ""}
             </span>
-          </div>
+          </StatLink>
         )}
       </StatGrid>
 
@@ -216,199 +261,188 @@ export function RecordsView({
         </Card>
       )}
 
-      <Card label={m.heading}>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-pos-paper-deep px-[18px] py-3.5">
-          <SearchForm
-            action={base}
-            id="sl-q"
-            label="Search this list"
-            placeholder={m.search}
-            value={params.q}
-            hidden={{
-              ...(params.filter !== "all" ? { filter: params.filter } : {}),
-              ...(params.period !== "all" ? { period: params.period } : {}),
-              ...(params.rider ? { rider: params.rider } : {}),
-              ...(params.type !== "all" ? { type: params.type } : {}),
-            }}
-          />
-          {kind === "sales" && (
-            <FilterChips<SaleType>
-              label="Retail or wholesale"
-              options={SALE_TYPES.map((t) => ({ value: t, name: SALE_TYPE_LABELS[t] }))}
-              current={params.type}
-              href={(type) => href({ type, page: 1 })}
+      <div id="records" className="scroll-mt-4">
+        <Card label={m.heading}>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-pos-paper-deep px-[18px] py-3.5">
+            {kind === "sales" && (
+              <FilterChips<SaleType>
+                label="Retail or wholesale"
+                options={SALE_TYPES.map((t) => ({ value: t, name: SALE_TYPE_LABELS[t] }))}
+                current={params.type}
+                href={(type) => href({ type, page: 1 })}
+              />
+            )}
+            <FilterChips<RecordFilter>
+              label="Payment filter"
+              options={recordFilters(kind).map((f) => ({ value: f, name: RECORD_FILTER_LABELS[f] }))}
+              current={params.filter}
+              href={(filter) => href({ filter, page: 1 })}
             />
+          </div>
+          {params.rider && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-pos-paper-deep px-[18px] py-2.5 text-[13px]">
+              <span className="rounded-full bg-pos-tint-green px-3 py-1 font-semibold text-pos-green-ink">Rider: {params.rider}</span>
+              <span className="text-pos-soft">Only this rider&rsquo;s deliveries; the cards above add up just these.</span>
+              <Link href={href({ rider: "", page: 1 })} className="inline-flex min-h-11 items-center font-bold md:min-h-8">
+                Show every sale
+              </Link>
+            </div>
           )}
-          <FilterChips<RecordFilter>
-            label="Payment filter"
-            options={RECORD_FILTERS.map((f) => ({ value: f, name: RECORD_FILTER_LABELS[f] }))}
-            current={params.filter}
-            href={(filter) => href({ filter, page: 1 })}
-          />
-        </div>
-        {params.rider && (
-          <div className="flex flex-wrap items-center gap-2 border-b border-pos-paper-deep px-[18px] py-2.5 text-[13px]">
-            <span className="rounded-full bg-pos-tint-green px-3 py-1 font-semibold text-pos-green-ink">Rider: {params.rider}</span>
-            <span className="text-pos-soft">Only this rider&rsquo;s deliveries; the cards above add up just these.</span>
-            <Link href={href({ rider: "", page: 1 })} className="inline-flex min-h-11 items-center font-bold md:min-h-8">
-              Show every sale
-            </Link>
-          </div>
-        )}
 
-        {rows.length > 0 ? (
-          <>
-            <ScrollTable minWidth={kind === "sales" ? 1340 : 860}>
-              <TableHead>
-                <Th>Date</Th>
-                <Th>Reference</Th>
-                <Th>{m.party}</Th>
-                {kind === "sales" && <Th>Deliver to</Th>}
-                <Th>Status</Th>
-                {kind === "sales" && <Th align="right">Items</Th>}
-                {kind === "sales" && <Th align="right">Delivery</Th>}
-                <Th align="right">Total</Th>
-                <Th align="right">Paid</Th>
-                <Th align="right">Still owed</Th>
-                <Th>Payment</Th>
-                <Th>
-                  <span className="sr-only">Actions</span>
-                </Th>
-              </TableHead>
-              <tbody>
-                {rows.map((r) => {
-                  const status = statusFor(r);
-                  const pay = paymentPill(r.paid, r.owed, r.cancelled);
-                  const detail = `${base}/${r.id}`;
-                  // Sales with a delivery fee: money paid and owed, items and delivery apart.
-                  const split = kind === "sales" && (r.delivery ?? 0) > 0;
-                  const deliveryPaidRow = r.deliveryPaid ?? 0;
-                  const deliveryOwed = split && !r.cancelled ? Math.max(0, (r.delivery ?? 0) - deliveryPaidRow) : 0;
-                  return (
-                    <tr key={r.id} className="pos-row border-t border-pos-paper-deep">
-                      <td className="whitespace-nowrap py-3.5 pl-[18px] pr-3 text-pos-soft">{formatDay(r.createdAt)}</td>
-                      <td className="px-3 py-3.5 font-bold">
-                        <Link href={detail} className="text-pos-ink no-underline hover:underline">
-                          {r.code}
-                        </Link>
-                        {r.wholesale && <span className="mt-0.5 block text-xs font-semibold text-pos-green-ink">Wholesale</span>}
-                        {r.reserved && (
-                          <span className="mt-0.5 block text-xs font-semibold text-pos-green-ink">
-                            {r.reserved === "open" ? "Reserved: waiting" : "Reserved: handed over"}
-                          </span>
-                        )}
-                      </td>
-                      <td className="min-w-[170px] px-3 py-3.5">
-                        <span className="flex flex-col">
-                          <span>{r.party}</span>
-                          <span className="text-xs text-pos-muted">{r.sub}</span>
-                        </span>
-                      </td>
-                      {kind === "sales" && (
-                        <td className="min-w-[180px] max-w-[240px] px-3 py-3.5">
-                          {r.deliverTo ? (
-                            <span className="flex flex-col">
-                              <span className="line-clamp-2 break-words" title={r.deliverTo}>
-                                {r.deliverTo}
-                              </span>
-                              {r.rider && <span className="text-xs text-pos-muted">Rider: {r.rider}</span>}
-                            </span>
-                          ) : (
-                            <span className="text-pos-muted">{r.fromWebsite ? "—" : "In the shop"}</span>
-                          )}
-                        </td>
-                      )}
-                      <td className="px-3 py-3.5">
-                        <Pill className={status.className}>{status.label}</Pill>
-                      </td>
-                      {kind === "sales" && (
-                        <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums">{formatPesewas(r.total - (r.delivery ?? 0))}</td>
-                      )}
-                      {kind === "sales" && (
-                        <td className={`whitespace-nowrap px-3 py-3.5 text-right tabular-nums ${r.delivery ? "" : "text-pos-muted"}`}>
-                          {r.delivery ? formatPesewas(r.delivery) : "—"}
-                          {r.delivery && r.deliveryIncluded ? <span className="block text-xs text-pos-muted">in the price</span> : null}
-                        </td>
-                      )}
-                      <td className="whitespace-nowrap px-3 py-3.5 text-right font-semibold tabular-nums">{formatPesewas(r.total)}</td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums">
-                        {formatPesewas(r.paid)}
-                        {/* Delivery sales: what was paid for items and for delivery. */}
-                        {split && r.paid > 0 && (
-                          <span className="mt-0.5 flex flex-col text-xs text-pos-soft">
-                            <span>Items {formatPesewas(r.paid - deliveryPaidRow)}</span>
-                            <span>Delivery {formatPesewas(deliveryPaidRow)}</span>
-                          </span>
-                        )}
-                      </td>
-                      <td className={`whitespace-nowrap px-3 py-3.5 text-right tabular-nums ${r.owed ? "font-bold text-pos-rust" : "text-pos-muted"}`}>
-                        {r.owed ? formatPesewas(r.owed) : "—"}
-                        {split && r.owed > 0 && (
-                          <span className="mt-0.5 flex flex-col text-xs font-normal">
-                            <span>Items {formatPesewas(r.owed - deliveryOwed)}</span>
-                            <span>Delivery {formatPesewas(deliveryOwed)}</span>
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3.5">
-                        <span className="flex flex-col items-start gap-1">
-                          <Pill className={pay.className}>{pay.label}</Pill>
-                          {/* Sales: how it was paid, under the pill. */}
-                          {kind === "sales" && (r.paidBy || (r.owed > 0 && !r.cancelled)) && (
-                            <span className="whitespace-nowrap text-xs text-pos-soft">{r.paidBy ? paidByText(r.paidBy) : "Pay later"}</span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap py-2 pl-3 pr-[18px] text-right">
-                        <span className="inline-flex items-center gap-1.5">
-                          {r.saleStatus === "ordered" || r.saleStatus === "pending" ? (
-                            <MarkOrderPaidButton saleId={r.id} code={r.code} total={r.total} />
-                          ) : (
-                            r.owed > 0 && <PaymentButton kind={SETTLE_KIND[kind]} id={r.id} owed={r.owed} code={r.code} deliveryOwed={deliveryOwed} />
-                          )}
-                          <Link
-                            href={detail}
-                            aria-label={`More actions for ${r.code}`}
-                            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-pos-soft hover:bg-pos-paper-deep hover:text-pos-ink md:h-9 md:w-9"
-                          >
-                            <MoreIcon />
+          {rows.length > 0 ? (
+            <>
+              <ScrollTable minWidth={kind === "sales" ? 1340 : 860}>
+                <TableHead>
+                  <Th>Date</Th>
+                  <Th>Reference</Th>
+                  <Th>{m.party}</Th>
+                  {kind === "sales" && <Th>Deliver to</Th>}
+                  <Th>Status</Th>
+                  {kind === "sales" && <Th align="right">Items</Th>}
+                  {kind === "sales" && <Th align="right">Delivery</Th>}
+                  <Th align="right">Total</Th>
+                  <Th align="right">Paid</Th>
+                  <Th align="right">Still owed</Th>
+                  <Th>Payment</Th>
+                  <Th>
+                    <span className="sr-only">Actions</span>
+                  </Th>
+                </TableHead>
+                <tbody>
+                  {rows.map((r) => {
+                    const status = statusFor(r);
+                    const pay = paymentPill(r.paid, r.owed, r.cancelled);
+                    const detail = `${base}/${r.id}`;
+                    // Sales with a delivery fee: money paid and owed, items and delivery apart.
+                    const split = kind === "sales" && (r.delivery ?? 0) > 0;
+                    const deliveryPaidRow = r.deliveryPaid ?? 0;
+                    const deliveryOwed = split && !r.cancelled ? Math.max(0, (r.delivery ?? 0) - deliveryPaidRow) : 0;
+                    return (
+                      <tr key={r.id} className="pos-row border-t border-pos-paper-deep">
+                        <td className="whitespace-nowrap py-3.5 pl-[18px] pr-3 text-pos-soft">{formatDay(r.createdAt)}</td>
+                        <td className="px-3 py-3.5 font-bold">
+                          <Link href={detail} className="text-pos-ink no-underline hover:underline">
+                            {r.code}
                           </Link>
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </ScrollTable>
-            <Pager page={params.page} pageSize={pageSize} total={total} href={(page) => href({ page })} />
-          </>
-        ) : (
-          <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-pos-paper-deep text-pos-soft">
-              <ReturnsIcon />
-            </span>
-            <span className="font-pos-display text-[26px] leading-[1.1]">
-              {params.q || params.filter !== "all" || params.period !== "all" || params.rider ? "Nothing here." : m.emptyTitle}
-            </span>
-            <span className="max-w-[420px] text-sm leading-[22px] text-pos-soft">
-              {params.q || params.filter !== "all" || params.period !== "all" || params.rider ? "No records match this filter. Try All or All time." : m.emptyBody}
-            </span>
-          </div>
-        )}
-      </Card>
+                          {r.wholesale && <span className="mt-0.5 block text-xs font-semibold text-pos-green-ink">Wholesale</span>}
+                          {r.reserved && (
+                            <span className="mt-0.5 block text-xs font-semibold text-pos-green-ink">
+                              {r.reserved === "open" ? "Reserved: waiting" : "Reserved: handed over"}
+                            </span>
+                          )}
+                        </td>
+                        <td className="min-w-[170px] px-3 py-3.5">
+                          <span className="flex flex-col">
+                            <span>{r.party}</span>
+                            <span className="text-xs text-pos-muted">{r.sub}</span>
+                          </span>
+                        </td>
+                        {kind === "sales" && (
+                          <td className="min-w-[180px] max-w-[240px] px-3 py-3.5">
+                            {r.deliverTo ? (
+                              <span className="flex flex-col">
+                                <span className="line-clamp-2 break-words" title={r.deliverTo}>
+                                  {r.deliverTo}
+                                </span>
+                                {r.rider && <span className="text-xs text-pos-muted">Rider: {r.rider}</span>}
+                              </span>
+                            ) : (
+                              <span className="text-pos-muted">{r.fromWebsite ? "—" : "In the shop"}</span>
+                            )}
+                          </td>
+                        )}
+                        <td className="px-3 py-3.5">
+                          <Pill className={status.className}>{status.label}</Pill>
+                        </td>
+                        {kind === "sales" && (
+                          <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums">{formatPesewas(r.total - (r.delivery ?? 0))}</td>
+                        )}
+                        {kind === "sales" && (
+                          <td className={`whitespace-nowrap px-3 py-3.5 text-right tabular-nums ${r.delivery ? "" : "text-pos-muted"}`}>
+                            {r.delivery ? formatPesewas(r.delivery) : "—"}
+                            {r.delivery && r.deliveryIncluded ? <span className="block text-xs text-pos-muted">in the price</span> : null}
+                          </td>
+                        )}
+                        <td className="whitespace-nowrap px-3 py-3.5 text-right font-semibold tabular-nums">{formatPesewas(r.total)}</td>
+                        <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums">
+                          {formatPesewas(r.paid)}
+                          {/* Delivery sales: what was paid for items and for delivery. */}
+                          {split && r.paid > 0 && (
+                            <span className="mt-0.5 flex flex-col text-xs text-pos-soft">
+                              <span>Items {formatPesewas(r.paid - deliveryPaidRow)}</span>
+                              <span>Delivery {formatPesewas(deliveryPaidRow)}</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className={`whitespace-nowrap px-3 py-3.5 text-right tabular-nums ${r.owed ? "font-bold text-pos-rust" : "text-pos-muted"}`}>
+                          {r.owed ? formatPesewas(r.owed) : "—"}
+                          {split && r.owed > 0 && (
+                            <span className="mt-0.5 flex flex-col text-xs font-normal">
+                              <span>Items {formatPesewas(r.owed - deliveryOwed)}</span>
+                              <span>Delivery {formatPesewas(deliveryOwed)}</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3.5">
+                          <span className="flex flex-col items-start gap-1">
+                            <Pill className={pay.className}>{pay.label}</Pill>
+                            {/* Sales: how it was paid, under the pill. */}
+                            {kind === "sales" && (r.paidBy || (r.owed > 0 && !r.cancelled)) && (
+                              <span className="whitespace-nowrap text-xs text-pos-soft">{r.paidBy ? paidByText(r.paidBy) : "Pay later"}</span>
+                            )}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap py-2 pl-3 pr-[18px] text-right">
+                          <span className="inline-flex items-center gap-1.5">
+                            {r.saleStatus === "ordered" || r.saleStatus === "pending" ? (
+                              <MarkOrderPaidButton saleId={r.id} code={r.code} total={r.total} />
+                            ) : (
+                              r.owed > 0 && <PaymentButton kind={SETTLE_KIND[kind]} id={r.id} owed={r.owed} code={r.code} deliveryOwed={deliveryOwed} />
+                            )}
+                            <Link
+                              href={detail}
+                              aria-label={`More actions for ${r.code}`}
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-md text-pos-soft hover:bg-pos-paper-deep hover:text-pos-ink md:h-9 md:w-9"
+                            >
+                              <MoreIcon />
+                            </Link>
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </ScrollTable>
+              <Pager page={params.page} pageSize={pageSize} total={total} href={(page) => href({ page })} />
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-pos-paper-deep text-pos-soft">
+                <ReturnsIcon />
+              </span>
+              <span className="font-pos-display text-[26px] leading-[1.1]">
+                {params.q || params.filter !== "all" || params.period !== "all" || params.rider ? "Nothing here." : m.emptyTitle}
+              </span>
+              <span className="max-w-[420px] text-sm leading-[22px] text-pos-soft">
+                {params.q || params.filter !== "all" || params.period !== "all" || params.rider ? "No records match this filter. Try All or All time." : m.emptyBody}
+              </span>
+            </div>
+          )}
+        </Card>
+      </div>
     </PageShell>
   );
 }
 
-/** Reads ?q=&filter=&period=&rider=&page= for the three lists. */
-export function parseRecordsParams(raw: Record<string, string | string[] | undefined>): RecordsParams {
+/** Reads ?q=&filter=&period=&rider=&page= for the three lists (only Sales has "With delivery"). */
+export function parseRecordsParams(raw: Record<string, string | string[] | undefined>, kind: RecordKind = "sales"): RecordsParams {
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const filter = one(raw.filter);
   const period = one(raw.period);
   const page = Number(one(raw.page));
   return {
     q: one(raw.q).trim().slice(0, 100),
-    filter: (RECORD_FILTERS as readonly string[]).includes(filter) ? (filter as RecordFilter) : "all",
+    filter: (recordFilters(kind) as readonly string[]).includes(filter) ? (filter as RecordFilter) : "all",
     period: (RECORD_PERIODS as readonly string[]).includes(period) ? (period as RecordPeriod) : "all",
     rider: riderTerm(one(raw.rider)),
     type: (SALE_TYPES as readonly string[]).includes(one(raw.type)) ? (one(raw.type) as SaleType) : "all",

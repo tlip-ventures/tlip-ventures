@@ -6,7 +6,7 @@ import { getRecordsSummary, listRecords, RECORDS_PAGE_SIZE } from "@/lib/server/
 export const metadata: Metadata = { title: "Purchases" };
 
 export default async function PurchasesPage({ searchParams }: PageProps<"/pos/purchases">) {
-  const params = parseRecordsParams(await searchParams);
+  const params = parseRecordsParams(await searchParams, "purchases");
   const user = await requireOwner();
   const [{ rows, total }, summary] = await Promise.all([
     listRecords("purchases", { search: params.q, filter: params.filter, period: params.period, page: params.page }),

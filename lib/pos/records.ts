@@ -7,10 +7,23 @@ import type { PaymentChoice } from "./basket";
 export const RECORD_KINDS = ["sales", "purchases", "returns"] as const;
 export type RecordKind = (typeof RECORD_KINDS)[number];
 
-export const RECORD_FILTERS = ["all", "unpaid", "paid"] as const;
+// "collected": anything with money paid on it (fully or in part); "delivery":
+// sales with a delivery fee. Both are what the cards above the list add up.
+export const RECORD_FILTERS = ["all", "unpaid", "paid", "collected", "delivery"] as const;
 export type RecordFilter = (typeof RECORD_FILTERS)[number];
 
-export const RECORD_FILTER_LABELS: Record<RecordFilter, string> = { all: "All", unpaid: "Unpaid", paid: "Paid" };
+export const RECORD_FILTER_LABELS: Record<RecordFilter, string> = {
+  all: "All",
+  unpaid: "Unpaid",
+  paid: "Paid",
+  collected: "With a payment",
+  delivery: "With delivery",
+};
+
+/** The filters a list offers: only sales have deliveries. */
+export function recordFilters(kind: RecordKind): RecordFilter[] {
+  return RECORD_FILTERS.filter((f) => kind === "sales" || f !== "delivery");
+}
 
 export type SaleStatus = Database["public"]["Enums"]["sale_status"];
 export type PurchaseStatus = Database["public"]["Enums"]["purchase_status"];

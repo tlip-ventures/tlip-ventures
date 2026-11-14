@@ -5,7 +5,7 @@ import {
   paymentPill,
   purchaseStatusPill,
   RECORD_FILTER_LABELS,
-  RECORD_FILTERS,
+  recordFilters,
   RECORD_PERIOD_LABELS,
   RECORD_PERIODS,
   returnStatusPill,
@@ -141,7 +141,7 @@ export async function buildExport(list: string, params: ExportParams): Promise<E
     };
   }
 
-  const filter: RecordFilter = (RECORD_FILTERS as readonly string[]).includes(params.filter) ? (params.filter as RecordFilter) : "all";
+  const filter: RecordFilter = (recordFilters(kind) as readonly string[]).includes(params.filter) ? (params.filter as RecordFilter) : "all";
   const { rows, cut } = await everyPage<RecordRow>((page) => listRecords(kind, { search: params.q, filter, period: params.period, rider: kind === "sales" ? params.rider : "", type: kind === "sales" ? params.type : "all", page, pageSize: BATCH }));
   const meta = TAB_META[kind];
   const status = (r: RecordRow) =>
