@@ -13,9 +13,9 @@ export default async function SalesPage({ searchParams }: PageProps<"/pos/sales"
   // Makes any website basket whose sale wasn't made at checkout (normally none).
   await user.supabase.rpc("pos_sync_website_orders");
   const [{ rows, total }, summary, riders] = await Promise.all([
-    listRecords("sales", { search: params.q, filter: params.filter, period: params.period, rider: params.rider, type: params.type, page: params.page }),
-    getRecordsSummary("sales", params.q, params.period, params.rider, params.type),
-    getRiderSummary(recordPeriodRange(params.period, new Date())),
+    listRecords("sales", { search: params.q, filter: params.filter, period: params.period, day: params.day, rider: params.rider, type: params.type, page: params.page }),
+    getRecordsSummary("sales", params.q, params.period, params.rider, params.type, params.day),
+    getRiderSummary(recordPeriodRange(params.period, new Date(), params.day)),
   ]);
   return (
     <RecordsView

@@ -57,13 +57,13 @@ function term(raw: string | undefined): string {
 
 export async function listRecords(
   kind: RecordKind,
-  options: { search?: string; filter?: RecordFilter; period?: RecordPeriod; rider?: string; type?: SaleType; page?: number; pageSize?: number },
+  options: { search?: string; filter?: RecordFilter; period?: RecordPeriod; day?: string; rider?: string; type?: SaleType; page?: number; pageSize?: number },
 ) {
   const { supabase } = await requirePosUser();
   const { from, to } = pageRange(options.page ?? 1, options.pageSize ?? RECORDS_PAGE_SIZE);
   const q = term(options.search);
   // Today / This week / This month, by the date the record was made.
-  const range = recordPeriodRange(options.period ?? "all", new Date());
+  const range = recordPeriodRange(options.period ?? "all", new Date(), options.day);
   const people = await getPeopleNames();
   const by = (id: string | null) => (id && people.get(id)) || "Someone no longer here";
 
@@ -195,9 +195,10 @@ export async function getRecordsSummary(
   period: RecordPeriod = "all",
   rider?: string,
   type: SaleType = "all",
+  day = "",
 ): Promise<RecordsSummary> {
   const { supabase } = await requirePosUser();
-  const range = recordPeriodRange(period, new Date());
+  const range = recordPeriodRange(period, new Date(), day);
   if (kind === "sales") {
     // Sales: also by rider and Retail / Wholesale.
     const { data, error } = await supabase.rpc("pos_sales_totals", {

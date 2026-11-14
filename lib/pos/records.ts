@@ -1,5 +1,6 @@
 import type { Database } from "@/lib/database.types";
 import type { PaymentChoice } from "./basket";
+import { parseDay } from "./periods";
 
 // Labels and colours for the Sales / Purchases / Returns screen
 // (design/pos/sales-purchases-returns.html).
@@ -148,10 +149,22 @@ export const RECORD_PERIOD_LABELS: Record<RecordPeriod, string> = {
 };
 
 /**
+ * A day typed in the date box ("2026-11-10"), kept only when it is a real day
+ * no later than today (Ghana time); "" otherwise.
+ */
+export function recordDay(raw: string | null | undefined, now: Date): string {
+  const day = parseDay(raw);
+  return day && raw! <= now.toISOString().slice(0, 10) ? raw! : "";
+}
+
+/**
  * The times a period covers, Ghana time (UTC): today from midnight, this week
  * from Monday, this month from the 1st, each up to its end. null: all time.
+ * A chosen day (see recordDay) wins over the period: that day only.
  */
-export function recordPeriodRange(period: RecordPeriod, now: Date): { from: Date; to: Date } | null {
+export function recordPeriodRange(period: RecordPeriod, now: Date, day = ""): { from: Date; to: Date } | null {
+  const chosen = day ? parseDay(day) : null;
+  if (chosen) return { from: chosen, to: new Date(chosen.getTime() + 86_400_000) };
   const y = now.getUTCFullYear();
   const m = now.getUTCMonth();
   const d = now.getUTCDate();
