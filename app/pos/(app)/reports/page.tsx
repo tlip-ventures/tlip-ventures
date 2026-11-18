@@ -60,7 +60,11 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
 
   return (
     <PageShell>
-      <PageHeader eyebrow="People" title="Reports" />
+      <PageHeader eyebrow="People" title="Reports">
+        <Link href="/pos/reports/year" className={buttonClass("outline")}>
+          Year summary
+        </Link>
+      </PageHeader>
 
       <div className="flex flex-col gap-3">
         <FilterChips

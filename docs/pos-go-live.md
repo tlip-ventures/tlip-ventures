@@ -70,6 +70,13 @@ On the shop's phone and the owner's laptop:
       day, kind, amount, Cash / MoMo / Bank). The cards show it under Spent, and **Real profit** = profit on goods
       − expenses. In **Reports** the same figures show for the period and month by month. Rename or hide kinds of
       expense under **Kinds of expense** to match the shop's own costs.
+- [ ] **Money** (owner). Open **Money** and press **Count to start** on Cash, Mobile Money and Bank, entering what is
+      really in the drawer, the shop's MoMo wallet and the bank today. After a sale paid in cash, the Cash card shows it
+      under "Sales and payments taken" and "Should be there now" goes up. Use **Move money** for banking the day's cash,
+      **Take money out** for money you take for yourself (not an expense) and **Put money in** for your own money added.
+      At the end of the day press **Count** on Cash: the count shows Matches, short or over under **Latest counts**.
+- [ ] **Year summary** (owner). On **Reports** press **Year summary**: the year's profit, expenses by kind, real profit,
+      money in and out and month by month. **Print / PDF** opens the print window ("Save as PDF"); **Excel** downloads it.
 - [ ] **Reserved orders.** At the till add an item, choose a customer and press **Reserve for later**. Leave Paid now
       empty and pick a date: the order shows on **Reserved** with its date and the item stays on the shelf. Use Mark paid
       for the full amount: the item comes off the shelf. Press **Collected**: it leaves the Reserved list. Reserve another
