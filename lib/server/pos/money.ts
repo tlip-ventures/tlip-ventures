@@ -77,7 +77,11 @@ export async function listMoneyCounts(limit = 15): Promise<MoneyCountRow[]> {
   if (error || firstError) throw new Error(`Could not load money counts: ${(error ?? firstError)!.message}`);
   const firstIds = new Set<string>();
   const seen = new Set<string>();
-  for (const c of firsts) if (!seen.has(c.account)) (seen.add(c.account), firstIds.add(c.id));
+  for (const c of firsts) {
+    if (seen.has(c.account)) continue;
+    seen.add(c.account);
+    firstIds.add(c.id);
+  }
   return data.map((c) => ({
     id: c.id,
     account: c.account,
