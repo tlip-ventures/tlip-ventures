@@ -522,6 +522,81 @@ export type Database = {
         }
         Relationships: []
       }
+      money_checks: {
+        Row: {
+          account: Database["public"]["Enums"]["payment_method"]
+          counted: number
+          created_at: string
+          created_by: string | null
+          expected: number | null
+          id: string
+          note: string | null
+        }
+        Insert: {
+          account: Database["public"]["Enums"]["payment_method"]
+          counted: number
+          created_at?: string
+          created_by?: string | null
+          expected?: number | null
+          id?: string
+          note?: string | null
+        }
+        Update: {
+          account?: Database["public"]["Enums"]["payment_method"]
+          counted?: number
+          created_at?: string
+          created_by?: string | null
+          expected?: number | null
+          id?: string
+          note?: string | null
+        }
+        Relationships: []
+      }
+      money_moves: {
+        Row: {
+          amount: number
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string | null
+          from_account: Database["public"]["Enums"]["payment_method"] | null
+          id: string
+          kind: string
+          moved_on: string
+          note: string | null
+          to_account: Database["public"]["Enums"]["payment_method"] | null
+        }
+        Insert: {
+          amount: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          from_account?: Database["public"]["Enums"]["payment_method"] | null
+          id?: string
+          kind: string
+          moved_on: string
+          note?: string | null
+          to_account?: Database["public"]["Enums"]["payment_method"] | null
+        }
+        Update: {
+          amount?: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          from_account?: Database["public"]["Enums"]["payment_method"] | null
+          id?: string
+          kind?: string
+          moved_on?: string
+          note?: string | null
+          to_account?: Database["public"]["Enums"]["payment_method"] | null
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           id: string
@@ -2240,6 +2315,10 @@ export type Database = {
         Returns: undefined
       }
       pos_cancel_invoice: { Args: { p_invoice_id: string }; Returns: undefined }
+      pos_cancel_money_move: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
       pos_cancel_purchase: {
         Args: { p_purchase_id: string }
         Returns: undefined
@@ -2319,6 +2398,10 @@ export type Database = {
               total: number
             }[]
           }
+      pos_count_money: {
+        Args: { p_account: string; p_counted: number; p_note?: string }
+        Returns: number
+      }
       pos_create_customer: {
         Args: { p_name: string; p_phone?: string }
         Returns: string
@@ -2456,6 +2539,7 @@ export type Database = {
               total: number
             }[]
           }
+      pos_money_overview: { Args: never; Returns: Json }
       pos_move_stock: {
         Args: {
           p_from: number
@@ -2466,6 +2550,7 @@ export type Database = {
         }
         Returns: Json
       }
+      pos_owner_money: { Args: { p_from: string; p_to: string }; Returns: Json }
       pos_people: {
         Args: never
         Returns: {
@@ -2603,6 +2688,7 @@ export type Database = {
         Args: { p_id: number; p_is_active?: boolean; p_name: string }
         Returns: number
       }
+      pos_save_money_move: { Args: { p: Json }; Returns: string }
       pos_save_product: { Args: { p: Json }; Returns: string }
       pos_save_purchase: {
         Args: { p: Json }
