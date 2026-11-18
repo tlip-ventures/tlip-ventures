@@ -2555,6 +2555,15 @@ export type Database = {
           revenue: number
         }[]
       }
+      pos_update_customer: {
+        Args: {
+          p_customer_id: string
+          p_name: string
+          p_notes: string
+          p_phone: string
+        }
+        Returns: undefined
+      }
       pos_update_delivery: {
         Args: {
           p_address?: string

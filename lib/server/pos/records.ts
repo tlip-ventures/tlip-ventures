@@ -407,14 +407,14 @@ export async function searchSuppliers(query: string) {
   return data;
 }
 
-export type CustomerRow = { id: string; name: string; phone: string | null; sales: number; total: number; owed: number };
+export type CustomerRow = { id: string; name: string; phone: string | null; notes: string | null; sales: number; total: number; owed: number };
 
 /** Customers, people who owe first. */
 export async function listCustomers(search: string, page: number) {
   const { supabase } = await requirePosUser();
   const q = term(search);
   const { from, to } = pageRange(page, RECORDS_PAGE_SIZE);
-  let req = supabase.from("customers").select("id, name, phone", { count: "exact" }).order("name");
+  let req = supabase.from("customers").select("id, name, phone, notes", { count: "exact" }).order("name");
   if (q) {
     const digits = q.replace(/\D/g, "");
     req = digits.length >= 4 ? req.ilike("phone", `%${digits.replace(/^0/, "")}%`) : req.ilike("name", `%${q}%`);

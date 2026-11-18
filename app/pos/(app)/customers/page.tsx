@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { EditCustomerButton } from "@/components/pos/customer-actions";
 import { Pager, SearchForm } from "@/components/pos/list-controls";
 import { Card, PageHeader, PageShell, ScrollTable, TableHead, Th } from "@/components/pos/ui";
 import { formatPesewas } from "@/lib/money";
@@ -30,6 +31,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/pos/cu
       <PageHeader eyebrow="People" title="Customers" />
       <p className="m-0 max-w-[640px] text-sm leading-[22px] text-pos-soft">
         Customers are added at the till (Customer, then New customer). Pick one there to sell on Pay later or send a receipt on WhatsApp.
+        Use Edit to correct a name or number, or add a note.
       </p>
       <Card label="Customers">
         <div className="border-b border-pos-paper-deep px-[18px] py-3.5">
@@ -39,26 +41,32 @@ export default async function CustomersPage({ searchParams }: PageProps<"/pos/cu
           <p className="m-0 px-5 py-10 text-center text-sm text-pos-soft">{q ? "No customer matches that search." : "No customers yet."}</p>
         ) : (
           <>
-            <ScrollTable minWidth={640}>
+            <ScrollTable minWidth={720}>
               <TableHead>
                 <Th>Customer</Th>
                 <Th>Phone</Th>
                 <Th align="right">Sales</Th>
                 <Th align="right">Bought</Th>
                 <Th align="right">Still owes</Th>
+                <Th>
+                  <span className="sr-only">Actions</span>
+                </Th>
               </TableHead>
               <tbody>
                 {rows.map((c) => (
                   <tr key={c.id} className="pos-row border-t border-pos-paper-deep">
-                    <td className="py-3.5 pl-[18px] pr-3 font-semibold">
-                      <Link href={`/pos/sales?q=${encodeURIComponent(c.name)}`} className="text-pos-ink no-underline hover:underline">
-                        {c.name}
-                      </Link>
+                    <td className="py-3.5 pl-[18px] pr-3">
+                      <span className="flex flex-col">
+                        <Link href={`/pos/sales?q=${encodeURIComponent(c.name)}`} className="font-semibold text-pos-ink no-underline hover:underline">
+                          {c.name}
+                        </Link>
+                        {c.notes && <span className="text-xs text-pos-muted">{c.notes}</span>}
+                      </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-3.5 text-pos-soft">{phoneText(c.phone) ?? "—"}</td>
                     <td className="px-3 py-3.5 text-right tabular-nums">{plural(c.sales, "sale")}</td>
                     <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums">{formatPesewas(c.total)}</td>
-                    <td className={`whitespace-nowrap py-3.5 pl-3 pr-[18px] text-right tabular-nums ${c.owed ? "font-bold text-pos-rust" : "text-pos-muted"}`}>
+                    <td className={`whitespace-nowrap px-3 py-3.5 text-right tabular-nums ${c.owed ? "font-bold text-pos-rust" : "text-pos-muted"}`}>
                       {c.owed ? (
                         <Link href={`/pos/sales?filter=unpaid&q=${encodeURIComponent(c.name)}`} className="text-pos-rust">
                           {formatPesewas(c.owed)}
@@ -66,6 +74,9 @@ export default async function CustomersPage({ searchParams }: PageProps<"/pos/cu
                       ) : (
                         "—"
                       )}
+                    </td>
+                    <td className="py-2 pl-3 pr-[18px] text-right">
+                      <EditCustomerButton customerId={c.id} name={c.name} phone={phoneText(c.phone)} notes={c.notes} />
                     </td>
                   </tr>
                 ))}
