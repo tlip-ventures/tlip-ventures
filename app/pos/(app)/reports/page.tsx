@@ -7,9 +7,11 @@ import { ReportSection as Section, type ReportRow as Row } from "@/components/po
 import { buttonClass, Card, PageHeader, PageShell, ScrollTable, StatCard, StatGrid, TableHead, Th } from "@/components/pos/ui";
 import { formatPesewas } from "@/lib/money";
 import { plural } from "@/lib/pos/format";
+import { realProfit } from "@/lib/pos/expenses";
 import { percent, REPORT_PERIOD_LABELS, REPORT_PERIODS, reportRange } from "@/lib/pos/reports";
 import { requireOwner } from "@/lib/server/pos/auth";
 import { getMonthlyFigures, getTopProducts } from "@/lib/server/pos/dashboard";
+import { getExpenseSummary, getExpenseTotals } from "@/lib/server/pos/expenses";
 import { getReportOverview } from "@/lib/server/pos/reports";
 
 export const metadata: Metadata = { title: "Reports" };
@@ -29,14 +31,23 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
   const params = paramsSchema.parse(await searchParams);
   const now = new Date();
   const range = reportRange(params.period, now, params.from, params.to);
-  const [r, top, { months, missingCosts }] = await Promise.all([
+  // The same twelve months as the month-by-month table, oldest first, for their expenses.
+  const monthBounds = Array.from({ length: 13 }, (_, i) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11 + i, 1)));
+  const [r, top, { months, missingCosts }, spent, monthSpent] = await Promise.all([
     getReportOverview(range.from, range.to),
     getTopProducts(range.from, range.to, 15),
     getMonthlyFigures(now),
+    getExpenseSummary(range.from, range.to),
+    getExpenseTotals(monthBounds),
   ]);
+  const spentByMonth = new Map(monthBounds.slice(0, 12).map((b, i) => [b.toISOString().slice(0, 7), monthSpent[i] ?? 0]));
   const s = r.sales;
+  const real = realProfit(s.profit, spent.total);
+  const expensesHref =
+    range.period === "custom" ? `/pos/expenses?period=custom&from=${range.first}&to=${range.last}` : range.period === "month" ? "/pos/expenses" : `/pos/expenses?period=${range.period}`;
   const withDelivery = s.items + s.delivery;
   const left = r.moneyInTotal - r.refundsOutTotal - r.suppliersOutTotal;
+  const leftAfterExpenses = left - spent.total;
   const periodHref = (period: (typeof REPORT_PERIODS)[number]) =>
     period === "custom" ? `/pos/reports?period=custom&from=${range.first}&to=${range.last}` : period === "month" ? "/pos/reports" : `/pos/reports?period=${period}`;
   const monthHref = (key: string) => {
@@ -80,7 +91,9 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
       <StatGrid min={190}>
         <StatCard label="Item sales" value={formatPesewas(s.items)} dark />
         <StatCard label="Delivery fees" value={formatPesewas(s.delivery)} />
-        <StatCard label="Profit" value={formatPesewas(s.profit)} tone={s.profit < 0 ? "warn" : "good"} />
+        <StatCard label="Profit on goods" value={formatPesewas(s.profit)} tone={s.profit < 0 ? "warn" : "good"} />
+        <StatCard label="Expenses" value={formatPesewas(spent.total)} />
+        <StatCard label="Real profit" value={formatPesewas(real)} tone={real < 0 ? "warn" : "good"} />
         <StatCard label="Money taken in" value={formatPesewas(r.moneyInTotal)} />
         <StatCard label="Customers owe you now" value={formatPesewas(r.now.customers_owe)} tone={r.now.customers_owe ? "warn" : "plain"} />
       </StatGrid>
@@ -114,12 +127,15 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
           note={
             s.missing_costs
               ? `${plural(s.missing_costs, "item")} sold had no cost price, so the profit shown is higher than it really is.`
-              : "Item sales less what the items cost, less refunds."
+              : "Profit on goods: item sales less what the items cost, less refunds. Real profit: that, less the expenses paid in these days."
           }
           rows={[
             ["Item sales", formatPesewas(s.items)],
-            ["Profit", formatPesewas(s.profit), s.profit < 0 ? "warn" : "good"],
-            ["Margin", percent(s.profit, s.items)],
+            ["Profit on goods", formatPesewas(s.profit), s.profit < 0 ? "warn" : "good"],
+            ["Margin on goods", percent(s.profit, s.items)],
+            ["Expenses", `−${formatPesewas(spent.total)}`],
+            ["Real profit", formatPesewas(real), real < 0 ? "warn" : "good"],
+            ["Real margin", percent(real, s.items)],
             ["Returns", r.returns.count ? `${count(r.returns.count)} · ${formatPesewas(r.returns.total)} refunded` : "None"],
           ]}
         />
@@ -135,6 +151,22 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
             ["Refunds paid out", formatPesewas(r.refundsOutTotal)],
             ["Paid to suppliers", formatPesewas(r.suppliersOutTotal)],
             ["Left after refunds and suppliers", formatPesewas(left), left < 0 ? "warn" : "good"],
+            ["Expenses paid", formatPesewas(spent.total)],
+            ["Left after expenses too", formatPesewas(leftAfterExpenses), leftAfterExpenses < 0 ? "warn" : "good"],
+          ]}
+        />
+
+        <Section
+          title="Expenses"
+          note={`${spent.count.toLocaleString("en-US")} recorded, by the day each was paid.`}
+          href={expensesHref}
+          link="See the expenses"
+          rows={[
+            ...(spent.byCategory.length
+              ? spent.byCategory.map((c): Row => [c.name, formatPesewas(c.total)])
+              : ([["No expenses recorded", "—", "muted"]] as Row[])),
+            ["Total", formatPesewas(spent.total), "bold"],
+            ["Paid in cash · MoMo · bank", `${formatPesewas(spent.byMethod.cash)} · ${formatPesewas(spent.byMethod.momo)} · ${formatPesewas(spent.byMethod.bank)}`, "muted"],
           ]}
         />
 
@@ -244,20 +276,24 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
             {missingCosts ? ` ${plural(missingCosts, "item")} sold in these months had no cost price, so profit shows higher than it really is.` : ""}
           </p>
         </div>
-        <ScrollTable minWidth={720}>
+        <ScrollTable minWidth={900}>
           <TableHead>
             <Th>Month</Th>
             <Th align="right">Item sales</Th>
             <Th align="right">Number</Th>
             <Th align="right">Delivery fees</Th>
             <Th align="right">Purchases</Th>
-            <Th align="right">Profit</Th>
-            <Th align="right">Margin</Th>
+            <Th align="right">Profit on goods</Th>
+            <Th align="right">Expenses</Th>
+            <Th align="right">Real profit</Th>
+            <Th align="right">Real margin</Th>
           </TableHead>
           <tbody>
             {months.map((m) => {
               const lastDay = new Date(Date.UTC(Number(m.key.slice(0, 4)), Number(m.key.slice(5, 7)), 0)).toISOString().slice(0, 10);
               const on = range.period !== "today" && range.first === `${m.key}-01` && range.last === lastDay;
+              const monthExpenses = spentByMonth.get(m.key) ?? 0;
+              const monthReal = realProfit(m.profit ?? 0, monthExpenses);
               return (
                 <tr key={m.key} className={`pos-row border-t border-pos-paper-deep ${on ? "bg-pos-tint-green" : ""}`}>
                   <td className="py-3 pl-[18px] pr-3 font-semibold">
@@ -269,10 +305,12 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
                   <td className="px-3 py-3 text-right tabular-nums text-pos-soft">{count(m.count)}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-pos-soft">{m.delivery ? formatPesewas(m.delivery) : "—"}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{formatPesewas(m.purchases)}</td>
-                  <td className={`whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums ${(m.profit ?? 0) < 0 ? "text-pos-rust" : "text-pos-green-ink"}`}>
-                    {formatPesewas(m.profit ?? 0)}
+                  <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">{formatPesewas(m.profit ?? 0)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-pos-soft">{monthExpenses ? formatPesewas(monthExpenses) : "—"}</td>
+                  <td className={`whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums ${monthReal < 0 ? "text-pos-rust" : "text-pos-green-ink"}`}>
+                    {formatPesewas(monthReal)}
                   </td>
-                  <td className="py-3 pl-3 pr-[18px] text-right tabular-nums">{m.profit === null ? "—" : percent(m.profit, m.sales)}</td>
+                  <td className="py-3 pl-3 pr-[18px] text-right tabular-nums">{m.profit === null ? "—" : percent(monthReal, m.sales)}</td>
                 </tr>
               );
             })}

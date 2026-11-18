@@ -255,6 +255,89 @@ export type Database = {
         }
         Relationships: []
       }
+      expense_categories: {
+        Row: {
+          created_at: string
+          id: number
+          is_active: boolean
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          category_id: number
+          created_at: string
+          created_by: string | null
+          id: string
+          method: Database["public"]["Enums"]["payment_method"]
+          note: string | null
+          payee: string | null
+          spent_on: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          amount: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          category_id: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          method: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          payee?: string | null
+          spent_on: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          amount?: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          category_id?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          payee?: string | null
+          spent_on?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           id: string
@@ -2152,6 +2235,10 @@ export type Database = {
         Returns: number
       }
       pos_cancel_count: { Args: { p_count_id: string }; Returns: undefined }
+      pos_cancel_expense: {
+        Args: { p_id: string; p_reason: string }
+        Returns: undefined
+      }
       pos_cancel_invoice: { Args: { p_invoice_id: string }; Returns: undefined }
       pos_cancel_purchase: {
         Args: { p_purchase_id: string }
@@ -2279,6 +2366,11 @@ export type Database = {
         Args: { p_name: string; p_phone?: string }
         Returns: string
       }
+      pos_expense_summary: {
+        Args: { p_from: string; p_to: string }
+        Returns: Json
+      }
+      pos_expense_totals: { Args: { p_bounds: string[] }; Returns: number[] }
       pos_finish_count: { Args: { p_count_id: string }; Returns: number }
       pos_hold_sale: {
         Args: {
@@ -2506,6 +2598,11 @@ export type Database = {
             }
             Returns: undefined
           }
+      pos_save_expense: { Args: { p: Json }; Returns: string }
+      pos_save_expense_category: {
+        Args: { p_id: number; p_is_active?: boolean; p_name: string }
+        Returns: number
+      }
       pos_save_product: { Args: { p: Json }; Returns: string }
       pos_save_purchase: {
         Args: { p: Json }

@@ -5,6 +5,7 @@ import {
   deliveryAreaUpdateSchema,
   deliveryDiscountsSchema,
   deliveryPricingSchema,
+  expenseSchema,
   fieldErrors,
   holdSaleSchema,
   markOrderPaidSchema,
@@ -219,5 +220,22 @@ describe("holding and part payments", () => {
     });
     expect(paid).toMatchObject({ momo: 20000, cash: null, bank: 5000, cashReceived: null });
     expect(markOrderPaidSchema.safeParse({ ...paid, saleId: id, momo: "two", cash: "", bank: "", cashReceived: "", deliveryFee: "" }).success).toBe(false);
+  });
+});
+
+describe("expenseSchema", () => {
+  const ok = { id: "", spentOn: "2026-11-18", categoryId: "1", amount: "1,500.50", method: "momo", payee: " Landlord ", note: "" };
+  it("reads a new expense in pesewas", () => {
+    const e = expenseSchema.parse(ok);
+    expect(e.id).toBeNull();
+    expect(e.amount).toBe(150050);
+    expect(e.categoryId).toBe(1);
+    expect(e.payee).toBe("Landlord");
+  });
+  it("refuses a zero amount, a missing kind or a bad way of paying", () => {
+    expect(expenseSchema.safeParse({ ...ok, amount: "0" }).success).toBe(false);
+    expect(expenseSchema.safeParse({ ...ok, categoryId: "" }).success).toBe(false);
+    expect(expenseSchema.safeParse({ ...ok, method: "card" }).success).toBe(false);
+    expect(expenseSchema.safeParse({ ...ok, spentOn: "18/11/2026" }).success).toBe(false);
   });
 });

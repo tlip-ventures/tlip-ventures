@@ -515,3 +515,16 @@ export const deliveryDiscountsSchema = z
     }
     return levels.sort((a, b) => a.from - b.from);
   });
+
+/** An expense (Expenses, owner): the day, the kind, the amount in cedis, how it was paid. */
+export const expenseSchema = z.object({
+  id: z.union([z.literal(""), z.uuid()]).transform((v) => (v === "" ? null : v)),
+  spentOn: z.iso.date("Pick the day it was paid."),
+  categoryId: z.coerce.number().int().min(1, "Choose the kind of expense.").max(32767, "Choose the kind of expense."),
+  amount: cedis("Enter the amount like 150 or 12.50.").refine((p) => p > 0, "Enter the amount paid."),
+  method: z.enum(["cash", "momo", "bank"], { message: "Choose how it was paid." }),
+  payee: z.string().trim().max(100, "At most 100 characters."),
+  note: z.string().trim().max(300, "At most 300 characters."),
+});
+
+export type ExpenseInput = z.input<typeof expenseSchema>;
