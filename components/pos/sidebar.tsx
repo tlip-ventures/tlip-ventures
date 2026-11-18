@@ -36,6 +36,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
       { icon: "purchases", name: "Purchases", href: "/pos/purchases", ownerOnly: true },
       { icon: "suppliers", name: "Suppliers", href: "/pos/suppliers", ownerOnly: true },
       { icon: "expenses", name: "Expenses", href: "/pos/expenses", ownerOnly: true },
+      { icon: "money", name: "Money", href: "/pos/money", ownerOnly: true },
     ],
   },
   {

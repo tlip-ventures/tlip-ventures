@@ -33,6 +33,7 @@ export const NAV_ICON_PATHS = {
   reserved: "M6 3h12v18l-6-4-6 4z M9 8h6",
   warehouse: "M3 21V9l9-5 9 5v12 M3 21h18 M7 21v-8h10v8 M7 17h10",
   expenses: "M4 6h16v12H4z M4 10h16 M8 15h3",
+  money: "M3 7h18v12H3z M3 11h18 M16 15h2 M6 4h12",
   returns: "M9 14 4 9l5-5 M4 9h11a5 5 0 0 1 0 10h-3",
   products: "M3 7l9-4 9 4v10l-9 4-9-4z M3 7l9 4 9-4 M12 11v10",
   count: "M9 3h6v3H9z M7 4.5H5V21h14V4.5h-2 M9 13l2 2 4-4",

@@ -12,6 +12,7 @@ import { percent, REPORT_PERIOD_LABELS, REPORT_PERIODS, reportRange } from "@/li
 import { requireOwner } from "@/lib/server/pos/auth";
 import { getMonthlyFigures, getTopProducts } from "@/lib/server/pos/dashboard";
 import { getExpenseSummary, getExpenseTotals } from "@/lib/server/pos/expenses";
+import { getOwnerMoney } from "@/lib/server/pos/money";
 import { getReportOverview } from "@/lib/server/pos/reports";
 
 export const metadata: Metadata = { title: "Reports" };
@@ -33,12 +34,13 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
   const range = reportRange(params.period, now, params.from, params.to);
   // The same twelve months as the month-by-month table, oldest first, for their expenses.
   const monthBounds = Array.from({ length: 13 }, (_, i) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11 + i, 1)));
-  const [r, top, { months, missingCosts }, spent, monthSpent] = await Promise.all([
+  const [r, top, { months, missingCosts }, spent, monthSpent, owner] = await Promise.all([
     getReportOverview(range.from, range.to),
     getTopProducts(range.from, range.to, 15),
     getMonthlyFigures(now),
     getExpenseSummary(range.from, range.to),
     getExpenseTotals(monthBounds),
+    getOwnerMoney(range.from, range.to),
   ]);
   const spentByMonth = new Map(monthBounds.slice(0, 12).map((b, i) => [b.toISOString().slice(0, 7), monthSpent[i] ?? 0]));
   const s = r.sales;
@@ -143,6 +145,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
         <Section
           title="Money in and out"
           note="Payments made in this period, whatever day the sale or purchase was."
+          href="/pos/money"
+          link="Cash, MoMo and bank"
           rows={[
             ["Cash taken", formatPesewas(r.money_in.cash ?? 0)],
             ["Mobile Money taken", formatPesewas(r.money_in.momo ?? 0)],
@@ -153,6 +157,12 @@ export default async function ReportsPage({ searchParams }: PageProps<"/pos/repo
             ["Left after refunds and suppliers", formatPesewas(left), left < 0 ? "warn" : "good"],
             ["Expenses paid", formatPesewas(spent.total)],
             ["Left after expenses too", formatPesewas(leftAfterExpenses), leftAfterExpenses < 0 ? "warn" : "good"],
+            ...(owner.out || owner.in
+              ? ([
+                  ["Taken out by you", formatPesewas(owner.out), "muted"],
+                  ["Put in by you", formatPesewas(owner.in), "muted"],
+                ] as Row[])
+              : []),
           ]}
         />
 
